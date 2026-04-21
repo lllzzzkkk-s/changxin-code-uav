@@ -1,1 +1,8 @@
 state_group,required_shot,currently_available,evidence_source,gap_reason,collection_instruction,priority
+起飞前,遥控器全景+5/6/7/8 通档位,no,本地知识库与 PDF,现有资料只有文字说明且未集中标注档位,补拍遥控器正视图并在图上标明 5/6/7/8 通位置和含义,P0
+起飞前,终端中 /mavros/state + /mavros/battery + /mavros/rc/in 三联观测,no,本地知识库 05/06 章,只有命令没有统一截图,补拍三个终端或 tmux 分屏画面并保留时间戳,P0
+手动悬停与接管,6 通上拨后的安全兜底状态,no,本地知识库 01 章,缺少接管前后对照图,补拍悬停状态下的 RC 档位和 rviz/终端画面,P0
+自主执行,LIO 任务执行中的轨迹和点云画面,partial,Diff-planner images + 本地知识库,现有 gif 更偏算法展示没有开发判断点标注,补加标注或重截更清晰的实机 rviz 画面,P1
+自主执行,VIO 任务执行中的相机/VINS/轨迹联合画面,partial,本地知识库 04/05 章,只有文字和零散图没有联合视图,补拍相机图像 + odom + rviz 联合画面,P1
+返航与降落,返航触发前后对照,no,脚本与 RC 映射源码,缺少返航触发前后状态画面,补拍返航触发瞬间和返航中状态,P1
+返航与降落,自动降落完成后落地判定画面,no,脚本与状态 topic,缺少动作结束示例,补拍落地后状态与终端提示并标注结束判据,P1
