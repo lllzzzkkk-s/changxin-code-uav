@@ -1,1 +1,16 @@
 evidence_id,category,claim,source_type,source_path,locator,notes
+E001_machine_orin_nx,hardware,机载电脑为 Jetson Orin NX 16GB,markdown,uav/10-knowledge-base/00-总览.md,机器实况表 / 机载电脑,高优先级事实源
+E002_ros_noetic,software,ROS 版本为 Noetic,markdown,uav/10-knowledge-base/00-总览.md,机器实况表 / ROS,实机快照优先于 wiki/PDF
+E003_diff_planner_only_workspace,workspace,当前唯一主工作空间为 Diff-planner,markdown,uav/10-knowledge-base/00-总览.md,相比 PDF 的重要偏差,排除 Elastic/FUEL/formation_ws 主路径
+E004_d435_present,hardware,当前机上存在 Intel RealSense D435,markdown,uav/10-knowledge-base/01-硬件与系统.md,深度相机（当前机上）,支持 VIO 主链判断
+E005_livox_present,hardware,当前机上存在 Livox MID360,markdown,uav/10-knowledge-base/01-硬件与系统.md,雷达行,支持 LIO 主链判断
+E006_run_single_lio_script,startup,LIO 全栈入口脚本存在且会拉起 mavros/faster_lio/ekf/planner/px4ctrl/multipoint,script,uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/run_single_lio.sh,全文件,实机主入口
+E007_run_single_vio_script,startup,VIO 全栈入口脚本存在且会拉起 mavros/realsense/vins/planner/px4ctrl/multipoint,script,uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/run_single_vio.sh,全文件,实机主入口
+E008_takeoff_topic,interface,自动起飞和降落通过 /px4ctrl/takeoff_land 触发,script,uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/takeoff.sh,rostopic pub 一行,配合 land.sh 使用
+E009_rc_mapping,interface,multipoint 会订阅 /mavros/rc/in 并把 8 通变化映射为起飞/开始/返航/降落,cpp,uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp,rc_cb / advertise / subscribe,写入接口总表和截图附录
+E010_elastic_not_onboard,deployment,Elastic-Tracker 当前不在机上主工作空间中,markdown,uav/10-knowledge-base/00-总览.md,四个任务在这台机器上的真实可用度,不得写成默认已部署
+E011_vins_output,interface,VIO 主输出为 /vins/imu_propagate,markdown,uav/10-knowledge-base/05-传感器与状态回传.md,里程计表 / vins,写入状态接口表
+E012_ekf_output,interface,LIO 融合主输出为 /ekf/ekf_odom,markdown,uav/10-knowledge-base/05-传感器与状态回传.md,里程计表 / ekf,写入状态接口表
+E013_battery_topic,interface,电量通过 /mavros/battery 读取,markdown,uav/10-knowledge-base/05-传感器与状态回传.md,电量查询,写入状态接口表
+E014_ctrl_params,parameter,起飞高度与低压阈值位于 ctrl_param_fpv.yaml,yaml,uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/realflight_modules/px4ctrl/config/ctrl_param_fpv.yaml,takeoff_height / low_voltage,写入参数索引
+E015_points_yaml,parameter,航点和返程点定义位于 points.yaml,yaml,uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/config/points.yaml,test1~test4 / test_back,写入参数索引

@@ -49,6 +49,44 @@ class TestUavDocScaffold(unittest.TestCase):
             reader = csv.DictReader(fh)
             self.assertEqual(REQUIRED_INTERFACE_COLUMNS, reader.fieldnames)
 
+    def test_feature_matrix_contains_required_features(self):
+        path = DOC_ROOT / "03-feature-deployment-matrix.csv"
+        with path.open(newline="", encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh))
+        names = {row["feature_name"] for row in rows}
+        required = {
+            "单机 LIO",
+            "单机 VIO",
+            "单机规划",
+            "多点任务",
+            "自动起降",
+            "状态观测",
+            "Elastic / 目标跟踪",
+            "FUEL / 自主探索",
+            "Formation / 集群",
+            "YOLO 检测",
+        }
+        self.assertTrue(required.issubset(names))
+
+    def test_evidence_index_contains_core_machine_claims(self):
+        path = DOC_ROOT / "06-evidence-index.csv"
+        with path.open(newline="", encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh))
+        evidence_ids = {row["evidence_id"] for row in rows}
+        required = {
+            "E001_machine_orin_nx",
+            "E002_ros_noetic",
+            "E003_diff_planner_only_workspace",
+            "E004_d435_present",
+            "E005_livox_present",
+            "E006_run_single_lio_script",
+            "E007_run_single_vio_script",
+            "E008_takeoff_topic",
+            "E009_rc_mapping",
+            "E010_elastic_not_onboard",
+        }
+        self.assertTrue(required.issubset(evidence_ids))
+
 
 if __name__ == "__main__":
     unittest.main()
