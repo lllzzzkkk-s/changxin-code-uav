@@ -87,6 +87,52 @@ class TestUavDocScaffold(unittest.TestCase):
         }
         self.assertTrue(required.issubset(evidence_ids))
 
+    def test_interface_table_contains_required_entries(self):
+        path = DOC_ROOT / "02-interface-table.csv"
+        with path.open(newline="", encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh))
+        names = {row["name"] for row in rows}
+        required = {
+            "run_single_lio.sh",
+            "run_single_vio.sh",
+            "/px4ctrl/takeoff_land",
+            "/move_base_simple/goal",
+            "/back_trigger",
+            "/mavros/state",
+            "/mavros/battery",
+            "/mavros/rc/in",
+            "/ekf/ekf_odom",
+            "/vins/imu_propagate",
+            "points.yaml",
+            "ctrl_param_fpv.yaml",
+            "RC Channel 8",
+        }
+        self.assertTrue(required.issubset(names))
+
+    def test_developer_guide_contains_required_headings(self):
+        text = (DOC_ROOT / "01-developer-guide.md").read_text(encoding="utf-8")
+        for heading in [
+            "# 非凸α开发者文档",
+            "## 1. 机器现状总览",
+            "## 2. 当前已部署功能清单",
+            "## 3. 启动链与运行链",
+            "## 4. 接口说明",
+            "## 5. 关键参数入口",
+            "## 6. 状态观测与排障路径",
+            "## 7. 二开建议与扩展边界",
+        ]:
+            self.assertIn(heading, text)
+
+    def test_developer_guide_mentions_real_machine_boundaries(self):
+        text = (DOC_ROOT / "01-developer-guide.md").read_text(encoding="utf-8")
+        required_phrases = [
+            "当前主链是单机 LIO / VIO + Diff-planner + px4ctrl + mavros + multipoint",
+            "Elastic 不属于当前实机默认部署链路",
+            "D435 + VINS 是当前视觉定位主链假设",
+        ]
+        for phrase in required_phrases:
+            self.assertIn(phrase, text)
+
 
 if __name__ == "__main__":
     unittest.main()
