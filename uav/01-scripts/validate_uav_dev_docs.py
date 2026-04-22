@@ -70,6 +70,12 @@ REQUIRED_COLUMNS = {
     ],
 }
 
+REQUIRED_GUIDE_PHRASES = [
+    "当前主链是单机 LIO / VIO + Diff-planner + px4ctrl + mavros + multipoint",
+    "Elastic 不属于当前实机默认部署链路",
+    "D435 + VINS",
+]
+
 
 def validate_files() -> list[str]:
     errors = []
@@ -90,10 +96,42 @@ def validate_csv_headers() -> list[str]:
     return errors
 
 
+def load_csv_rows(path: pathlib.Path) -> list[dict[str, str]]:
+    with path.open(newline="", encoding="utf-8") as fh:
+        return list(csv.DictReader(fh))
+
+
+def validate_guide_content() -> list[str]:
+    errors = []
+    text = (DOC_ROOT / "01-developer-guide.md").read_text(encoding="utf-8")
+    for phrase in REQUIRED_GUIDE_PHRASES:
+        if phrase not in text:
+            errors.append(f"missing guide phrase: {phrase}")
+    return errors
+
+
+def validate_evidence_links() -> list[str]:
+    errors = []
+    evidence_ids = {
+        row["evidence_id"]
+        for row in load_csv_rows(DOC_ROOT / "06-evidence-index.csv")
+        if row["evidence_id"]
+    }
+
+    for rel_name in ["02-interface-table.csv", "03-feature-deployment-matrix.csv"]:
+        for row in load_csv_rows(DOC_ROOT / rel_name):
+            evidence_id = row["evidence_id"].strip()
+            if evidence_id and evidence_id not in evidence_ids:
+                errors.append(f"unknown evidence_id in {rel_name}: {evidence_id}")
+    return errors
+
+
 def main() -> int:
     errors = []
     errors.extend(validate_files())
     errors.extend(validate_csv_headers())
+    errors.extend(validate_guide_content())
+    errors.extend(validate_evidence_links())
     if errors:
         print("VALIDATION FAILED")
         for error in errors:

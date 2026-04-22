@@ -31,16 +31,17 @@ def ensure_docx_import() -> None:
     import docx  # noqa: F401
 
 
-def ensure_node_modules_link() -> None:
+def ensure_node_modules_link() -> tuple[Path, bool]:
     link_path = SCRIPT_ROOT / "node_modules"
     if link_path.is_symlink():
         if link_path.resolve() == NODE_MODULES.resolve():
-            return
+            return link_path, False
         link_path.unlink()
     elif link_path.exists():
         raise RuntimeError(f"unexpected node_modules path exists: {link_path}")
 
     os.symlink(NODE_MODULES, link_path, target_is_directory=True)
+    return link_path, True
 
 
 def markdown_bundle_to_docx(markdown_paths: list[Path], out_path: Path) -> None:
@@ -68,12 +69,16 @@ def markdown_bundle_to_docx(markdown_paths: list[Path], out_path: Path) -> None:
 
 
 def export_xlsx_bundle() -> None:
-    ensure_node_modules_link()
-    subprocess.run(
-        [str(NODE_EXEC), str(SCRIPT_ROOT / "export_uav_dev_docs_xlsx.mjs")],
-        cwd=ROOT,
-        check=True,
-    )
+    link_path, created = ensure_node_modules_link()
+    try:
+        subprocess.run(
+            [str(NODE_EXEC), str(SCRIPT_ROOT / "export_uav_dev_docs_xlsx.mjs")],
+            cwd=ROOT,
+            check=True,
+        )
+    finally:
+        if created and link_path.exists():
+            link_path.unlink()
 
 
 def main() -> None:
