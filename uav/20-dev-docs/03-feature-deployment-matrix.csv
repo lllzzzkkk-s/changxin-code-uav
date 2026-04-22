@@ -1,0 +1,11 @@
+feature_name,wiki_or_pdf_mentioned,repo_source_present,onboard_deployed,directly_runnable,required_hardware,primary_entrypoint,verification_method,include_in_main_quickref,notes,evidence_id
+单机 LIO,yes,yes,yes,yes,Livox MID360 + PX4 + Jetson,sh_files/run_single_lio.sh,启动后检查 /ekf/ekf_odom 和 /laserMapping/cloud_registered,yes,Ego/规划主链之一,E006_run_single_lio_script
+单机 VIO,yes,yes,yes,yes,D435 + PX4 + Jetson,sh_files/run_single_vio.sh,启动后检查 /vins/imu_propagate 和相机图像 topic,yes,当前视觉定位主链,E007_run_single_vio_script
+单机规划,yes,yes,yes,yes,LIO 或 VIO 任一定位链,diff_planner + multipoint,检查 /drone_0_planning/trajectory 与 /setpoints_cmd,yes,当前主路径,E006_run_single_lio_script
+多点任务,yes,yes,yes,yes,定位链 + multipoint,multipointplan_exp_lio.launch 或 multipointplan_exp_vio.launch,修改 points.yaml 后触发 /move_base_simple/goal,yes,当前主路径,E015_points_yaml
+自动起降,yes,yes,yes,yes,px4ctrl + mavros + RC,/px4ctrl/takeoff_land 或遥控器 8 通,起飞命令 1 降落命令 2,yes,动作原语层,E008_takeoff_topic
+状态观测,yes,yes,yes,yes,mavros + 定位链,/mavros/state /mavros/battery /ekf/ekf_odom,rostopic echo 关键状态接口,yes,当前主路径,E013_battery_topic
+Elastic / 目标跟踪,yes,no,no,no,单目相机 + apriltag / usb_cam,N/A,仅能在 wiki/PDF 中看到流程,no,仅作为后续扩展需求,E010_elastic_not_onboard
+FUEL / 自主探索,yes,no,no,no,探索工作空间与相关依赖,N/A,当前仓库和实机都无主入口,no,仅作为后续扩展需求,E003_diff_planner_only_workspace
+Formation / 集群,yes,partial,no,no,多机网络 + formation_ws,swarm_bridge 仅部分源码,需要额外工作空间和网络配置,no,源码片段存在但非实机主链,E003_diff_planner_only_workspace
+YOLO 检测,yes,no,no,no,模型文件 + 检测工作空间,N/A,当前仓库未提供可直接启动入口,no,仅作为后续扩展需求,E003_diff_planner_only_workspace
