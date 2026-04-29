@@ -292,67 +292,91 @@ git commit -m "docs: record UAV G3-B P0 evidence"
 
 Expected: commit succeeds with only the evidence file changed.
 
-### Task 3: Install And Verify WSL2 Ubuntu 20.04
+### Task 3: Install And Verify WSL2 Ubuntu 20.04 On D Drive
 
 **Files:**
 - Modify: `docs/superpowers/evidence/2026-04-28-uav-g3b-wsl2-ros-evidence.md`
 
-- [ ] **Step 1: Enable WinHTTP proxy for installer downloads when required**
+- [ ] **Step 1: Create D-drive WSL directories**
 
 Run in Administrator PowerShell:
 
 ```powershell
-netsh winhttp set proxy proxy-server=$env:UAV_WINHTTP_PROXY
-netsh winhttp show proxy | Tee-Object -FilePath C:\uav-g3b\p1-winhttp-proxy.txt
+New-Item -ItemType Directory -Force D:\WSL\Downloads | Out-Null
+New-Item -ItemType Directory -Force D:\WSL\Ubuntu-20.04 | Out-Null
+Get-CimInstance Win32_LogicalDisk | ForEach-Object { "DeviceID=$($_.DeviceID) SizeGB=$([math]::Round($_.Size/1GB,2)) FreeGB=$([math]::Round($_.FreeSpace/1GB,2))" } | Tee-Object -FilePath C:\uav-g3b\p1-disk-target.txt
 ```
 
-Expected: output shows the configured proxy host and port, not `Direct access`.
+Expected: `D:` exists and has at least 80GB free. Do not continue if `D:` is missing or below 80GB free.
 
-- [ ] **Step 2: Try the primary WSL install path**
+- [ ] **Step 2: Download or update the WSL2 kernel package**
 
 Run:
 
 ```powershell
-wsl --install --web-download -d Ubuntu-20.04 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-wsl-install.txt
-```
-
-Expected: either Ubuntu installs successfully, or Windows reports a restart is required.
-
-- [ ] **Step 3: Use the manual feature path if the primary command is unsupported**
-
-Run this step only when `p1-wsl-install.txt` shows that `wsl --install` is unsupported:
-
-```powershell
-dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-dism-wsl.txt
-dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-dism-vmp.txt
-shutdown /r /t 0
-```
-
-Expected: both DISM commands complete successfully and the server restarts.
-
-- [ ] **Step 4: After restart, set WSL2 as default and install Ubuntu**
-
-Run:
-
-```powershell
+Invoke-WebRequest https://aka.ms/wsl2kernel -UseBasicParsing -OutFile D:\WSL\Downloads\wsl_update_x64.msi
+msiexec.exe /i D:\WSL\Downloads\wsl_update_x64.msi /quiet /norestart
 wsl --set-default-version 2 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-default-version.txt
-wsl --install --web-download -d Ubuntu-20.04 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-install-after-restart.txt
+```
+
+Expected: MSI install returns to the prompt with no fatal error, and `wsl --set-default-version 2` does not fail. If the MSI requests a restart, restart before continuing.
+
+- [ ] **Step 3: Download Ubuntu 20.04 AppxBundle**
+
+Run:
+
+```powershell
+$UbuntuAppxUrl = "https://aka.ms/wslubuntu2004"
+Invoke-WebRequest $UbuntuAppxUrl -UseBasicParsing -OutFile D:\WSL\Downloads\Ubuntu2004.AppxBundle
+Get-Item D:\WSL\Downloads\Ubuntu2004.AppxBundle | Select-Object FullName,Length | Format-List | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-appxbundle-download.txt
+```
+
+Expected: downloaded file exists and is roughly 900MB. If this URL is blocked, stop and record `BLOCKED_UBUNTU_APPXBUNDLE_DOWNLOAD`.
+
+- [ ] **Step 4: Extract install.tar.gz from the AppxBundle**
+
+Run:
+
+```powershell
+Remove-Item -Recurse -Force D:\WSL\Downloads\Ubuntu2004Bundle,D:\WSL\Downloads\Ubuntu2004Appx -ErrorAction SilentlyContinue
+Copy-Item D:\WSL\Downloads\Ubuntu2004.AppxBundle D:\WSL\Downloads\Ubuntu2004.AppxBundle.zip -Force
+Expand-Archive D:\WSL\Downloads\Ubuntu2004.AppxBundle.zip -DestinationPath D:\WSL\Downloads\Ubuntu2004Bundle -Force
+$Appx = Get-ChildItem D:\WSL\Downloads\Ubuntu2004Bundle -Recurse -Filter "*x64*.appx" | Select-Object -First 1
+if (-not $Appx) { throw "No x64 appx found in Ubuntu2004.AppxBundle" }
+Copy-Item $Appx.FullName D:\WSL\Downloads\Ubuntu2004_x64.appx.zip -Force
+Expand-Archive D:\WSL\Downloads\Ubuntu2004_x64.appx.zip -DestinationPath D:\WSL\Downloads\Ubuntu2004Appx -Force
+$Rootfs = Get-ChildItem D:\WSL\Downloads\Ubuntu2004Appx -Recurse -Filter "install.tar.gz" | Select-Object -First 1
+if (-not $Rootfs) { throw "No install.tar.gz found in Ubuntu2004 x64 appx" }
+Copy-Item $Rootfs.FullName D:\WSL\Downloads\ubuntu-20.04-install.tar.gz -Force
+Get-Item D:\WSL\Downloads\ubuntu-20.04-install.tar.gz | Select-Object FullName,Length | Format-List | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-rootfs-extract.txt
+```
+
+Expected: `D:\WSL\Downloads\ubuntu-20.04-install.tar.gz` exists and is several hundred MB.
+
+- [ ] **Step 5: Import Ubuntu 20.04 into D:\WSL**
+
+Run:
+
+```powershell
+wsl --import Ubuntu-20.04 D:\WSL\Ubuntu-20.04 D:\WSL\Downloads\ubuntu-20.04-install.tar.gz --version 2 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-import.txt
 wsl -l -v 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-wsl-list-after-install.txt
 ```
 
 Expected: `wsl -l -v` lists `Ubuntu-20.04` with `VERSION` equal to `2`.
 
-- [ ] **Step 5: Start Ubuntu and verify release**
+- [ ] **Step 6: Start Ubuntu, create a normal user, and verify release**
 
 Run:
 
 ```powershell
 wsl -d Ubuntu-20.04 -- bash -lc "cat /etc/os-release && uname -a" 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-version.txt
+wsl -d Ubuntu-20.04 -- bash -lc "id -u uavdev >/dev/null 2>&1 || (useradd -m -s /bin/bash uavdev && usermod -aG sudo uavdev && echo 'uavdev ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/90-uavdev && chmod 440 /etc/sudoers.d/90-uavdev)"
+wsl -d Ubuntu-20.04 --user uavdev -- bash -lc "whoami && pwd && cat /etc/os-release" 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-user.txt
 ```
 
-Expected: `/etc/os-release` contains `VERSION_ID="20.04"`.
+Expected: `/etc/os-release` contains `VERSION_ID="20.04"` and `whoami` prints `uavdev`.
 
-- [ ] **Step 6: Update evidence and commit**
+- [ ] **Step 7: Update evidence and commit**
 
 Copy `C:\uav-g3b\p1-*.txt` into the `P1` sections in the evidence file.
 
