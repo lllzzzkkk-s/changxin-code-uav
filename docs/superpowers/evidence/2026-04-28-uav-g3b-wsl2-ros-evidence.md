@@ -360,20 +360,96 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 ## P1.5 Ubuntu Proxy And Base Packages
 
 ### P1.5.1 Ubuntu Version And Proxy
-- Time:
-- Server:
+- Time: 2026-04-29, first PowerShell-wrapped P1.5 attempt
+- Server: remote Windows host via RDP
 - Command:
+  ```powershell
+  wsl -d Ubuntu-20.04 --user uavdev -- bash -lc 'cd ~ && mkdir -p ~/uav-g3b-evidence && sudo rm -f /etc/apt/apt.conf.d/95proxies && { date -Is; cat /etc/os-release; uname -a; env | grep -E "^(http_proxy|https_proxy)=" | sed "s#://.*@#://***:***@#" || true; ls -l /etc/apt/apt.conf.d/95proxies 2>/dev/null || true; } | tee ~/uav-g3b-evidence/p15-ubuntu-network.txt'
+  ```
 - Output:
-- Verdict:
-- Next:
+  ```text
+  /bin/bash: -c: line 0: syntax error near unexpected token `('
+  ```
+- Verdict: RETRY_REQUIRED_DIRECT_WSL_SHELL; PowerShell quoting broke the Linux command, not a WSL or apt failure.
+- Next: launch the existing `Ubuntu-20.04` WSL2 environment directly as `uavdev` and run Linux commands inside bash.
 
 ### P1.5.2 apt Update And Base Packages
-- Time:
-- Server:
+- Time: 2026-04-29, PowerShell-wrapped apt run
+- Server: remote Windows host via RDP
 - Command:
+  ```powershell
+  wsl -d Ubuntu-20.04 --user uavdev -- bash -lc 'cd ~ && sudo apt update 2>&1 | tee ~/uav-g3b-evidence/p15-apt-update.txt'
+  wsl -d Ubuntu-20.04 --user uavdev -- bash -lc 'cd ~ && sudo DEBIAN_FRONTEND=noninteractive apt install -y curl gnupg lsb-release build-essential git python3-pip 2>&1 | tee ~/uav-g3b-evidence/p15-base-packages.txt'
+  ```
 - Output:
-- Verdict:
-- Next:
+  ```text
+  tee: /home/uavdev/uav-g3b-evidence/p15-apt-update.txt: No such file or directory
+  apt update fetched 35.4 MB from archive.ubuntu.com and security.ubuntu.com.
+  apt update completed: 289 packages can be upgraded.
+
+  tee: /home/uavdev/uav-g3b-evidence/p15-base-packages.txt: No such file or directory
+  apt install fetched 69.5 MB.
+  Installed base packages including curl, gnupg, lsb-release, build-essential, git, and python3-pip.
+  ldconfig warning: Can't link /usr/lib/wsl/lib/libnvoptix_loader.so.1 to libnvoptix.so.1.
+  ```
+- Verdict: P1_5_PARTIAL_PASS_EVIDENCE_RETRY_REQUIRED; apt network and base package installation succeeded, but evidence files were not written because the evidence directory was not created.
+- Next: create `~/uav-g3b-evidence` from an interactive WSL shell and run lightweight verification commands to capture P1.5 evidence files.
+
+- Time: 2026-04-29, interactive WSL evidence retry
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
+- Command:
+  ```bash
+  mkdir -p ~/uav-g3b-evidence
+  cd ~
+  {
+    date -Is
+    cat /etc/os-release
+    uname -a
+    env | grep -E '^(http_proxy|https_proxy)=' | sed 's#://.*@#://***:***@#' || true
+    ls -l /etc/apt/apt.conf.d/95proxies 2>/dev/null || true
+  } | tee ~/uav-g3b-evidence/p15-ubuntu-network.txt
+  ```
+- Output:
+  ```text
+  2026-04-29T12:49:38+08:00
+  NAME="Ubuntu"
+  VERSION="20.04.3 LTS (Focal Fossa)"
+  PRETTY_NAME="Ubuntu 20.04.3 LTS"
+  VERSION_ID="20.04"
+  VERSION_CODENAME=focal
+  UBUNTU_CODENAME=focal
+  Linux LAPTOP-JC 5.10.16.3-microsoft-standard-WSL2 #1 SMP Fri Apr 2 22:23:49 UTC 2021 x86_64 x86_64 x86_64 GNU/Linux
+  ```
+- Verdict: P1_5_1_PASS; interactive WSL shell is the correct execution environment and no apt proxy is required.
+- Next: capture apt update and base package verification evidence.
+
+- Time: 2026-04-29, interactive WSL apt verification
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
+- Command:
+  ```bash
+  sudo apt update 2>&1 | tee ~/uav-g3b-evidence/p15-apt-update.txt
+  dpkg -l curl gnupg lsb-release build-essential git python3-pip 2>&1 | tee ~/uav-g3b-evidence/p15-base-packages-verify.txt
+  ```
+- Output:
+  ```text
+  Hit:1 http://archive.ubuntu.com/ubuntu focal InRelease
+  Hit:2 http://archive.ubuntu.com/ubuntu focal-updates InRelease
+  Hit:3 http://archive.ubuntu.com/ubuntu focal-backports InRelease
+  Hit:4 http://security.ubuntu.com/ubuntu focal-security InRelease
+  Reading package lists...
+  Building dependency tree...
+  Reading state information...
+  264 packages can be upgraded. Run 'apt list --upgradable' to see them.
+
+  ii  build-essential 12.8ubuntu1.1        amd64
+  ii  curl            7.68.0-1ubuntu2.25   amd64
+  ii  git             1:2.25.1-1ubuntu3.14 amd64
+  ii  gnupg           2.2.19-3ubuntu2.5    all
+  ii  lsb-release     11.1.0ubuntu2        all
+  ii  python3-pip     20.0.2-5ubuntu1.11   all
+  ```
+- Verdict: P1_5_2_PASS; apt direct network works and base build packages are installed.
+- Next: proceed to P2 ROS Noetic installation from the interactive WSL shell.
 
 ## P2 ROS Noetic
 
