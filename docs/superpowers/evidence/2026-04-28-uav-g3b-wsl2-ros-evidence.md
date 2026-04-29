@@ -159,20 +159,203 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 ## P1 WSL2 Ubuntu
 
 ### P1.1 WSL Feature Install
-- Time:
-- Server:
+- Time: 2026-04-29, first P1 remote PowerShell attempt
+- Server: remote Windows host via RDP
 - Command:
+  ```powershell
+  Get-Item D:\WSL\Downloads\Ubuntu2004.AppxBundle ...
+  Invoke-WebRequest https://aka.ms/wslubuntu2004 -OutFile D:\WSL\Downloads\Ubuntu2004.AppxBundle
+  wsl --set-default-version 2 ...
+  msiexec.exe /i D:\WSL\Downloads\wsl_update_x64.msi /quiet /norestart
+  Invoke-WebRequest https://aka.ms/wsl2kernel -OutFile D:\WSL\Downloads\wsl_update_x64.msi
+  Get-CimInstance Win32_LogicalDisk ...
+  New-Item -ItemType Directory -Force D:\WSL\Ubuntu-20.04
+  New-Item -ItemType Directory -Force D:\WSL\Downloads
+  New-Item -ItemType Directory -Force C:\uav-g3b
+  ```
 - Output:
-- Verdict:
-- Next:
+  ```text
+  Get-Item failed because D:\WSL\Downloads\Ubuntu2004.AppxBundle did not exist yet.
+  Invoke-WebRequest to D:\WSL\Downloads\Ubuntu2004.AppxBundle failed because D:\WSL\Downloads did not exist yet.
+  wsl --set-default-version 2 reported WSL2 kernel/component update guidance.
+  Invoke-WebRequest to D:\WSL\Downloads\wsl_update_x64.msi failed because D:\WSL\Downloads did not exist yet.
+  Disk check succeeded: C: FreeGB=19.35, D: FreeGB=296.57.
+  Directory creation ran at the end and succeeded.
+  ```
+- Verdict: RETRY_REQUIRED_DIRECTORY_ORDER; not an install failure.
+- Next: rerun P1 in smaller top-down chunks now that `C:\uav-g3b`, `D:\WSL\Downloads`, and `D:\WSL\Ubuntu-20.04` exist.
+
+- Time: 2026-04-29, P1 kernel and Ubuntu bundle retry
+- Server: remote Windows host via RDP
+- Command:
+  ```powershell
+  Invoke-WebRequest https://aka.ms/wsl2kernel -UseBasicParsing -OutFile D:\WSL\Downloads\wsl_update_x64.msi
+  msiexec.exe /i D:\WSL\Downloads\wsl_update_x64.msi /quiet /norestart
+  wsl --set-default-version 2 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-default-version.txt
+  Invoke-WebRequest https://aka.ms/wslubuntu2004 -UseBasicParsing -OutFile D:\WSL\Downloads\Ubuntu2004.AppxBundle
+  Get-Item D:\WSL\Downloads\Ubuntu2004.AppxBundle | Select-Object FullName,Length | Format-List | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-appxbundle-download.txt
+  ```
+- Output:
+  ```text
+  wsl2kernel download command returned to prompt, but later evidence showed `https://aka.ms/wsl2kernel` can resolve to the Microsoft Learn HTML page instead of the MSI binary.
+  msiexec returned to the prompt without an explicit fatal error.
+  wsl --set-default-version 2 printed mojibake Chinese output with https://aka.ms/wsl2 reference.
+  Ubuntu2004.AppxBundle downloaded.
+  FullName : D:\WSL\Downloads\Ubuntu2004.AppxBundle
+  Length   : 937972031
+  ```
+- Verdict: P1_1_PARTIAL_PASS_WITH_KERNEL_URL_RISK; Ubuntu 20.04 AppxBundle download completed, but WSL kernel MSI install remains unverified.
+- Next: extract `install.tar.gz` from the AppxBundle and import it into `D:\WSL\Ubuntu-20.04`; if WSL2 import fails, verify the downloaded kernel MSI is the real 17MB binary.
+
+- Time: 2026-04-29, first AppxBundle extraction attempt
+- Server: remote Windows host via RDP
+- Command:
+  ```powershell
+  Remove-Item -Recurse -Force D:\WSL\Downloads\Ubuntu2004Bundle,D:\WSL\Downloads\Ubuntu2004Appx -ErrorAction SilentlyContinue
+  Copy-Item D:\WSL\Downloads\Ubuntu2004.AppxBundle D:\WSL\Downloads\Ubuntu2004.AppxBundle.zip -Force
+  Expand-Archive D:\WSL\Downloads\Ubuntu2004.AppxBundle.zip -DestinationPath D:\WSL\Downloads\Ubuntu2004Bundle -Force
+  ```
+- Output:
+  ```text
+  Expand-Archive: command was found in Microsoft.PowerShell.Archive, but the module could not be loaded.
+  ```
+- Verdict: RETRY_REQUIRED_ARCHIVE_TOOL; downloaded AppxBundle is still usable, but PowerShell archive module is unavailable.
+- Next: retry extraction with Windows `tar.exe` instead of `Expand-Archive`.
+
+- Time: 2026-04-29, AppxBundle extraction with tar.exe
+- Server: remote Windows host via RDP
+- Command:
+  ```powershell
+  New-Item -ItemType Directory -Force D:\WSL\Downloads\Ubuntu2004Bundle | Out-Null
+  tar.exe -tf D:\WSL\Downloads\Ubuntu2004.AppxBundle | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-bundle-tar-list.txt
+  tar.exe -xf D:\WSL\Downloads\Ubuntu2004.AppxBundle -C D:\WSL\Downloads\Ubuntu2004Bundle
+  Get-ChildItem D:\WSL\Downloads\Ubuntu2004Bundle -Recurse | Select-Object FullName,Length | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-bundle-list.txt
+  ```
+- Output:
+  ```text
+  Ubuntu_2004.2021.825.0_ARM64.appx
+  Ubuntu_2004.2021.825.0_scale-100.appx
+  Ubuntu_2004.2021.825.0_scale-125.appx
+  Ubuntu_2004.2021.825.0_scale-150.appx
+  Ubuntu_2004.2021.825.0_scale-400.appx
+  Ubuntu_2004.2021.825.0_x64.appx
+  AppxMetadata/AppxBundleManifest.xml
+  AppxBlockMap.xml
+  [Content_Types].xml
+  AppxSignature.p7x
+
+  D:\WSL\Downloads\Ubuntu2004Bundle\Ubuntu_2004.2021.825.0_x64.appx Length=488019108
+  ```
+- Verdict: P1_1_PARTIAL_PASS; AppxBundle extraction succeeded and x64 appx is available.
+- Next: extract the x64 appx with `tar.exe`, copy `install.tar.gz`, then import with `wsl --import`.
+
+- Time: 2026-04-29, x64 appx extraction
+- Server: remote Windows host via RDP
+- Command:
+  ```powershell
+  Remove-Item -Recurse -Force D:\WSL\Downloads\Ubuntu2004Appx -ErrorAction SilentlyContinue
+  New-Item -ItemType Directory -Force D:\WSL\Downloads\Ubuntu2004Appx | Out-Null
+  tar.exe -tf D:\WSL\Downloads\Ubuntu2004Bundle\Ubuntu_2004.2021.825.0_x64.appx | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-x64-appx-tar-list.txt
+  tar.exe -xf D:\WSL\Downloads\Ubuntu2004Bundle\Ubuntu_2004.2021.825.0_x64.appx -C D:\WSL\Downloads\Ubuntu2004Appx
+  Get-ChildItem D:\WSL\Downloads\Ubuntu2004Appx -Recurse | Select-Object FullName,Length | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-x64-appx-list.txt
+  ```
+- Output:
+  ```text
+  tar list included install.tar.gz and ubuntu.exe.
+  D:\WSL\Downloads\Ubuntu2004Appx\install.tar.gz Length=487526665
+  D:\WSL\Downloads\Ubuntu2004Appx\ubuntu.exe Length=475648
+  ```
+- Verdict: P1_1_PARTIAL_PASS; Ubuntu 20.04 rootfs tarball extracted.
+- Next: copy `install.tar.gz`, run `wsl --import Ubuntu-20.04 D:\WSL\Ubuntu-20.04 ... --version 2`, and verify with `wsl -l -v`.
+
+- Time: 2026-04-29, first WSL2 import attempt
+- Server: remote Windows host via RDP
+- Command:
+  ```powershell
+  Copy-Item D:\WSL\Downloads\Ubuntu2004Appx\install.tar.gz D:\WSL\Downloads\ubuntu-20.04-install.tar.gz -Force
+  Get-Item D:\WSL\Downloads\ubuntu-20.04-install.tar.gz | Select-Object FullName,Length | Format-List | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-rootfs-extract.txt
+  wsl --import Ubuntu-20.04 D:\WSL\Ubuntu-20.04 D:\WSL\Downloads\ubuntu-20.04-install.tar.gz --version 2 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-import.txt
+  wsl -l -v 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-wsl-list-after-install.txt
+  ```
+- Output:
+  ```text
+  FullName : D:\WSL\Downloads\ubuntu-20.04-install.tar.gz
+  Length   : 487526665
+
+  wsl --import output: WSL 2 requires an update to its kernel component; see https://aka.ms/wsl2kernel. (Displayed as mojibake.)
+  wsl -l -v output: no installed Linux distributions; points to Microsoft Store installation.
+  ```
+- Verdict: BLOCKED_WSL2_KERNEL_NOT_INSTALLED; rootfs is valid, but WSL2 kernel component is not installed or not active.
+- Root cause: `https://aka.ms/wsl2kernel` is a documentation redirect in this environment, not a stable MSI binary URL. The direct Microsoft blob URL for the x64 kernel MSI must be used.
+- Next: download `https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi`, verify file length is about 17MB, run MSI, then retry `wsl --set-default-version 2` and `wsl --import`.
+
+- Time: 2026-04-29, WSL2 kernel MSI direct-link retry
+- Server: remote Windows host via RDP
+- Command:
+  ```powershell
+  Get-Item D:\WSL\Downloads\wsl_update_x64.msi | Select-Object FullName,Length | Format-List | Tee-Object -FilePath C:\uav-g3b\p1-bad-wsl-kernel-msi-size.txt
+  $WslKernelMsiUrl = "https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi"
+  Invoke-WebRequest $WslKernelMsiUrl -UseBasicParsing -OutFile D:\WSL\Downloads\wsl_update_x64.msi
+  Get-Item D:\WSL\Downloads\wsl_update_x64.msi | Select-Object FullName,Length | Format-List | Tee-Object -FilePath C:\uav-g3b\p1-wsl-kernel-msi-download.txt
+  Start-Process msiexec.exe -ArgumentList '/i "D:\WSL\Downloads\wsl_update_x64.msi" /quiet /norestart' -Wait -PassThru | Select-Object ExitCode | Format-List | Tee-Object -FilePath C:\uav-g3b\p1-wsl-kernel-msi-install.txt
+  wsl --set-default-version 2 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-default-version-retry.txt
+  ```
+- Output:
+  ```text
+  Previous D:\WSL\Downloads\wsl_update_x64.msi Length=71190
+  Direct-link D:\WSL\Downloads\wsl_update_x64.msi Length=17104896
+  msiexec Start-Process returned to the prompt, but ExitCode field was blank.
+  wsl --set-default-version 2 printed mojibake Chinese output with https://aka.ms/wsl2 reference.
+  ```
+- Verdict: P1_1_KERNEL_BINARY_FIXED; previous file was not a valid MSI, direct-link MSI now has the expected 17MB size and set-default-version no longer shows the `wsl2kernel` URL.
+- Next: retry `wsl --import Ubuntu-20.04 ... --version 2` and verify with `wsl -l -v`.
+
+- Time: 2026-04-29, WSL2 import retry
+- Server: remote Windows host via RDP
+- Command:
+  ```powershell
+  Get-ChildItem D:\WSL\Ubuntu-20.04 -Force | Select-Object FullName,Length | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-import-dir-before-retry.txt
+  wsl --import Ubuntu-20.04 D:\WSL\Ubuntu-20.04 D:\WSL\Downloads\ubuntu-20.04-install.tar.gz --version 2 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-import-retry.txt
+  wsl -l -v 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-wsl-list-after-import-retry.txt
+  ```
+- Output:
+  ```text
+  NAME            STATE           VERSION
+  * Ubuntu-20.04    Stopped         2
+  ```
+- Verdict: P1_1_PASS; Ubuntu-20.04 imported successfully as WSL2 on D:\WSL.
+- Next: start Ubuntu, verify `/etc/os-release`, create `uavdev`, and verify user shell.
 
 ### P1.2 Ubuntu-20.04 WSL2 Verification
-- Time:
-- Server:
+- Time: 2026-04-29
+- Server: remote Windows host via RDP
 - Command:
+  ```powershell
+  wsl -d Ubuntu-20.04 -- bash -lc "cat /etc/os-release && uname -a" 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-version.txt
+  wsl -d Ubuntu-20.04 -- bash -lc "id -u uavdev >/dev/null 2>&1 || (useradd -m -s /bin/bash uavdev && usermod -aG sudo uavdev && echo 'uavdev ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/90-uavdev && chmod 440 /etc/sudoers.d/90-uavdev)"
+  wsl -d Ubuntu-20.04 --user uavdev -- bash -lc "whoami && pwd && cat /etc/os-release" 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-ubuntu-user.txt
+  ```
 - Output:
-- Verdict:
-- Next:
+  ```text
+  NAME="Ubuntu"
+  VERSION="20.04.3 LTS (Focal Fossa)"
+  PRETTY_NAME="Ubuntu 20.04.3 LTS"
+  VERSION_ID="20.04"
+  VERSION_CODENAME=focal
+  UBUNTU_CODENAME=focal
+  Linux LAPTOP-JC 5.10.16.3-microsoft-standard-WSL2 #1 SMP Fri Apr 2 22:23:49 UTC 2021 x86_64 x86_64 x86_64 GNU/Linux
+
+  uavdev
+  /mnt/c/uav-g3b
+  NAME="Ubuntu"
+  VERSION="20.04.3 LTS (Focal Fossa)"
+  PRETTY_NAME="Ubuntu 20.04.3 LTS"
+  VERSION_ID="20.04"
+  VERSION_CODENAME=focal
+  UBUNTU_CODENAME=focal
+  ```
+- Verdict: P1_2_PASS; Ubuntu-20.04 runs under WSL2 and the `uavdev` sudo-capable user exists.
+- Next: proceed to P1.5 Ubuntu apt/proxy/base-package setup.
 
 ## P1.5 Ubuntu Proxy And Base Packages
 

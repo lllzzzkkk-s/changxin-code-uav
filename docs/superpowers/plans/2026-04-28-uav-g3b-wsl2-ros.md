@@ -314,12 +314,14 @@ Expected: `D:` exists and has at least 80GB free. Do not continue if `D:` is mis
 Run:
 
 ```powershell
-Invoke-WebRequest https://aka.ms/wsl2kernel -UseBasicParsing -OutFile D:\WSL\Downloads\wsl_update_x64.msi
+$WslKernelMsiUrl = "https://wslstorestorage.blob.core.windows.net/wslblob/wsl_update_x64.msi"
+Invoke-WebRequest $WslKernelMsiUrl -UseBasicParsing -OutFile D:\WSL\Downloads\wsl_update_x64.msi
+Get-Item D:\WSL\Downloads\wsl_update_x64.msi | Select-Object FullName,Length | Format-List | Tee-Object -FilePath C:\uav-g3b\p1-wsl-kernel-msi-download.txt
 msiexec.exe /i D:\WSL\Downloads\wsl_update_x64.msi /quiet /norestart
 wsl --set-default-version 2 2>&1 | Tee-Object -FilePath C:\uav-g3b\p1-default-version.txt
 ```
 
-Expected: MSI install returns to the prompt with no fatal error, and `wsl --set-default-version 2` does not fail. If the MSI requests a restart, restart before continuing.
+Expected: MSI file length is about 17MB, MSI install returns to the prompt with no fatal error, and `wsl --set-default-version 2` does not fail. If the MSI requests a restart, restart before continuing. Do not use `https://aka.ms/wsl2kernel` as an `-OutFile` MSI target because it can resolve to the Microsoft Learn HTML page rather than the MSI binary.
 
 - [ ] **Step 3: Download Ubuntu 20.04 AppxBundle**
 
@@ -339,12 +341,11 @@ Run:
 
 ```powershell
 Remove-Item -Recurse -Force D:\WSL\Downloads\Ubuntu2004Bundle,D:\WSL\Downloads\Ubuntu2004Appx -ErrorAction SilentlyContinue
-Copy-Item D:\WSL\Downloads\Ubuntu2004.AppxBundle D:\WSL\Downloads\Ubuntu2004.AppxBundle.zip -Force
-Expand-Archive D:\WSL\Downloads\Ubuntu2004.AppxBundle.zip -DestinationPath D:\WSL\Downloads\Ubuntu2004Bundle -Force
-$Appx = Get-ChildItem D:\WSL\Downloads\Ubuntu2004Bundle -Recurse -Filter "*x64*.appx" | Select-Object -First 1
+New-Item -ItemType Directory -Force D:\WSL\Downloads\Ubuntu2004Bundle,D:\WSL\Downloads\Ubuntu2004Appx | Out-Null
+tar.exe -xf D:\WSL\Downloads\Ubuntu2004.AppxBundle -C D:\WSL\Downloads\Ubuntu2004Bundle
+$Appx = Get-ChildItem D:\WSL\Downloads\Ubuntu2004Bundle -Recurse -Filter "*x64.appx" | Select-Object -First 1
 if (-not $Appx) { throw "No x64 appx found in Ubuntu2004.AppxBundle" }
-Copy-Item $Appx.FullName D:\WSL\Downloads\Ubuntu2004_x64.appx.zip -Force
-Expand-Archive D:\WSL\Downloads\Ubuntu2004_x64.appx.zip -DestinationPath D:\WSL\Downloads\Ubuntu2004Appx -Force
+tar.exe -xf $Appx.FullName -C D:\WSL\Downloads\Ubuntu2004Appx
 $Rootfs = Get-ChildItem D:\WSL\Downloads\Ubuntu2004Appx -Recurse -Filter "install.tar.gz" | Select-Object -First 1
 if (-not $Rootfs) { throw "No install.tar.gz found in Ubuntu2004 x64 appx" }
 Copy-Item $Rootfs.FullName D:\WSL\Downloads\ubuntu-20.04-install.tar.gz -Force
@@ -394,58 +395,57 @@ git commit -m "docs: record UAV G3-B P1 evidence"
 
 Expected: commit succeeds with only the evidence file changed.
 
-### Task 4: Configure Ubuntu Proxy And Base Packages
+### Task 4: Configure Ubuntu Network And Base Packages
 
 **Files:**
 - Modify: `docs/superpowers/evidence/2026-04-28-uav-g3b-wsl2-ros-evidence.md`
 
-- [ ] **Step 1: Enter Ubuntu and set temporary proxy variables**
+- [ ] **Step 1: Verify Ubuntu network context and remove stale apt proxy**
 
-Run in Ubuntu:
-
-```bash
-read -r -s -p "Proxy URL with scheme: " UAV_PROXY_URL
-printf '\n'
-export UAV_PROXY_URL
-export http_proxy="$UAV_PROXY_URL"
-export https_proxy="$UAV_PROXY_URL"
-```
-
-Expected: proxy variables exist in the current shell and the proxy value is not printed.
-
-- [ ] **Step 2: Persist apt proxy without committing secrets**
-
-Run:
-
-```bash
-sudo --preserve-env=UAV_PROXY_URL tee /etc/apt/apt.conf.d/95proxies >/dev/null <<'EOF'
-Acquire::http::Proxy "${UAV_PROXY_URL}";
-Acquire::https::Proxy "${UAV_PROXY_URL}";
-EOF
-sudo sed -i "s|\${UAV_PROXY_URL}|${UAV_PROXY_URL}|g" /etc/apt/apt.conf.d/95proxies
-sudo chmod 600 /etc/apt/apt.conf.d/95proxies
-```
-
-Expected: `/etc/apt/apt.conf.d/95proxies` exists with mode `600`. Do not copy its contents into the repo evidence file if it contains credentials.
-
-- [ ] **Step 3: Verify Ubuntu version and apt reachability**
-
-Run:
+Run in Ubuntu as `uavdev`:
 
 ```bash
 mkdir -p ~/uav-g3b-evidence
+sudo rm -f /etc/apt/apt.conf.d/95proxies
 {
   date -Is
   cat /etc/os-release
   uname -a
-  env | grep -E '^(http_proxy|https_proxy)=' | sed 's#://.*@#://***:***@#'
-} | tee ~/uav-g3b-evidence/p15-ubuntu-proxy.txt
+  env | grep -E '^(http_proxy|https_proxy)=' | sed 's#://.*@#://***:***@#' || true
+  ls -l /etc/apt/apt.conf.d/95proxies 2>/dev/null || true
+} | tee ~/uav-g3b-evidence/p15-ubuntu-network.txt
+```
+
+Expected: Ubuntu is 20.04 and no stale apt proxy file remains unless a proxy is intentionally required.
+
+- [ ] **Step 2: Verify apt reachability with direct network**
+
+Run:
+
+```bash
 sudo apt update 2>&1 | tee ~/uav-g3b-evidence/p15-apt-update.txt
 ```
 
-Expected: `apt update` finishes with package index output and no fatal proxy, DNS, or TLS error.
+Expected: `apt update` finishes with package index output and no fatal DNS, TLS, or proxy error.
 
-- [ ] **Step 4: Install base packages**
+If direct apt fails because a network proxy is required, run this fallback and retry `sudo apt update`:
+
+```bash
+read -r -s -p "Proxy URL with scheme: " UAV_PROXY_URL
+printf '\n'
+export http_proxy="$UAV_PROXY_URL"
+export https_proxy="$UAV_PROXY_URL"
+sudo tee /etc/apt/apt.conf.d/95proxies >/dev/null <<EOF
+Acquire::http::Proxy "$UAV_PROXY_URL";
+Acquire::https::Proxy "$UAV_PROXY_URL";
+EOF
+sudo chmod 600 /etc/apt/apt.conf.d/95proxies
+sudo apt update 2>&1 | tee ~/uav-g3b-evidence/p15-apt-update-proxy-retry.txt
+```
+
+Expected: retry succeeds. Do not copy proxy credentials into the repo evidence file.
+
+- [ ] **Step 3: Install base packages**
 
 Run:
 
@@ -455,13 +455,13 @@ sudo apt install -y curl gnupg lsb-release build-essential git python3-pip 2>&1 
 
 Expected: package installation completes with no `E: Unable to locate package` or fatal network error.
 
-- [ ] **Step 5: Update evidence and commit**
+- [ ] **Step 4: Update evidence and commit**
 
 Copy sanitized outputs from `~/uav-g3b-evidence/p15-*.txt` into `P1.5` in the evidence file.
 
 Verdict rules:
-- `PASS` if Ubuntu is 20.04, apt update works through proxy, and base packages install.
-- `BLOCKED_APT_PROXY` if apt cannot reach repositories.
+- `PASS` if Ubuntu is 20.04, apt update works, and base packages install.
+- `BLOCKED_APT_NETWORK` if apt cannot reach repositories directly or through proxy fallback.
 - `BLOCKED_DNS` if name resolution fails inside WSL.
 
 Run:
