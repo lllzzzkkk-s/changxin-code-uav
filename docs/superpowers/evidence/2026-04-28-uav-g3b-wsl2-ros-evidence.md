@@ -1201,6 +1201,90 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - Verdict: G3_C_0_PASS_READ_ONLY_INVENTORY_WITH_ACTION_SURFACE_IDENTIFIED. Package resolution, launch-file inventory, static topic/control scan, and launch node inventory are complete enough to choose the next precheck path.
 - Next: run target launch parsing with explicit environment variables, dump sim launch parameters, and capture a roscore-only baseline. Do not start px4ctrl or publish `/goal`, `/move_base_simple/goal`, `/back_trigger`, `/px4ctrl/takeoff_land`, `/setpoints_cmd`, or MAVROS arming/set_mode/setpoint traffic.
 
+- Time: 2026-04-30, WSL target launch parsing, parameter dump, and roscore baseline
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
+- Command:
+  ```bash
+  cd ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner
+  source /opt/ros/noetic/setup.bash
+  source devel/setup.bash
+  mkdir -p ~/uav-g3c-evidence
+
+  DRONE_ID=0 BD_LIST='' bash -lc '
+  for f in \
+    src/diff_planner/plan_manage/launch/exp/run_exp_single_lio.launch \
+    src/diff_planner/plan_manage/launch/exp/run_exp_single_vio.launch \
+    src/realflight_modules/faster-lio/launch/mapping_mid360.launch \
+    src/user_command/multipoint/launch/multipointplan_exp_lio.launch \
+    src/user_command/multipoint/launch/multipointplan_exp_vio.launch \
+    src/diff_planner/plan_manage/launch/sim/run_sim_single.launch; do
+      echo "===== $f ====="
+      roslaunch --nodes "$f" || true
+    done
+  ' | tee ~/uav-g3c-evidence/g3c-04-target-launch-node-inventory-with-env.txt
+
+  DRONE_ID=0 roslaunch --dump-params src/diff_planner/plan_manage/launch/sim/run_sim_single.launch \
+    | tee ~/uav-g3c-evidence/g3c-05-run-sim-single-dump-params.txt
+
+  DRONE_ID=0 roslaunch --dump-params src/diff_planner/plan_manage/launch/exp/run_exp_single_lio.launch \
+    | tee ~/uav-g3c-evidence/g3c-05-run-exp-single-lio-dump-params.txt
+
+  roscore > ~/uav-g3c-evidence/g3c-06-roscore.log 2>&1 &
+  ROSCORE_PID=$!
+  sleep 3
+  {
+    date -Is
+    rosnode list
+    rostopic list -v
+  } | tee ~/uav-g3c-evidence/g3c-06-roscore-baseline.txt
+  kill "$ROSCORE_PID"
+  wait "$ROSCORE_PID" 2>/dev/null || true
+  ```
+- Output:
+  ```text
+  run_exp_single_lio.launch:
+  /drone_0_diff_planner_node
+  /drone_0_traj_server
+
+  run_exp_single_vio.launch:
+  /drone_0_diff_planner_node
+  /drone_0_traj_server
+
+  mapping_mid360.launch:
+  /livox_lidar_publisher2
+  /laserMapping
+
+  multipointplan_exp_lio.launch and multipointplan_exp_vio.launch:
+  /multipointplan
+
+  run_sim_single.launch:
+  /random_forest
+  /drone_0_diff_planner_node
+  /drone_0_traj_server
+  /drone_0_poscmd_2_odom
+  /drone_0_odom_visualization
+  /drone_0_pcl_render_node
+  /drone_0_manual_take_over
+  /multipointplan
+  /rviz
+
+  roscore baseline at 2026-04-30T12:09:03+08:00:
+  /rosout
+
+  Published topics:
+   * /rosout_agg [rosgraph_msgs/Log] 1 publisher
+
+  Subscribed topics:
+   * /rosout [rosgraph_msgs/Log] 1 subscriber
+  ```
+- Parameter findings:
+  ```text
+  run_sim_single.launch sets /drone_0_diff_planner_node/fsm/flight_type=1, realworld_experiment=true, manager/max_vel=1.5, manager/max_acc=6.0, grid_map/pose_type=1, grid_map/resolution=0.1, and /multipointplan/start_plan=1, back_plan=1.
+  run_exp_single_lio.launch sets /drone_0_diff_planner_node/fsm/flight_type=1, realworld_experiment=true, manager/max_vel=0.5, manager/max_acc=3.0, grid_map/pose_type=2, grid_map/resolution=0.15, waypoint0=(8.0,0.0,1.0), waypoint1=(0.0,0.0,1.0), and traj_server/time_forward=1.0.
+  ```
+- Verdict: G3_C_1_PASS_TARGET_PARSE_PARAM_AND_ROSCORE_BASELINE. The target launch files parse with explicit environment variables, sim and LIO parameter dumps were captured, and the roscore-only baseline contains no action topics.
+- Next: a sim-only observe run may be started for runtime graph inspection. Keep it bounded and do not publish `/goal`, `/move_base_simple/goal`, `/back_trigger`, `/px4ctrl/takeoff_land`, `/setpoints_cmd`, or MAVROS arming/set_mode/setpoint traffic.
+
 ## Final Gate
 
 - P0 Verdict: PASS_WITH_D_DRIVE_TARGET_AND_ROS_TLS_RISK. Windows 11, WSL and VirtualMachinePlatform are enabled, HypervisorPresent is true, D: has enough space, and ROS apt HTTP/key URLs are reachable. C: is too small for default WSL storage.
@@ -1209,6 +1293,6 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - P2 Verdict: PASS. ROS Noetic desktop-full is installed; `roscore`, `rosnode`, `rostopic`, `rosmsg`, and standard message introspection work.
 - P3 Verdict: PASS_FULL_CATKIN_BUILD_AND_NODE_VISIBILITY. Diff-planner snapshot is present in WSL; full `catkin_make -j8 -l8` completes; `quadrotor_msgs`, `diff_planner`, `multipoint`, `px4ctrl`, `vins`, and `faster_lio` resolve through `rospack`; `diff_planner_node`, `vins_node`, `run_mapping_online`, and `px4ctrl_node` executables are present.
 - G3-B Verdict: PASS_BASELINE_READ_ONLY_WSL_DRY_RUN_LOCAL_AND_WSL_ADAPTER_TRACES. With only `roscore` running, baseline graph has `/rosout` and `/rosout_agg`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, and `/px4ctrl/takeoff_land` are absent as expected; no action-topic publish occurred. WSL pure-Python `move_relative` dry-run produces a `/goal` payload with `publish_attempted=False`; local and WSL adapter traces record schema validation, state snapshot, safety policy, target point, ROS payload, and confirmation gate; the WSL 11-test A-stage suite passes after the full catkin build.
-- G3-C Verdict: PASS_READ_ONLY_INVENTORY_WITH_ACTION_SURFACE_IDENTIFIED. The WSL package environment, launch files, static topic/control scan, and launch node inventory identify the planner, estimator, localization, and PX4 control surfaces without starting runtime nodes or publishing action topics.
+- G3-C Verdict: PASS_TARGET_PARSE_PARAM_AND_ROSCORE_BASELINE. The WSL package environment, launch files, static topic/control scan, launch node inventory, target launch parsing with env vars, sim/LIO parameter dumps, and roscore-only baseline identify the planner, estimator, localization, and PX4 control surfaces without publishing action topics.
 - A-stage Closure Decision: CLOSED_DRY_RUN_ONLY. Full WSL build, package/node visibility, WSL A-stage tests, and standalone WSL adapter trace all pass. The closed scope is dry-run only and does not authorize publishing motion/takeoff/land commands.
-- G3-C Entry Decision: READY_FOR_SIM_OBSERVE_ONLY_RUNTIME_PRECHECKS. Next work may parse target launch files with explicit env vars, dump parameters, and run roscore-only or sim-only observation checks, but must not publish movement, takeoff, land, return-home, MAVROS arming, MAVROS set_mode, or MAVROS setpoint commands until a separate action-safety gate is defined and approved.
+- G3-C Entry Decision: READY_FOR_BOUNDED_SIM_OBSERVE_ONLY_RUNTIME_STARTUP. Next work may start a bounded sim-only observation run and inspect ROS graph/logs, but must not publish movement, takeoff, land, return-home, MAVROS arming, MAVROS set_mode, or MAVROS setpoint commands until a separate action-safety gate is defined and approved.
