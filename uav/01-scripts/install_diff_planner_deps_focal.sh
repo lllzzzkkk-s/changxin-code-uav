@@ -227,6 +227,58 @@ for path in files:
 PY
 }
 
+patch_multipoint_eigen_include() {
+  python3 - "$DIFF_PLANNER_DIR" <<'PY'
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+path = root / "src/user_command/multipoint/CMakeLists.txt"
+if not path.exists():
+    print(f"skip missing {path}")
+    raise SystemExit(0)
+
+text = path.read_text()
+original = text
+
+eigen_find = '''find_package(Eigen3 REQUIRED)
+if(NOT EIGEN3_INCLUDE_DIRS)
+  set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
+endif()
+include_directories(${EIGEN3_INCLUDE_DIRS})
+'''
+
+if "find_package(Eigen3" not in text and "find_package(EIGEN3" not in text:
+    marker = "catkin_package("
+    if marker in text:
+        text = text.replace(marker, eigen_find + "\n" + marker, 1)
+    else:
+        text = text + "\n" + eigen_find
+elif "include_directories(${EIGEN3_INCLUDE_DIRS})" not in text:
+    marker = "find_package(Eigen3"
+    index = text.find(marker)
+    line_end = text.find("\n", index)
+    insert_at = len(text) if line_end == -1 else line_end + 1
+    text = (
+        text[:insert_at]
+        + "if(NOT EIGEN3_INCLUDE_DIRS)\n"
+        + "  set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})\n"
+        + "endif()\n"
+        + "include_directories(${EIGEN3_INCLUDE_DIRS})\n"
+        + text[insert_at:]
+    )
+
+if text != original:
+    backup = path.with_suffix(path.suffix + ".uavdeps.bak")
+    if not backup.exists():
+        backup.write_text(original)
+    path.write_text(text if text.endswith("\n") else text + "\n")
+    print(f"patched {path}")
+else:
+    print(f"no patch needed {path}")
+PY
+}
+
 build_livox_sdk2() {
   if ldconfig -p 2>/dev/null | grep -q 'liblivox_lidar_sdk'; then
     log "Livox-SDK2 runtime library already visible to ldconfig"
@@ -308,6 +360,7 @@ main() {
     patch)
       ensure_opencv_compat_config 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-patch.txt"
       patch_vins_cv_bridge 2>&1 | tee -a "$EVIDENCE_DIR/p3-full-deps-patch.txt"
+      patch_multipoint_eigen_include 2>&1 | tee -a "$EVIDENCE_DIR/p3-full-deps-patch.txt"
       verify_deps
       ;;
     livox)
@@ -322,6 +375,7 @@ main() {
       install_apt_deps 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-apt.txt"
       build_opencv_314 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-opencv.txt"
       patch_vins_cv_bridge 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-patch.txt"
+      patch_multipoint_eigen_include 2>&1 | tee -a "$EVIDENCE_DIR/p3-full-deps-patch.txt"
       build_livox_sdk2 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-livox.txt"
       install_cuda_toolkit_if_requested 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-cuda.txt"
       verify_deps
