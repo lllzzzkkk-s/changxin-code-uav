@@ -454,20 +454,104 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 ## P2 ROS Noetic
 
 ### P2.1 ROS Noetic Install
-- Time:
-- Server:
+- Time: 2026-04-30, ROS apt source setup
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
 - Command:
+  ```bash
+  cd ~
+  source /etc/os-release
+  test "$VERSION_ID" = "20.04" && echo "Ubuntu $VERSION_ID / $VERSION_CODENAME"
+  sudo rm -f /usr/share/keyrings/ros-archive-keyring.gpg /etc/apt/sources.list.d/ros-latest.list
+  curl -fsSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo gpg --dearmor -o /usr/share/keyrings/ros-archive-keyring.gpg
+  ls -l /usr/share/keyrings/ros-archive-keyring.gpg | tee ~/uav-g3b-evidence/p2-ros-keyring.txt
+  echo "deb [signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/ros-latest.list
+  cat /etc/apt/sources.list.d/ros-latest.list | tee ~/uav-g3b-evidence/p2-ros-source.txt
+  sudo apt update 2>&1 | tee ~/uav-g3b-evidence/p2-ros-apt-update.txt
+  ```
 - Output:
-- Verdict:
-- Next:
+  ```text
+  Ubuntu 20.04 / focal
+  -rw-r--r-- 1 root root 1766 Apr 30 09:54 /usr/share/keyrings/ros-archive-keyring.gpg
+  deb [signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros/ubuntu focal main
+
+  Hit:1 http://archive.ubuntu.com/ubuntu focal InRelease
+  Hit:2 http://archive.ubuntu.com/ubuntu focal-updates InRelease
+  Hit:3 http://archive.ubuntu.com/ubuntu focal-backports InRelease
+  Hit:4 http://security.ubuntu.com/ubuntu focal-security InRelease
+  Get:5 http://packages.ros.org/ros/ubuntu focal InRelease [4679 B]
+  Get:6 http://packages.ros.org/ros/ubuntu focal/main amd64 Packages [842 kB]
+  Fetched 847 kB in 12s (68.2 kB/s)
+  Reading package lists...
+  Building dependency tree...
+  Reading state information...
+  264 packages can be upgraded. Run 'apt list --upgradable' to see them.
+  ```
+- Verdict: P2_1_SOURCE_PASS; ROS Noetic apt source and keyring are configured and reachable.
+- Next: install ROS Noetic packages and verify core ROS commands.
+
+- Time: 2026-04-30, ROS package install and basic command verification
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
+- Command:
+  ```bash
+  df -h / | tee ~/uav-g3b-evidence/p2-disk-before-ros.txt
+  sudo DEBIAN_FRONTEND=noninteractive apt install -y ros-noetic-desktop-full python3-rosdep python3-rosinstall python3-rosinstall-generator python3-wstool python3-catkin-tools 2>&1 | tee ~/uav-g3b-evidence/p2-ros-install.txt
+  test -f /opt/ros/noetic/setup.bash && echo "setup.bash exists" | tee ~/uav-g3b-evidence/p2-ros-setup-file.txt
+  grep -qxF 'source /opt/ros/noetic/setup.bash' ~/.bashrc || echo 'source /opt/ros/noetic/setup.bash' >> ~/.bashrc
+  source /opt/ros/noetic/setup.bash
+  rosversion -d | tee ~/uav-g3b-evidence/p2-ros-version.txt
+  which roscore rosnode rostopic rosmsg | tee ~/uav-g3b-evidence/p2-ros-tools.txt
+  ```
+- Output:
+  ```text
+  ROS apt install finished and processed package triggers.
+  ldconfig warning: Can't link /usr/lib/wsl/lib/libnvoptix_loader.so.1 to libnvoptix.so.1.
+
+  setup.bash exists
+  noetic
+  /opt/ros/noetic/bin/roscore
+  /opt/ros/noetic/bin/rosnode
+  /opt/ros/noetic/bin/rostopic
+  /opt/ros/noetic/bin/rosmsg
+  ```
+- Verdict: P2_1_INSTALL_PASS; ROS Noetic desktop-full and core command-line tools are installed. WSL `libnvoptix` warning is unrelated to ROS CLI availability.
+- Next: run a minimal `roscore` and topic-tool smoke test.
 
 ### P2.2 ROS Core Verification
-- Time:
-- Server:
+- Time: 2026-04-30
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
 - Command:
+  ```bash
+  source /opt/ros/noetic/setup.bash
+  pkill -f roscore || true
+  pkill -f rosmaster || true
+  roscore > ~/uav-g3b-evidence/p2-roscore.log 2>&1 &
+  echo $! | tee ~/uav-g3b-evidence/p2-roscore.pid
+  sleep 5
+  rosnode list 2>&1 | tee ~/uav-g3b-evidence/p2-rosnode-list.txt
+  rostopic list 2>&1 | tee ~/uav-g3b-evidence/p2-rostopic-list.txt
+  rosmsg show std_msgs/String 2>&1 | tee ~/uav-g3b-evidence/p2-rosmsg-std-string.txt
+  kill "$(cat ~/uav-g3b-evidence/p2-roscore.pid)" || true
+  sleep 2
+  pgrep -af 'roscore|rosmaster' | tee ~/uav-g3b-evidence/p2-roscore-after-kill.txt || true
+  ```
 - Output:
-- Verdict:
-- Next:
+  ```text
+  roscore PID: 27441
+  rosnode list:
+  /rosout
+
+  rostopic list:
+  /rosout
+  /rosout_agg
+
+  rosmsg show std_msgs/String:
+  string data
+
+  roscore exited after kill.
+  pgrep after kill only matched the `tee ... p2-roscore-after-kill.txt` command line, not a live roscore/rosmaster process.
+  ```
+- Verdict: P2_2_PASS; ROS master, node/topic tools, and message introspection work in WSL2.
+- Next: proceed to P3 Diff-planner workspace sync and interface verification.
 
 ## P3 Diff-planner
 
