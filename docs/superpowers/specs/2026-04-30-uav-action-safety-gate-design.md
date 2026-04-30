@@ -21,6 +21,7 @@ The system has three layers:
 1. **Dry-run compiler:** `process_command` and `build_dry_run_report` convert intent plus state into a ROS payload candidate and stop at `needs_confirmation`.
 2. **Action safety gate:** `evaluate_action_gate` checks whether that dry-run candidate is publish-eligible under strict operator, state, topic, timeout, and rollback requirements. It never publishes.
 3. **Publisher adapter:** not implemented in this stage. Any future publisher must consume an `allowed=True` gate decision and still perform a final ROS graph check before publish.
+4. **G3-D live-sim evidence script:** `g3d_live_action_gate_check.py` runs under an already alive headless sim graph, captures `rosnode`/`rostopic` state, produces an action-gate JSON report, and passively echoes action topics. It does not publish.
 
 The important migration rule is that A-stage is not a terminal design. A-stage may use sim localization and broader high-level topics to prove the contract, but the same gate API must run with stricter B/C profiles before any bench or real-aircraft action work.
 
@@ -104,9 +105,13 @@ The gate always reports `publish_attempted=False` because it does not publish.
 - `uav/llm_control/safety/action_gate.py`
 - `uav/llm_control/safety/profiles.py`
 - `uav/llm_control/safety/__init__.py`
+- `uav/llm_control/ros_adapters/action_gate_dry_run.py`
+- `uav/01-scripts/g3d_live_action_gate_check.py`
 - `uav/llm_control/schemas/models.py`
 - `uav/llm_control/core/pipeline.py`
 - `tests/uav_llm_control/test_action_safety_gate.py`
+- `tests/uav_llm_control/test_action_gate_dry_run_adapter.py`
+- `tests/uav_llm_control/test_python38_compat.py`
 - `tests/uav_llm_control/test_pipeline.py`
 
 ## Acceptance Matrix
@@ -129,6 +134,9 @@ The gate always reports `publish_attempted=False` because it does not publish.
 | B allows return-home candidate while C rejects that surface | `test_bench_profile_allows_return_home_candidate_but_real_profile_rejects_it` |
 | C rejects takeoff/land command surface | `test_real_profile_rejects_takeoff_land_command_surface` |
 | Dry-run compiler accepts sim localization for A-to-B/C transition testing | `test_move_relative_accepts_sim_localization_for_a_to_bc_transition_testing` |
+| G3-D adapter records an A-profile `gate_allowed` report without publish side effect | `test_a_profile_report_allows_gate_without_publish_side_effect` |
+| G3-D adapter records C-profile rejection for the same sim candidate | `test_c_profile_rejects_same_sim_candidate_for_real_aircraft_transition` |
+| Runtime files avoid Python 3.10-only type union syntax for WSL Noetic Python 3.8 | `test_wsl_noetic_runtime_files_avoid_python310_type_union_syntax` |
 
 ## Verification Commands
 
@@ -136,7 +144,8 @@ Local:
 
 ```bash
 python -m unittest tests.uav_llm_control.test_action_safety_gate
-python -m unittest tests.uav_llm_control.test_pipeline tests.uav_llm_control.test_ros_adapter_dry_run tests.uav_llm_control.test_action_safety_gate
+python -m unittest tests.uav_llm_control.test_pipeline tests.uav_llm_control.test_ros_adapter_dry_run tests.uav_llm_control.test_action_safety_gate tests.uav_llm_control.test_action_gate_dry_run_adapter tests.uav_llm_control.test_python38_compat
+python uav/01-scripts/g3d_live_action_gate_check.py --help
 python -m unittest discover
 git diff --check
 ```
@@ -150,9 +159,42 @@ source ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/d
 PYTHONPATH="$PWD:${PYTHONPATH:-}" python3 -m unittest \
   tests.uav_llm_control.test_pipeline \
   tests.uav_llm_control.test_ros_adapter_dry_run \
-  tests.uav_llm_control.test_action_safety_gate
+  tests.uav_llm_control.test_action_safety_gate \
+  tests.uav_llm_control.test_action_gate_dry_run_adapter \
+  tests.uav_llm_control.test_python38_compat
 ```
 
 ## Next Stage Boundary
 
 The next stage may run the A-stage action gate under the live headless sim graph and record `allowed=True` decisions for dry-run candidates. It still must not publish. B/C work must switch to the stricter profiles before any bench or real-aircraft run. A publisher adapter requires a separate design, a profile selection rule, a final live ROS graph check, and a new sim-first rollback proof.
+
+Minimal WSL G3-D run shape after syncing this commit:
+
+```bash
+cd ~/changxin-code
+source /opt/ros/noetic/setup.bash
+source ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/devel/setup.bash
+
+PYTHONPATH="$PWD:${PYTHONPATH:-}" python3 -m unittest \
+  tests.uav_llm_control.test_pipeline \
+  tests.uav_llm_control.test_ros_adapter_dry_run \
+  tests.uav_llm_control.test_action_safety_gate \
+  tests.uav_llm_control.test_action_gate_dry_run_adapter \
+  tests.uav_llm_control.test_python38_compat
+
+cd ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner
+ROS_LOG_DIR=~/uav-g3d-evidence/roslogs-g3d-01 \
+QT_QPA_PLATFORM=offscreen \
+roslaunch ~/uav-g3c-evidence/run_sim_single_headless.launch \
+  > ~/uav-g3d-evidence/g3d-00-headless-sim.log 2>&1 &
+LAUNCH_PID=$!
+sleep 15
+
+cd ~/changxin-code
+python3 uav/01-scripts/g3d_live_action_gate_check.py \
+  --evidence-dir ~/uav-g3d-evidence \
+  --profile a-stage-sim-dry-run
+
+kill -INT "$LAUNCH_PID" 2>/dev/null || true
+wait "$LAUNCH_PID" 2>/dev/null || true
+```

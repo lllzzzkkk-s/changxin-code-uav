@@ -1787,3 +1787,62 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
   ```
 - Verdict: ACTION_GATE_DESIGN_PASS_LOCAL_TDD_PROFILED. The first publish-capable boundary now has a tested pure-Python evaluator and explicit A/B/C stage profiles. A-stage can be exercised with sim localization, while B/C reject sim and shrink the command surface. There is still no publisher implementation and no authorization to emit ROS action messages.
 - Next: sync this module into WSL, run the same unit tests there after sourcing the Diff-planner workspace, and run a sim-live A-profile gate evaluation that proves an allowed decision still does not publish. B/C work must switch to the stricter profiles before bench or real-aircraft use.
+
+## G3-D Live-Sim Action Gate Preparation
+
+- Time: 2026-04-30, local pure-Python G3-D adapter and WSL evidence script preparation
+- Server: local Codex worktree
+- Files:
+  ```text
+  tests/uav_llm_control/test_action_gate_dry_run_adapter.py
+  tests/uav_llm_control/test_python38_compat.py
+  uav/llm_control/ros_adapters/action_gate_dry_run.py
+  uav/01-scripts/g3d_live_action_gate_check.py
+  docs/superpowers/specs/2026-04-30-uav-action-safety-gate-design.md
+  ```
+- Red test:
+  ```bash
+  python -m unittest tests.uav_llm_control.test_action_gate_dry_run_adapter
+  ```
+- Red output:
+  ```text
+  ModuleNotFoundError: No module named 'uav.llm_control.ros_adapters.action_gate_dry_run'
+  FAILED (errors=1)
+  ```
+- WSL compatibility red expansion:
+  ```bash
+  python -m unittest tests.uav_llm_control.test_python38_compat
+  ```
+- Compatibility red output:
+  ```text
+  Python 3.10-only type union syntax detected in WSL runtime files.
+  ```
+- Green commands:
+  ```bash
+  python -m unittest tests.uav_llm_control.test_python38_compat tests.uav_llm_control.test_action_gate_dry_run_adapter
+  python -m unittest tests.uav_llm_control.test_pipeline tests.uav_llm_control.test_ros_adapter_dry_run tests.uav_llm_control.test_action_safety_gate tests.uav_llm_control.test_action_gate_dry_run_adapter tests.uav_llm_control.test_python38_compat
+  python -m py_compile uav/01-scripts/g3d_live_action_gate_check.py uav/llm_control/ros_adapters/action_gate_dry_run.py uav/llm_control/safety/action_gate.py
+  python uav/01-scripts/g3d_live_action_gate_check.py --help
+  python -m unittest discover
+  ```
+- Green output:
+  ```text
+  Ran 4 tests in 0.007s
+  OK
+
+  Ran 28 tests in 0.010s
+  OK
+
+  Ran 36 tests in 10.617s
+  OK
+
+  g3d_live_action_gate_check.py --help prints usage and confirms: This script never publishes ROS topics.
+  ```
+- G3-D design:
+  ```text
+  action_gate_dry_run builds a stable JSON report from the existing dry-run compiler plus the profiled safety gate.
+  g3d_live_action_gate_check.py is intended to run while the headless sim launch is alive. It captures rosnode list, rostopic list -v, an A-profile gate report, and passive rostopic echo checks for /goal, /move_base_simple/goal, /back_trigger, /px4ctrl/takeoff_land, and /setpoints_cmd.
+  It exits nonzero if ROS master is unavailable, if the A-profile gate does not allow the dry-run candidate, or if passive echo receives any action-topic message.
+  It never calls rospy.Publisher, rostopic pub, MAVROS services, arming, set_mode, or setpoints.
+  ```
+- Verdict: G3D_SCRIPT_READY_LOCAL_TDD_NO_PUBLISH. The next WSL action is a live-sim evidence run, not a publisher implementation.

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, Mapping, Tuple
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 from uav.llm_control.schemas.models import (
     SUPPORTED_LOCALIZATION_SOURCES,
@@ -173,7 +173,7 @@ def _process_move_relative(
     return _needs_confirmation(tool, meta, intent, arguments, resolution, payload, trace)
 
 
-def _validate_move_relative_args(arguments: Mapping[str, Any]) -> str | None:
+def _validate_move_relative_args(arguments: Mapping[str, Any]) -> Optional[str]:
     frame = arguments.get("frame")
     if frame not in {"body", "world"}:
         return "frame must be one of: body, world"
@@ -189,7 +189,7 @@ def _validate_move_relative_args(arguments: Mapping[str, Any]) -> str | None:
     return None
 
 
-def _check_action_preconditions(snapshot: StateSnapshot, now: float, *, require_localization: bool) -> str | None:
+def _check_action_preconditions(snapshot: StateSnapshot, now: float, *, require_localization: bool) -> Optional[str]:
     fields = ["fcu", "battery", "rc"]
     if require_localization:
         fields.append("localization")

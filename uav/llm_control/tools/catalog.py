@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 from uav.llm_control.schemas.models import ToolContract
 
@@ -106,7 +106,7 @@ def tool_catalog() -> List[ToolContract]:
     ]
 
 
-def tool_by_name(name: str) -> ToolContract | None:
+def tool_by_name(name: str) -> Optional[ToolContract]:
     for tool in tool_catalog():
         if tool.name == name:
             return tool

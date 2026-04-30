@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Any, Dict, List, Mapping
+from typing import Any, Dict, List, Mapping, Optional
 
 from uav.llm_control.core.pipeline import process_command
 from uav.llm_control.schemas.models import CommandResult, StateSnapshot
@@ -10,7 +10,7 @@ from uav.llm_control.schemas.models import CommandResult, StateSnapshot
 @dataclass(frozen=True)
 class DryRunReport:
     status: str
-    request_id: str | None
+    request_id: Optional[str]
     publish_attempted: bool
     command: Dict[str, Any]
     trace: List[Dict[str, Any]]
@@ -103,7 +103,7 @@ def _schema_validation_stage(result: CommandResult) -> Dict[str, Any]:
     }
 
 
-def _ros_payload_stage(payload: Dict[str, Any] | None) -> Dict[str, Any]:
+def _ros_payload_stage(payload: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if payload is None:
         return {
             "stage": "ros_payload",

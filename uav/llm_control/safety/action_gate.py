@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 import math
-from typing import Any, Dict, Mapping, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 from uav.llm_control.schemas.models import CommandResult, StateSnapshot
 
@@ -46,8 +46,8 @@ class ActionApproval:
 class ActionGateDecision:
     allowed: bool
     reasons: Sequence[str]
-    topic: str | None
-    message_type: str | None
+    topic: Optional[str]
+    message_type: Optional[str]
     publish_attempted: bool
     audit: Dict[str, Any]
 
@@ -56,13 +56,13 @@ class ActionGateDecision:
 
 
 def evaluate_action_gate(
-    command: CommandResult | Mapping[str, Any],
+    command: Union[CommandResult, Mapping[str, Any]],
     snapshot: StateSnapshot,
-    approval: ActionApproval | None,
+    approval: Optional[ActionApproval],
     *,
     now: float,
     requested_timeout_s: float,
-    config: ActionGateConfig | None = None,
+    config: Optional[ActionGateConfig] = None,
 ) -> ActionGateDecision:
     """Evaluate whether a dry-run action is eligible for a later publish step.
 
@@ -80,7 +80,7 @@ def evaluate_action_gate(
     payload = dict(payload) if isinstance(payload, Mapping) else None
     topic = payload.get("topic") if payload else None
     message_type = payload.get("message_type") if payload else None
-    reasons: list[str] = []
+    reasons: List[str] = []
 
     if command_dict.get("status") != "needs_confirmation":
         reasons.append("command_not_ready_for_action")
@@ -160,11 +160,11 @@ def evaluate_action_gate(
     )
 
 
-def _expected_confirmation_phrase(meta: Mapping[str, Any], intent: Mapping[str, Any], topic: str | None) -> str:
+def _expected_confirmation_phrase(meta: Mapping[str, Any], intent: Mapping[str, Any], topic: Optional[str]) -> str:
     return f"CONFIRM {meta.get('request_id')} {intent.get('name')} {topic}"
 
 
-def _payload_limit_reasons(payload: Mapping[str, Any], config: ActionGateConfig) -> list[str]:
+def _payload_limit_reasons(payload: Mapping[str, Any], config: ActionGateConfig) -> List[str]:
     message = payload.get("message")
     if not isinstance(message, Mapping):
         return []
@@ -184,7 +184,7 @@ def _payload_limit_reasons(payload: Mapping[str, Any], config: ActionGateConfig)
     return []
 
 
-def _resolution_limit_reasons(resolution: Any, config: ActionGateConfig) -> list[str]:
+def _resolution_limit_reasons(resolution: Any, config: ActionGateConfig) -> List[str]:
     if not isinstance(resolution, Mapping):
         return []
     source = resolution.get("source_position")
