@@ -1285,6 +1285,67 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - Verdict: G3_C_1_PASS_TARGET_PARSE_PARAM_AND_ROSCORE_BASELINE. The target launch files parse with explicit environment variables, sim and LIO parameter dumps were captured, and the roscore-only baseline contains no action topics.
 - Next: a sim-only observe run may be started for runtime graph inspection. Keep it bounded and do not publish `/goal`, `/move_base_simple/goal`, `/back_trigger`, `/px4ctrl/takeoff_land`, `/setpoints_cmd`, or MAVROS arming/set_mode/setpoint traffic.
 
+- Time: 2026-04-30, first bounded sim-only observe startup attempt
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
+- Command:
+  ```bash
+  cd ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner
+  source /opt/ros/noetic/setup.bash
+  source devel/setup.bash
+  mkdir -p ~/uav-g3c-evidence
+
+  ROS_LOG_DIR=~/uav-g3c-evidence/roslogs-g3c-07 \
+  timeout --signal=INT --kill-after=8s 35s \
+    roslaunch src/diff_planner/plan_manage/launch/sim/run_sim_single.launch \
+    2>&1 | tee ~/uav-g3c-evidence/g3c-07-run-sim-single-observe.log || true
+
+  {
+    date -Is
+    echo "NODES:"
+    rosnode list || true
+    echo
+    echo "TOPICS:"
+    rostopic list -v || true
+  } | tee ~/uav-g3c-evidence/g3c-08-run-sim-single-graph-after-timeout.txt
+
+  for t in /goal /move_base_simple/goal /back_trigger /px4ctrl/takeoff_land /setpoints_cmd; do
+    echo "===== $t ====="
+    timeout 3s rostopic echo -n 1 "$t" || echo "NO_MESSAGE_OR_TOPIC_WITHIN_3S"
+  done | tee ~/uav-g3c-evidence/g3c-09-action-topic-passive-echo-check.txt
+  ```
+- Output:
+  ```text
+  run_sim_single.launch started:
+  /random_forest
+  /drone_0_diff_planner_node
+  /drone_0_traj_server
+  /drone_0_poscmd_2_odom
+  /drone_0_odom_visualization
+  /drone_0_pcl_render_node
+  /drone_0_manual_take_over
+  /multipointplan
+  /rviz
+
+  rviz failed in the headless WSL session:
+  qt.qpa.xcb: could not connect to display
+  qt.qpa.plugin: Could not load the Qt platform plugin "xcb" in "" even though it was found.
+  This application failed to start because no Qt platform plugin could be initialized.
+
+  roslaunch then shut down the launch because required process [rviz-10] died.
+
+  Follow-up graph checks after shutdown:
+  ERROR: Unable to communicate with master!
+
+  Passive action-topic checks after shutdown:
+  /goal: ERROR: Unable to communicate with master! NO_MESSAGE_OR_TOPIC_WITHIN_3S
+  /move_base_simple/goal: ERROR: Unable to communicate with master! NO_MESSAGE_OR_TOPIC_WITHIN_3S
+  /back_trigger: ERROR: Unable to communicate with master! NO_MESSAGE_OR_TOPIC_WITHIN_3S
+  /px4ctrl/takeoff_land: ERROR: Unable to communicate with master! NO_MESSAGE_OR_TOPIC_WITHIN_3S
+  /setpoints_cmd: ERROR: Unable to communicate with master! NO_MESSAGE_OR_TOPIC_WITHIN_3S
+  ```
+- Verdict: G3_C_2_PARTIAL_SIM_START_BLOCKED_BY_REQUIRED_RVIZ_HEADLESS_FAILURE. The sim launch reached process startup, but WSL has no GUI display and `rviz` is required, so the launch shut down before a useful runtime graph or passive action-topic observation could be captured.
+- Next: create a temporary headless copy of the sim launch that removes only the RViz node, run the same bounded observation, then inspect the live graph and passive action topics while the ROS master is still up.
+
 ## Final Gate
 
 - P0 Verdict: PASS_WITH_D_DRIVE_TARGET_AND_ROS_TLS_RISK. Windows 11, WSL and VirtualMachinePlatform are enabled, HypervisorPresent is true, D: has enough space, and ROS apt HTTP/key URLs are reachable. C: is too small for default WSL storage.
@@ -1293,6 +1354,6 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - P2 Verdict: PASS. ROS Noetic desktop-full is installed; `roscore`, `rosnode`, `rostopic`, `rosmsg`, and standard message introspection work.
 - P3 Verdict: PASS_FULL_CATKIN_BUILD_AND_NODE_VISIBILITY. Diff-planner snapshot is present in WSL; full `catkin_make -j8 -l8` completes; `quadrotor_msgs`, `diff_planner`, `multipoint`, `px4ctrl`, `vins`, and `faster_lio` resolve through `rospack`; `diff_planner_node`, `vins_node`, `run_mapping_online`, and `px4ctrl_node` executables are present.
 - G3-B Verdict: PASS_BASELINE_READ_ONLY_WSL_DRY_RUN_LOCAL_AND_WSL_ADAPTER_TRACES. With only `roscore` running, baseline graph has `/rosout` and `/rosout_agg`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, and `/px4ctrl/takeoff_land` are absent as expected; no action-topic publish occurred. WSL pure-Python `move_relative` dry-run produces a `/goal` payload with `publish_attempted=False`; local and WSL adapter traces record schema validation, state snapshot, safety policy, target point, ROS payload, and confirmation gate; the WSL 11-test A-stage suite passes after the full catkin build.
-- G3-C Verdict: PASS_TARGET_PARSE_PARAM_AND_ROSCORE_BASELINE. The WSL package environment, launch files, static topic/control scan, launch node inventory, target launch parsing with env vars, sim/LIO parameter dumps, and roscore-only baseline identify the planner, estimator, localization, and PX4 control surfaces without publishing action topics.
+- G3-C Verdict: PARTIAL_SIM_START_BLOCKED_BY_REQUIRED_RVIZ_HEADLESS_FAILURE. The WSL package environment, launch files, static topic/control scan, target launch parsing, parameter dumps, and roscore-only baseline pass; the first bounded sim startup reaches process startup but shuts down because required RViz cannot start in the headless WSL session.
 - A-stage Closure Decision: CLOSED_DRY_RUN_ONLY. Full WSL build, package/node visibility, WSL A-stage tests, and standalone WSL adapter trace all pass. The closed scope is dry-run only and does not authorize publishing motion/takeoff/land commands.
-- G3-C Entry Decision: READY_FOR_BOUNDED_SIM_OBSERVE_ONLY_RUNTIME_STARTUP. Next work may start a bounded sim-only observation run and inspect ROS graph/logs, but must not publish movement, takeoff, land, return-home, MAVROS arming, MAVROS set_mode, or MAVROS setpoint commands until a separate action-safety gate is defined and approved.
+- G3-C Entry Decision: READY_FOR_HEADLESS_SIM_LAUNCH_COPY_OBSERVE_ONLY_RUNTIME_STARTUP. Next work may start a bounded sim-only observation run from a temporary launch copy with RViz removed and inspect ROS graph/logs, but must not publish movement, takeoff, land, return-home, MAVROS arming, MAVROS set_mode, or MAVROS setpoint commands until a separate action-safety gate is defined and approved.
