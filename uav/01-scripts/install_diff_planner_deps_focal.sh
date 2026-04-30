@@ -279,6 +279,96 @@ else:
 PY
 }
 
+patch_vins_cuda_cpu_fallback() {
+  python3 - "$DIFF_PLANNER_DIR" <<'PY'
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+header = root / "src/realflight_modules/VINS-Fusion-gpu/vins_estimator/src/featureTracker/feature_tracker.h"
+source = root / "src/realflight_modules/VINS-Fusion-gpu/vins_estimator/src/featureTracker/feature_tracker.cpp"
+
+for path in (header, source):
+    if not path.exists():
+        print(f"skip missing {path}")
+        raise SystemExit(0)
+
+header_text = header.read_text()
+source_text = source.read_text()
+original_header = header_text
+original_source = source_text
+
+cuda_includes = '''#include <opencv2/cudaoptflow.hpp>
+#include <opencv2/cudaimgproc.hpp>
+#include <opencv2/cudaarithm.hpp>'''
+cuda_guard = '''#ifndef __has_include
+#define __has_include(header) 0
+#endif
+
+#if __has_include(<opencv2/cudaoptflow.hpp>) && __has_include(<opencv2/cudaimgproc.hpp>) && __has_include(<opencv2/cudaarithm.hpp>)
+#define VINS_HAS_CUDA_OPENCV 1
+#include <opencv2/cudaoptflow.hpp>
+#include <opencv2/cudaimgproc.hpp>
+#include <opencv2/cudaarithm.hpp>
+#else
+#define VINS_HAS_CUDA_OPENCV 0
+#endif'''
+
+if cuda_includes in header_text:
+    header_text = header_text.replace(cuda_includes, cuda_guard)
+
+source_text = source_text.replace("if(!USE_GPU_ACC_FLOW)", "if(!USE_GPU_ACC_FLOW || !VINS_HAS_CUDA_OPENCV)")
+source_text = source_text.replace("if(!USE_GPU)", "if(!USE_GPU || !VINS_HAS_CUDA_OPENCV)")
+
+gpu_blocks = [
+    (
+        "        else\n        {\n            TicToc t_og;",
+        "            // printf(\"gpu temporal optical flow costs: %f ms\\n\",t_og.toc());\n        }\n    \n        for (int i = 0;",
+        "            // printf(\"gpu temporal optical flow costs: %f ms\\n\",t_og.toc());\n        }\n#endif\n    \n        for (int i = 0;",
+    ),
+    (
+        "        else\n        {\n            if (n_max_cnt > 0)",
+        "            else \n                n_pts.clear();\n        }\n\n        ROS_DEBUG(\"add feature begins\");",
+        "            else \n                n_pts.clear();\n        }\n#endif\n\n        ROS_DEBUG(\"add feature begins\");",
+    ),
+    (
+        "            else\n            {\n                TicToc t_og1;",
+        "                // printf(\"gpu left right optical flow cost %fms\\n\",t_og1.toc());\n            }\n            ids_right = ids;",
+        "                // printf(\"gpu left right optical flow cost %fms\\n\",t_og1.toc());\n            }\n#endif\n            ids_right = ids;",
+    ),
+]
+
+for start, end, guarded_end in gpu_blocks:
+    guarded_start = "#if VINS_HAS_CUDA_OPENCV\n" + start
+    if guarded_start not in source_text:
+        if start not in source_text:
+            raise SystemExit(f"GPU block start marker not found in {source}")
+        source_text = source_text.replace(start, guarded_start, 1)
+    if guarded_end not in source_text:
+        if end not in source_text:
+            raise SystemExit(f"GPU block end marker not found in {source}")
+        source_text = source_text.replace(end, guarded_end, 1)
+
+if header_text != original_header:
+    backup = header.with_suffix(header.suffix + ".uavdeps.bak")
+    if not backup.exists():
+        backup.write_text(original_header)
+    header.write_text(header_text if header_text.endswith("\n") else header_text + "\n")
+    print(f"patched {header}")
+else:
+    print(f"no patch needed {header}")
+
+if source_text != original_source:
+    backup = source.with_suffix(source.suffix + ".uavdeps.bak")
+    if not backup.exists():
+        backup.write_text(original_source)
+    source.write_text(source_text if source_text.endswith("\n") else source_text + "\n")
+    print(f"patched {source}")
+else:
+    print(f"no patch needed {source}")
+PY
+}
+
 build_livox_sdk2() {
   if ldconfig -p 2>/dev/null | grep -q 'liblivox_lidar_sdk'; then
     log "Livox-SDK2 runtime library already visible to ldconfig"
@@ -361,6 +451,7 @@ main() {
       ensure_opencv_compat_config 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-patch.txt"
       patch_vins_cv_bridge 2>&1 | tee -a "$EVIDENCE_DIR/p3-full-deps-patch.txt"
       patch_multipoint_eigen_include 2>&1 | tee -a "$EVIDENCE_DIR/p3-full-deps-patch.txt"
+      patch_vins_cuda_cpu_fallback 2>&1 | tee -a "$EVIDENCE_DIR/p3-full-deps-patch.txt"
       verify_deps
       ;;
     livox)
@@ -376,6 +467,7 @@ main() {
       build_opencv_314 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-opencv.txt"
       patch_vins_cv_bridge 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-patch.txt"
       patch_multipoint_eigen_include 2>&1 | tee -a "$EVIDENCE_DIR/p3-full-deps-patch.txt"
+      patch_vins_cuda_cpu_fallback 2>&1 | tee -a "$EVIDENCE_DIR/p3-full-deps-patch.txt"
       build_livox_sdk2 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-livox.txt"
       install_cuda_toolkit_if_requested 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-cuda.txt"
       verify_deps
