@@ -808,15 +808,15 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - Server:
 - Command:
 - Output:
-- Verdict:
-- Next:
+- Verdict: NOT_RUN; this evidence pass only covers environment setup, ROS Noetic verification, Diff-planner static interface verification, and read-only baseline graph observation. No LLM control service or dry-run ROS adapter exists in this environment yet.
+- Next: implement the A-stage `uav/llm_control/` dry-run service before producing payload trace evidence.
 
 ## Final Gate
 
-- P0 Verdict:
-- P1 Verdict:
-- P1.5 Verdict:
-- P2 Verdict:
-- P3 Verdict:
-- G3-B Verdict:
-- G3-C Entry Decision:
+- P0 Verdict: PASS_WITH_D_DRIVE_TARGET_AND_ROS_TLS_RISK. Windows 11, WSL and VirtualMachinePlatform are enabled, HypervisorPresent is true, D: has enough space, and ROS apt HTTP/key URLs are reachable. C: is too small for default WSL storage.
+- P1 Verdict: PASS. Ubuntu-20.04 was imported on D:\WSL as WSL2 and verified as `Ubuntu 20.04.3 LTS` under `5.10.16.3-microsoft-standard-WSL2`; `uavdev` exists.
+- P1.5 Verdict: PASS. Interactive WSL shell works, direct apt network works, and base packages `curl`, `gnupg`, `lsb-release`, `build-essential`, `git`, and `python3-pip` are installed.
+- P2 Verdict: PASS. ROS Noetic desktop-full is installed; `roscore`, `rosnode`, `rostopic`, `rosmsg`, and standard message introspection work.
+- P3 Verdict: PASS_STATIC_ONLY_WITH_CORE_MSGS. Diff-planner snapshot is present in WSL; full build is blocked by non-core VINS/OpenCV/Ceres dependencies; whitelisted `quadrotor_msgs` build passes; `quadrotor_msgs/TakeoffLand` and `geometry_msgs/PoseStamped` are visible; static source evidence confirms `/goal` planner input and `multipoint` trigger wiring.
+- G3-B Verdict: PASS_BASELINE_READ_ONLY. With only `roscore` running, baseline graph has `/rosout` and `/rosout_agg`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, and `/px4ctrl/takeoff_land` are absent as expected; no action-topic publish occurred.
+- G3-C Entry Decision: NOT_READY_FOR_PLANNER_RUNTIME_OR_ACTION_TESTS. Ready for A-stage service implementation, schema/dry-run tooling, and static adapter design. Not ready to launch planner/multipoint or publish movement/takeoff/land commands until non-core build dependencies are addressed or a minimal launchable package set is isolated and reviewed.
