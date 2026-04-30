@@ -1624,6 +1624,100 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - Verdict: G3_C_5_SIM_DRY_RUN_WIRING_RETRY_REQUIRED. The report generator still refused to publish, but this attempt does not prove sim-live wiring because it used an unsupported localization source and the ROS master was not live for passive topic checks.
 - Next: rerun sim dry-run wiring with a live headless sim launch and a `localization.source` value of `lio` while keeping the simulated position coordinates. Confirm `publish_attempted=False`, `/goal` payload generation, and no action-topic messages under a live master.
 
+- Time: 2026-04-30, sim dry-run wiring retry with live headless graph
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
+- Command:
+  ```bash
+  cd ~/changxin-code
+  source /opt/ros/noetic/setup.bash
+  source ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/devel/setup.bash
+
+  ROS_LOG_DIR=~/uav-g3c-evidence/roslogs-g3c-20 \
+  QT_QPA_PLATFORM=offscreen \
+  roslaunch ~/uav-g3c-evidence/run_sim_single_headless.launch \
+    > ~/uav-g3c-evidence/g3c-20-sim-dry-run-live-launch.log 2>&1 &
+  LAUNCH_PID=$!
+
+  sleep 15
+
+  {
+    date -Is
+    echo "LAUNCH_PID=$LAUNCH_PID alive=$(kill -0 $LAUNCH_PID 2>/dev/null && echo yes || echo no)"
+    rosnode list || true
+  } | tee ~/uav-g3c-evidence/g3c-20b-sim-dry-run-live-launch-check.txt
+
+  PYTHONPATH="$PWD:${PYTHONPATH:-}" python3 - <<'PY' \
+    | tee ~/uav-g3c-evidence/g3c-21-sim-live-a-stage-dry-run-report-lio.txt
+  from uav.llm_control.ros_adapters.dry_run import build_dry_run_report
+  from uav.llm_control.schemas.models import BatterySnapshot, FcuSnapshot, LocalizationSnapshot, RcSnapshot, StateSnapshot
+
+  snapshot = StateSnapshot(
+      captured_at=100.0,
+      fcu=FcuSnapshot(connected=True, armed=True, mode="OFFBOARD", updated_at=100.0),
+      battery=BatterySnapshot(voltage=24.1, percentage=0.75, updated_at=100.0),
+      rc=RcSnapshot(channels=[1000,1500,1500,1500,1000,1000,1800,1500], updated_at=100.0),
+      localization=LocalizationSnapshot(
+          source="lio",
+          position={"x": -15.0, "y": 0.0, "z": 1.0},
+          velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+          yaw=0.0,
+          updated_at=100.0,
+      ),
+  )
+  report = build_dry_run_report({
+      "meta": {"request_id": "g3c-sim-live-dry-run-lio"},
+      "intent": {"name": "move_relative"},
+      "arguments": {"frame": "world", "direction": "forward", "distance_m": 1.0},
+  }, snapshot, now=100.0).as_dict()
+
+  print("status:", report["status"])
+  print("publish_attempted:", report["publish_attempted"])
+  print("target_position:", report["trace"][4]["target_position"])
+  print("ros_payload_topic:", report["trace"][5]["topic"])
+  print("ros_payload_type:", report["trace"][5]["message_type"])
+  print("confirmation_gate:", report["trace"][6]["status"])
+  PY
+
+  for t in /goal /move_base_simple/goal /back_trigger /px4ctrl/takeoff_land /setpoints_cmd; do
+    echo "===== $t ====="
+    timeout 5s rostopic echo -n 1 "$t" || echo "NO_MESSAGE_WITHIN_5S"
+  done | tee ~/uav-g3c-evidence/g3c-22-post-dry-run-action-topic-passive-echo-live.txt
+
+  kill -INT "$LAUNCH_PID" 2>/dev/null || echo "already dead"
+  wait "$LAUNCH_PID" 2>/dev/null || true
+  ```
+- Output:
+  ```text
+  g3c-20b at 2026-04-30T16:19:33+08:00:
+  LAUNCH_PID=32600 alive=yes
+  /drone_0_diff_planner_node
+  /drone_0_manual_take_over
+  /drone_0_odom_visualization
+  /drone_0_pcl_render_node
+  /drone_0_poscmd_2_odom
+  /drone_0_traj_server
+  /multipointplan
+  /random_forest
+  /rosout
+
+  g3c-21:
+  status: needs_confirmation
+  publish_attempted: False
+  target_position: {'x': -14.0, 'y': 0.0, 'z': 1.0}
+  ros_payload_topic: /goal
+  ros_payload_type: geometry_msgs/PoseStamped
+  confirmation_gate: blocked_for_confirmation
+
+  g3c-22 passive action-topic echo after dry-run report:
+  /goal: NO_MESSAGE_WITHIN_5S
+  /move_base_simple/goal: NO_MESSAGE_WITHIN_5S
+  /back_trigger: NO_MESSAGE_WITHIN_5S
+  /px4ctrl/takeoff_land: NO_MESSAGE_WITHIN_5S
+  /setpoints_cmd: WARNING: topic [/setpoints_cmd] does not appear to be published yet; NO_MESSAGE_WITHIN_5S
+  ```
+- Verdict: G3_C_6_PASS_SIM_DRY_RUN_WIRING_NO_PUBLISH. While the headless sim graph was alive, the A-stage dry-run report generated a `/goal` `geometry_msgs/PoseStamped` payload for target `(-14.0, 0.0, 1.0)`, stopped at the confirmation gate, recorded `publish_attempted=False`, and emitted no messages on the action topics during passive observation.
+- Next: close G3-C dry-run wiring. Any subsequent stage that would publish to `/goal`, `/move_base_simple/goal`, `/back_trigger`, `/px4ctrl/takeoff_land`, `/setpoints_cmd`, or MAVROS services must begin with a separately defined action-safety gate.
+
 ## Final Gate
 
 - P0 Verdict: PASS_WITH_D_DRIVE_TARGET_AND_ROS_TLS_RISK. Windows 11, WSL and VirtualMachinePlatform are enabled, HypervisorPresent is true, D: has enough space, and ROS apt HTTP/key URLs are reachable. C: is too small for default WSL storage.
@@ -1632,6 +1726,7 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - P2 Verdict: PASS. ROS Noetic desktop-full is installed; `roscore`, `rosnode`, `rostopic`, `rosmsg`, and standard message introspection work.
 - P3 Verdict: PASS_FULL_CATKIN_BUILD_AND_NODE_VISIBILITY. Diff-planner snapshot is present in WSL; full `catkin_make -j8 -l8` completes; `quadrotor_msgs`, `diff_planner`, `multipoint`, `px4ctrl`, `vins`, and `faster_lio` resolve through `rospack`; `diff_planner_node`, `vins_node`, `run_mapping_online`, and `px4ctrl_node` executables are present.
 - G3-B Verdict: PASS_BASELINE_READ_ONLY_WSL_DRY_RUN_LOCAL_AND_WSL_ADAPTER_TRACES. With only `roscore` running, baseline graph has `/rosout` and `/rosout_agg`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, and `/px4ctrl/takeoff_land` are absent as expected; no action-topic publish occurred. WSL pure-Python `move_relative` dry-run produces a `/goal` payload with `publish_attempted=False`; local and WSL adapter traces record schema validation, state snapshot, safety policy, target point, ROS payload, and confirmation gate; the WSL 11-test A-stage suite passes after the full catkin build.
-- G3-C Verdict: PASS_HEADLESS_SIM_PASSIVE_ECHO_120S. The WSL package environment, launch files, static topic/control scan, target launch parsing, parameter dumps, roscore-only baseline, headless sim startup, and extended 120-second passive observation all pass; the live graph contains all eight expected business nodes, the planner remains in `WAIT_TARGET`, and no messages are observed on `/goal`, `/move_base_simple/goal`, `/back_trigger`, `/px4ctrl/takeoff_land`, or `/setpoints_cmd`.
+- G3-C Verdict: PASS_SIM_DRY_RUN_WIRING_NO_PUBLISH. The WSL package environment, launch files, static topic/control scan, target launch parsing, parameter dumps, roscore-only baseline, headless sim startup, 120-second passive observation, and A-stage dry-run wiring under a live sim graph all pass; the report produces a `/goal` payload while `publish_attempted=False`, and no action-topic messages are observed.
 - A-stage Closure Decision: CLOSED_DRY_RUN_ONLY. Full WSL build, package/node visibility, WSL A-stage tests, and standalone WSL adapter trace all pass. The closed scope is dry-run only and does not authorize publishing motion/takeoff/land commands.
-- G3-C Entry Decision: READY_FOR_SIM_DRY_RUN_WIRING_RETRY. Next work may rerun the A-stage dry-run report generator while a fresh headless sim graph is alive, using `localization.source="lio"` with simulated coordinates, and verify no action-topic messages are emitted; it must not publish movement, takeoff, land, return-home, MAVROS arming, MAVROS set_mode, or MAVROS setpoint commands until a separate action-safety gate is defined and approved.
+- G3-C Closure Decision: CLOSED_SIM_DRY_RUN_NO_PUBLISH. The closed scope covers build visibility, read-only launch analysis, headless sim observation, extended passive no-message checks, and dry-run report generation only. It does not authorize publishing movement, takeoff, land, return-home, MAVROS arming, MAVROS set_mode, or MAVROS setpoint commands.
+- Next Stage Gate: READY_FOR_ACTION_SAFETY_GATE_DESIGN. Before any publish-capable work, define and verify an explicit action-safety gate with operator confirmation, mode/state checks, topic allowlists, timeout bounds, and sim-first rollback evidence.
