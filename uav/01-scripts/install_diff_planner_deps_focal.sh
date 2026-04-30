@@ -151,52 +151,59 @@ include("${CMAKE_CURRENT_LIST_DIR}/share/OpenCV/OpenCVConfig.cmake")
 EOF
 }
 
-patch_loop_fusion_cv_bridge() {
-  local cmake_file="$DIFF_PLANNER_DIR/src/realflight_modules/VINS-Fusion-gpu/loop_fusion/CMakeLists.txt"
-  if [[ ! -f "$cmake_file" ]]; then
-    log "Skipping loop_fusion cv_bridge patch; file not found: $cmake_file"
-    return
-  fi
-
-  python3 - "$cmake_file" <<'PY'
+patch_vins_cv_bridge() {
+  python3 - "$DIFF_PLANNER_DIR" <<'PY'
 from pathlib import Path
 import sys
 
-path = Path(sys.argv[1])
-text = path.read_text()
-original = text
-
+root = Path(sys.argv[1])
+files = [
+    root / "src/realflight_modules/VINS-Fusion-gpu/loop_fusion/CMakeLists.txt",
+    root / "src/realflight_modules/VINS-Fusion-gpu/vins_estimator/CMakeLists.txt",
+]
 hardcoded = 'include("~/Lib/cv_bridge_pkgs/devel/share/cv_bridge/cmake/cv_bridgeConfig.cmake")'
 replacement = '''if(EXISTS "$ENV{HOME}/Lib/cv_bridge_pkgs/devel/share/cv_bridge/cmake/cv_bridgeConfig.cmake")
   include("$ENV{HOME}/Lib/cv_bridge_pkgs/devel/share/cv_bridge/cmake/cv_bridgeConfig.cmake")
 else()
   find_package(cv_bridge REQUIRED)
 endif()'''
-text = text.replace(hardcoded, replacement)
 
-lines = text.splitlines()
-patched = []
-for line in lines:
-    stripped = line.strip()
-    if stripped.startswith("list(REMOVE_ITEM cv_bridge_LIBRARIES") and "OpenCV_LIBRARIES" in stripped:
-        indent = line[: len(line) - len(line.lstrip())]
-        previous = patched[-1].strip() if patched else ""
-        if previous != "if(OpenCV_LIBRARIES)":
-            patched.append(f"{indent}if(OpenCV_LIBRARIES)")
-            patched.append(line)
-            patched.append(f"{indent}endif()")
+guard = '''if(DEFINED OpenCV_LIBRARIES)
+  list(LENGTH OpenCV_LIBRARIES _uavdeps_opencv_lib_count)
+  if(_uavdeps_opencv_lib_count GREATER 0)
+    list(REMOVE_ITEM cv_bridge_LIBRARIES ${OpenCV_LIBRARIES})
+  endif()
+endif()'''
+
+for path in files:
+    if not path.exists():
+        print(f"skip missing {path}")
+        continue
+
+    text = path.read_text()
+    original = text
+    text = text.replace(hardcoded, replacement)
+
+    lines = text.splitlines()
+    patched = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("list(REMOVE_ITEM cv_bridge_LIBRARIES") and "OpenCV_LIBRARIES" in stripped:
+            indent = line[: len(line) - len(line.lstrip())]
+            for guard_line in guard.splitlines():
+                patched.append(f"{indent}{guard_line}")
             continue
-    patched.append(line)
-text = "\n".join(patched) + "\n"
+        patched.append(line)
+    text = "\n".join(patched) + "\n"
 
-if text != original:
-    backup = path.with_suffix(path.suffix + ".uavdeps.bak")
-    if not backup.exists():
-        backup.write_text(original)
-    path.write_text(text)
-    print(f"patched {path}")
-else:
-    print(f"no patch needed {path}")
+    if text != original:
+        backup = path.with_suffix(path.suffix + ".uavdeps.bak")
+        if not backup.exists():
+            backup.write_text(original)
+        path.write_text(text)
+        print(f"patched {path}")
+    else:
+        print(f"no patch needed {path}")
 PY
 }
 
@@ -280,7 +287,7 @@ main() {
       ;;
     patch)
       ensure_opencv_compat_config 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-patch.txt"
-      patch_loop_fusion_cv_bridge 2>&1 | tee -a "$EVIDENCE_DIR/p3-full-deps-patch.txt"
+      patch_vins_cv_bridge 2>&1 | tee -a "$EVIDENCE_DIR/p3-full-deps-patch.txt"
       verify_deps
       ;;
     livox)
@@ -294,7 +301,7 @@ main() {
     all)
       install_apt_deps 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-apt.txt"
       build_opencv_314 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-opencv.txt"
-      patch_loop_fusion_cv_bridge 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-patch.txt"
+      patch_vins_cv_bridge 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-patch.txt"
       build_livox_sdk2 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-livox.txt"
       install_cuda_toolkit_if_requested 2>&1 | tee "$EVIDENCE_DIR/p3-full-deps-cuda.txt"
       verify_deps
