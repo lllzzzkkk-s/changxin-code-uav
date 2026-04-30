@@ -188,8 +188,12 @@ for path in files:
     patched = []
     for line in lines:
         stripped = line.strip()
-        if stripped.startswith("list(REMOVE_ITEM cv_bridge_LIBRARIES") and "OpenCV_LIBRARIES" in stripped:
+        if stripped.startswith("list(REMOVE_ITEM cv_bridge_LIBRARIES"):
             indent = line[: len(line) - len(line.lstrip())]
+            previous = patched[-1].strip() if patched else ""
+            if previous == "if(_uavdeps_opencv_lib_count GREATER 0)":
+                patched.append(line)
+                continue
             for guard_line in guard.splitlines():
                 patched.append(f"{indent}{guard_line}")
             continue
