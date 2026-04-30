@@ -556,28 +556,178 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 ## P3 Diff-planner
 
 ### P3.1 Workspace Sync
-- Time:
-- Server:
+- Time: 2026-04-30, initial WSL workspace check
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
 - Command:
+  ```bash
+  mkdir -p ~/changxin-code
+  cd ~/changxin-code
+  pwd
+  test -d ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner && echo "FOUND_FULL_REPO" || echo "MISSING_FULL_REPO"
+  test -d ~/changxin-code/Diff-planner && echo "FOUND_STANDALONE_DIFF_PLANNER" || echo "MISSING_STANDALONE_DIFF_PLANNER"
+  find ~ -maxdepth 5 -type d -name Diff-planner 2>/dev/null | tee ~/uav-g3b-evidence/p3-find-diff-planner.txt
+  ```
 - Output:
-- Verdict:
-- Next:
+  ```text
+  /home/uavdev/changxin-code
+  MISSING_FULL_REPO
+  MISSING_STANDALONE_DIFF_PLANNER
+  find output: empty
+  ```
+- Verdict: BLOCKED_WORKSPACE_SYNC; WSL2 environment is ready, but the Diff-planner snapshot is not present in WSL.
+- Local source note: Mac local workspace has `uav/03-drone-code/snapshot_20260421_174511/Diff-planner` at about 140MB, but `uav/03-drone-code` is not tracked in the current git remote.
+- Next: transfer the local Diff-planner snapshot into WSL at `~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner`, then rerun P3 build/static checks.
+
+- Time: 2026-04-30, copied snapshot with nested directory
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
+- Command:
+  ```bash
+  mkdir -p ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511
+  rm -rf ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner
+  cp -a /mnt/d/WSL/Downloads/Diff-planner ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/
+  test -d ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner && echo FOUND
+  find ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src -maxdepth 4 -name package.xml | sort | tee ~/uav-g3b-evidence/p3-package-files-after-copy.txt
+  ```
+- Output:
+  ```text
+  FOUND
+  find: '/home/uavdev/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src': No such file or directory
+  ```
+- Verdict: RETRY_REQUIRED_PATH_NORMALIZATION; snapshot copied, but archive extraction introduced a nested `Diff-planner/Diff-planner` directory and `__MACOSX`.
+- Next: inspect root, normalize directory layout, and verify core packages.
+
+- Time: 2026-04-30, normalized copied snapshot
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
+- Command:
+  ```bash
+  ls -la ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner | tee ~/uav-g3b-evidence/p3-diff-planner-root-list.txt
+  find ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner -maxdepth 3 -type d | sort | tee ~/uav-g3b-evidence/p3-diff-planner-dirs.txt
+  find ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner -maxdepth 6 -name package.xml | sort | tee ~/uav-g3b-evidence/p3-package-files-after-copy-deep.txt
+  cd ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511
+  mv Diff-planner Diff-planner.outer
+  mv Diff-planner.outer/Diff-planner Diff-planner
+  rm -rf Diff-planner.outer
+  test -d ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src && echo SRC_FOUND
+  find ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src -maxdepth 4 \( -path '*quadrotor_msgs/package.xml' -o -path '*multipoint/package.xml' -o -path '*plan_manage/package.xml' \) | sort | tee ~/uav-g3b-evidence/p3-core-package-files.txt
+  ```
+- Output:
+  ```text
+  root listing showed:
+  Diff-planner
+  __MACOSX
+
+  nested directories included:
+  .../Diff-planner/Diff-planner/src
+  .../Diff-planner/__MACOSX
+
+  SRC_FOUND
+  /home/uavdev/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/Utils/quadrotor_msgs/package.xml
+  /home/uavdev/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/diff_planner/plan_manage/package.xml
+  /home/uavdev/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/package.xml
+  ```
+- Verdict: P3_1_PASS; Diff-planner snapshot is now present at the fixed WSL path and core package files exist.
+- Next: run full `catkin_make`; if blocked by non-core dependencies, proceed with whitelisted core message build and static interface checks.
 
 ### P3.2 Build And Message Verification
-- Time:
-- Server:
+- Time: 2026-04-30, full workspace build attempt
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
 - Command:
+  ```bash
+  source /opt/ros/noetic/setup.bash
+  cd ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner
+  catkin_make 2>&1 | tee ~/uav-g3b-evidence/p3-catkin-make.txt
+  ```
 - Output:
-- Verdict:
-- Next:
+  ```text
+  catkin traversed 34 packages.
+  quadrotor_msgs: 24 messages, 0 services
+
+  CMake Error at realflight_modules/VINS-Fusion-gpu/camera_models/CMakeLists.txt:16 (include):
+    include could not find load file:
+      /home/nv/Lib/opencv3.4.14/install/OpenCVConfig.cmake
+
+  CMake Error at realflight_modules/VINS-Fusion-gpu/camera_models/CMakeLists.txt:20 (find_package):
+    Could not find a package configuration file provided by "Ceres"
+
+  Invoking "cmake" failed
+  ```
+- Verdict: P3_2_FULL_BUILD_BLOCKED_BY_NONCORE_DEPS; full build is blocked by VINS camera_models OpenCV/Ceres dependencies, not by ROS Noetic or missing core packages.
+- Next: build `quadrotor_msgs` with `CATKIN_WHITELIST_PACKAGES`, verify custom message visibility, and collect static `/goal` evidence.
+
+- Time: 2026-04-30, whitelisted core message build
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
+- Command:
+  ```bash
+  source /opt/ros/noetic/setup.bash
+  cd ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner
+  rm -rf build devel
+  catkin_make -DCATKIN_WHITELIST_PACKAGES="quadrotor_msgs" 2>&1 | tee ~/uav-g3b-evidence/p3-catkin-make-quadrotor-msgs.txt
+  source devel/setup.bash
+  rosmsg show quadrotor_msgs/TakeoffLand 2>&1 | tee ~/uav-g3b-evidence/p3-rosmsg-takeoffland.txt
+  rosmsg show geometry_msgs/PoseStamped 2>&1 | tee ~/uav-g3b-evidence/p3-rosmsg-posestamped.txt
+  ```
+- Output:
+  ```text
+  Using CATKIN_WHITELIST_PACKAGES: quadrotor_msgs
+  quadrotor_msgs: 24 messages, 0 services
+  [100%] Built target encode_msgs
+  [100%] Built target decode_msgs
+
+  rosmsg show quadrotor_msgs/TakeoffLand:
+  uint8 TAKEOFF=1
+  uint8 LAND=2
+  uint8 takeoff_land_cmd
+
+  rosmsg show geometry_msgs/PoseStamped:
+  std_msgs/Header header
+    uint32 seq
+    time stamp
+    string frame_id
+  geometry_msgs/Pose pose
+    geometry_msgs/Point position
+      float64 x
+      float64 y
+      float64 z
+    geometry_msgs/Quaternion orientation
+      float64 x
+      float64 y
+      float64 z
+      float64 w
+  ```
+- Verdict: P3_2_CORE_MSG_PASS; core custom command message and standard planning goal message are visible after a minimal build.
+- Next: collect static `/goal`, `/move_base_simple/goal`, `/back_trigger`, and launch `flight_type=1` evidence.
 
 ### P3.3 Static Interface Verification
-- Time:
-- Server:
+- Time: 2026-04-30
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
 - Command:
+  ```bash
+  {
+    grep -nE 'nh\.subscribe\("/goal"|waypointCallback|planNextWaypoint' src/diff_planner/plan_manage/src/diff_replan_fsm.cpp
+    grep -nE 'point_pub = nh\.advertise<geometry_msgs::PoseStamped>\("/goal"|/move_base_simple/goal|/back_trigger' src/user_command/multipoint/src/multipointplan.cpp
+    grep -n 'arg name="flight_type" value="1"' src/diff_planner/plan_manage/launch/exp/run_exp_single_lio.launch src/diff_planner/plan_manage/launch/exp/run_exp_single_vio.launch
+  } 2>&1 | tee ~/uav-g3b-evidence/p3-static-goal-evidence.txt
+  ```
 - Output:
-- Verdict:
-- Next:
+  ```text
+  72:      waypoint_sub_ = nh.subscribe("/goal", 1, &DiffReplanFSM::waypointCallback, this);
+  235:        planNextWaypoint(wps_[wpt_id_], true);
+  245:          planNextWaypoint(wps_[wpt_id_], true);
+  634:    bool DiffReplanFSM::planNextWaypoint(const Eigen::Vector3d next_wp, bool flag_2replan)
+  710:          if (planNextWaypoint(pt, false)) // final_goal_=pt inside if success
+  728:  void DiffReplanFSM::waypointCallback(const geometry_msgs::PoseStampedPtr &msg)
+  737:    if (planNextWaypoint(end_wp, true))
+  768:    planNextWaypoint(wps_[wpt_id_], true);
+  387:        startcommand_sub = nh.subscribe("/move_base_simple/goal", 10, startplan_cb);
+  390:        backcommand_sub = nh.subscribe("/back_trigger", 10, backplan_cb);
+  394:    startcommand_pub = nh.advertise<geometry_msgs::PoseStamped>("/move_base_simple/goal", 10);
+  395:    backcommand_pub = nh.advertise<geometry_msgs::PoseStamped>("/back_trigger", 10);
+  396:    point_pub = nh.advertise<geometry_msgs::PoseStamped>("/goal", 10);
+  src/diff_planner/plan_manage/launch/exp/run_exp_single_lio.launch:37:        <arg name="flight_type" value="1" />
+  src/diff_planner/plan_manage/launch/exp/run_exp_single_vio.launch:37:        <arg name="flight_type" value="1" />
+  ```
+- Verdict: P3_3_PASS_STATIC_ONLY_WITH_CORE_MSGS; `/goal` is the planner goal subscriber/publisher path, `/move_base_simple/goal` and `/back_trigger` are multipoint triggers, and both single LIO/VIO experiment launches use `flight_type=1`.
+- Next: proceed to G3-B baseline read-only ROS graph observation. Do not launch planner nodes because full workspace build is blocked by non-core VINS/OpenCV/Ceres dependencies.
 
 ## G3-B ROS Graph
 
