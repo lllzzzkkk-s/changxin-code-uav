@@ -1064,6 +1064,59 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - Verdict: P3_PASS_FULL_CATKIN_BUILD_AND_NODE_VISIBILITY; the full Diff-planner workspace builds in WSL, the A-stage Python suite passes after sourcing the built workspace, and the main planner/VINS/Faster-LIO/PX4 control packages and node executables are visible.
 - Next: capture a standalone WSL adapter trace output from `build_dry_run_report` before marking A closed.
 
+- Time: 2026-04-30, WSL standalone adapter trace after full catkin build
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
+- Command:
+  ```bash
+  cd ~/changxin-code
+  source /opt/ros/noetic/setup.bash
+  source ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/devel/setup.bash
+
+  PYTHONPATH="$PWD:${PYTHONPATH:-}" python3 - <<'PY' | tee ~/uav-g3b-evidence/a-stage-wsl-adapter-trace-after-full-catkin.txt
+  from uav.llm_control.ros_adapters.dry_run import build_dry_run_report
+  from uav.llm_control.schemas.models import BatterySnapshot, FcuSnapshot, LocalizationSnapshot, RcSnapshot, StateSnapshot
+
+  snapshot = StateSnapshot(
+      captured_at=100.0,
+      fcu=FcuSnapshot(connected=True, armed=True, mode="OFFBOARD", updated_at=100.0),
+      battery=BatterySnapshot(voltage=24.1, percentage=0.75, updated_at=100.0),
+      rc=RcSnapshot(channels=[1000,1500,1500,1500,1000,1000,1800,1500], updated_at=100.0),
+      localization=LocalizationSnapshot(
+          source="lio",
+          position={"x": 1.0, "y": 2.0, "z": 1.0},
+          velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+          yaw=0.0,
+          updated_at=100.0,
+      ),
+  )
+  report = build_dry_run_report({
+      "meta": {"request_id": "a-stage-wsl-after-full-catkin"},
+      "intent": {"name": "move_relative"},
+      "arguments": {"frame": "world", "direction": "forward", "distance_m": 1.0},
+  }, snapshot, now=100.0).as_dict()
+
+  print("status:", report["status"])
+  print("publish_attempted:", report["publish_attempted"])
+  print("trace_stages:", [entry["stage"] for entry in report["trace"]])
+  print("target_position:", report["trace"][4]["target_position"])
+  print("ros_payload_topic:", report["trace"][5]["topic"])
+  print("ros_payload_type:", report["trace"][5]["message_type"])
+  print("confirmation_gate:", report["trace"][6]["status"])
+  PY
+  ```
+- Output:
+  ```text
+  status: needs_confirmation
+  publish_attempted: False
+  trace_stages: ['input', 'schema_validation', 'state_snapshot', 'safety_policy', 'target_point', 'ros_payload', 'confirmation_gate']
+  target_position: {'x': 2.0, 'y': 2.0, 'z': 1.0}
+  ros_payload_topic: /goal
+  ros_payload_type: geometry_msgs/PoseStamped
+  confirmation_gate: blocked_for_confirmation
+  ```
+- Verdict: G3_B_2_PASS_WSL_ADAPTER_TRACE_AFTER_FULL_CATKIN; after sourcing the full WSL catkin workspace, the A-stage adapter still produces a `/goal` `PoseStamped` dry-run payload, blocks at the confirmation gate, and records `publish_attempted=False`.
+- Next: A-stage dry-run scope can close. Any B/G3-C work must start with read-only runtime prechecks and must not publish motion/takeoff/land commands until a separate action-safety gate is approved.
+
 ## Final Gate
 
 - P0 Verdict: PASS_WITH_D_DRIVE_TARGET_AND_ROS_TLS_RISK. Windows 11, WSL and VirtualMachinePlatform are enabled, HypervisorPresent is true, D: has enough space, and ROS apt HTTP/key URLs are reachable. C: is too small for default WSL storage.
@@ -1071,6 +1124,6 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - P1.5 Verdict: PASS. Interactive WSL shell works, direct apt network works, and base packages `curl`, `gnupg`, `lsb-release`, `build-essential`, `git`, and `python3-pip` are installed.
 - P2 Verdict: PASS. ROS Noetic desktop-full is installed; `roscore`, `rosnode`, `rostopic`, `rosmsg`, and standard message introspection work.
 - P3 Verdict: PASS_FULL_CATKIN_BUILD_AND_NODE_VISIBILITY. Diff-planner snapshot is present in WSL; full `catkin_make -j8 -l8` completes; `quadrotor_msgs`, `diff_planner`, `multipoint`, `px4ctrl`, `vins`, and `faster_lio` resolve through `rospack`; `diff_planner_node`, `vins_node`, `run_mapping_online`, and `px4ctrl_node` executables are present.
-- G3-B Verdict: PASS_BASELINE_READ_ONLY_WSL_DRY_RUN_LOCAL_ADAPTER_TRACE_AND_WSL_POST_BUILD_TESTS. With only `roscore` running, baseline graph has `/rosout` and `/rosout_agg`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, and `/px4ctrl/takeoff_land` are absent as expected; no action-topic publish occurred. WSL pure-Python `move_relative` dry-run produces a `/goal` payload with `publish_attempted=False`; local adapter trace records schema validation, state snapshot, safety policy, target point, ROS payload, and confirmation gate; the WSL 11-test A-stage suite passes after the full catkin build.
-- A-stage Closure Decision: PENDING_STANDALONE_WSL_ADAPTER_TRACE. Full WSL build, package/node visibility, and WSL A-stage tests now pass. Capture one standalone WSL adapter trace output before marking A closed.
-- G3-C Entry Decision: NOT_READY_FOR_PLANNER_RUNTIME_OR_ACTION_TESTS. Do not launch planner/multipoint or publish movement/takeoff/land commands until the standalone WSL adapter trace is recorded and reviewed.
+- G3-B Verdict: PASS_BASELINE_READ_ONLY_WSL_DRY_RUN_LOCAL_AND_WSL_ADAPTER_TRACES. With only `roscore` running, baseline graph has `/rosout` and `/rosout_agg`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, and `/px4ctrl/takeoff_land` are absent as expected; no action-topic publish occurred. WSL pure-Python `move_relative` dry-run produces a `/goal` payload with `publish_attempted=False`; local and WSL adapter traces record schema validation, state snapshot, safety policy, target point, ROS payload, and confirmation gate; the WSL 11-test A-stage suite passes after the full catkin build.
+- A-stage Closure Decision: CLOSED_DRY_RUN_ONLY. Full WSL build, package/node visibility, WSL A-stage tests, and standalone WSL adapter trace all pass. The closed scope is dry-run only and does not authorize publishing motion/takeoff/land commands.
+- G3-C Entry Decision: READY_FOR_READ_ONLY_PLANNER_RUNTIME_PRECHECKS. Next work may start planner/runtime observation prechecks, but must not publish movement, takeoff, land, or return-home commands until a separate action-safety gate is defined and approved.
