@@ -3,7 +3,12 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, Mapping, Tuple
 
-from uav.llm_control.schemas.models import CommandResult, StateSnapshot, ToolContract
+from uav.llm_control.schemas.models import (
+    SUPPORTED_LOCALIZATION_SOURCES,
+    CommandResult,
+    StateSnapshot,
+    ToolContract,
+)
 from uav.llm_control.tools.catalog import tool_by_name
 
 
@@ -195,7 +200,7 @@ def _check_action_preconditions(snapshot: StateSnapshot, now: float, *, require_
         return "fcu_not_connected"
     if len(snapshot.rc.channels) < 8:
         return "rc_channels_missing"
-    if require_localization and snapshot.localization.source not in {"lio", "vio"}:
+    if require_localization and snapshot.localization.source not in SUPPORTED_LOCALIZATION_SOURCES:
         return "unsupported_localization_source"
     return None
 

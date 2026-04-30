@@ -1730,3 +1730,60 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - A-stage Closure Decision: CLOSED_DRY_RUN_ONLY. Full WSL build, package/node visibility, WSL A-stage tests, and standalone WSL adapter trace all pass. The closed scope is dry-run only and does not authorize publishing motion/takeoff/land commands.
 - G3-C Closure Decision: CLOSED_SIM_DRY_RUN_NO_PUBLISH. The closed scope covers build visibility, read-only launch analysis, headless sim observation, extended passive no-message checks, and dry-run report generation only. It does not authorize publishing movement, takeoff, land, return-home, MAVROS arming, MAVROS set_mode, or MAVROS setpoint commands.
 - Next Stage Gate: READY_FOR_ACTION_SAFETY_GATE_DESIGN. Before any publish-capable work, define and verify an explicit action-safety gate with operator confirmation, mode/state checks, topic allowlists, timeout bounds, and sim-first rollback evidence.
+
+## Action Safety Gate Design
+
+- Time: 2026-04-30, local pure-Python action gate TDD implementation
+- Server: local Codex worktree
+- Files:
+  ```text
+  tests/uav_llm_control/test_action_safety_gate.py
+  tests/uav_llm_control/test_pipeline.py
+  uav/llm_control/safety/__init__.py
+  uav/llm_control/safety/action_gate.py
+  uav/llm_control/safety/profiles.py
+  uav/llm_control/schemas/models.py
+  uav/llm_control/core/pipeline.py
+  docs/superpowers/specs/2026-04-30-uav-action-safety-gate-design.md
+  ```
+- Red test:
+  ```bash
+  python -m unittest tests.uav_llm_control.test_action_safety_gate
+  ```
+- Red output:
+  ```text
+  ModuleNotFoundError: No module named 'uav.llm_control.safety'
+  FAILED (errors=1)
+  ```
+- Second red expansion:
+  ```text
+  ModuleNotFoundError: No module named 'uav.llm_control.safety.profiles'
+  failed != needs_confirmation for sim localization before the A-to-B/C transition support was added
+  ```
+- Green commands:
+  ```bash
+  python -m unittest tests.uav_llm_control.test_action_safety_gate
+  python -m unittest tests.uav_llm_control.test_pipeline tests.uav_llm_control.test_ros_adapter_dry_run tests.uav_llm_control.test_action_safety_gate
+  ```
+- Green output:
+  ```text
+  Ran 12 tests in 0.002s
+  OK
+
+  Ran 24 tests in 0.003s
+  OK
+  ```
+- Gate design:
+  ```text
+  The action gate is side-effect free and never publishes. It evaluates an existing dry-run CommandResult plus StateSnapshot, ActionApproval, and requested timeout.
+  It is profile-driven so A-stage can use sim evidence while B/C tighten the same API instead of replacing it.
+  A-stage sim dry-run profile allows /goal, /move_base_simple/goal, /back_trigger, /px4ctrl/takeoff_land with sim/lio/vio localization, 1.0 m relative-goal limit, and 3.0 s timeout.
+  B-stage bench profile allows /goal and /back_trigger with lio/vio only, 0.5 m relative-goal limit, and 2.0 s timeout.
+  C-stage real profile allows only /goal with lio/vio only, 0.3 m relative-goal limit, and 1.0 s timeout.
+  Tests cover the migration behavior directly: B accepts a return-home /back_trigger candidate while C rejects it, and C rejects the takeoff/land /px4ctrl/takeoff_land surface.
+  It rejects /setpoints_cmd and MAVROS service-level actions by allowlist exclusion.
+  It requires command status needs_confirmation, no prior publish attempt, a ROS payload, fresh FCU/battery/RC/localization snapshots, FCU connected, FCU mode OFFBOARD, a profile-allowed localization source, a non-expired exact confirmation phrase, operator id, sim evidence id, rollback plan id, action summary, bounded execution timeout, target Z within [0.5, 3.0] meters, and relative goal distance within the profile bound.
+  It returns allowed/reasons/topic/message_type/audit and publish_attempted=False.
+  ```
+- Verdict: ACTION_GATE_DESIGN_PASS_LOCAL_TDD_PROFILED. The first publish-capable boundary now has a tested pure-Python evaluator and explicit A/B/C stage profiles. A-stage can be exercised with sim localization, while B/C reject sim and shrink the command surface. There is still no publisher implementation and no authorization to emit ROS action messages.
+- Next: sync this module into WSL, run the same unit tests there after sourcing the Diff-planner workspace, and run a sim-live A-profile gate evaluation that proves an allowed decision still does not publish. B/C work must switch to the stricter profiles before bench or real-aircraft use.

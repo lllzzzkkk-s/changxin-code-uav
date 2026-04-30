@@ -98,6 +98,29 @@ class TestProcessCommand(unittest.TestCase):
         self.assertAlmostEqual(3.0, target["y"], places=6)
         self.assertAlmostEqual(1.0, target["z"], places=6)
 
+    def test_move_relative_accepts_sim_localization_for_a_to_bc_transition_testing(self):
+        snapshot = fresh_snapshot(
+            localization=LocalizationSnapshot(
+                source="sim",
+                position={"x": -15.0, "y": 0.0, "z": 1.0},
+                velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+                yaw=0.0,
+                updated_at=100.0,
+            )
+        )
+
+        result = process_command(
+            envelope("move_relative", {"frame": "world", "direction": "forward", "distance_m": 1.0}),
+            snapshot,
+            now=100.0,
+        )
+
+        data = result.as_dict()
+        self.assertEqual("needs_confirmation", data["status"])
+        self.assertEqual("sim", data["resolution"]["localization_source"])
+        self.assertEqual({"x": -14.0, "y": 0.0, "z": 1.0}, data["resolution"]["target_position"])
+        self.assertEqual("/goal", data["execution"]["ros_payload"]["topic"])
+
     def test_move_relative_rejects_stale_localization(self):
         snapshot = fresh_snapshot(
             localization=LocalizationSnapshot(

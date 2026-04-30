@@ -4,6 +4,9 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Mapping, Optional
 
 
+SUPPORTED_LOCALIZATION_SOURCES = {"lio", "vio", "sim"}
+
+
 def _copy_xyz(values: Mapping[str, Any], *, name: str) -> Dict[str, float]:
     required = ("x", "y", "z")
     missing = [key for key in required if key not in values]
@@ -97,7 +100,7 @@ class StateSnapshot:
             "rc_fresh": "rc" not in stale,
             "localization_fresh": "localization" not in stale,
             "fcu_connected": self.fcu.connected,
-            "localization_source_supported": self.localization.source in {"lio", "vio"},
+            "localization_source_supported": self.localization.source in SUPPORTED_LOCALIZATION_SOURCES,
             "rc_channels_present": len(self.rc.channels) >= 8,
         }
 
