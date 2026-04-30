@@ -1468,6 +1468,87 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - Verdict: G3_C_3_PASS_HEADLESS_SIM_PASSIVE_ECHO_15S. A headless sim launch copy without RViz starts and remains alive after 15 seconds; all eight expected business nodes plus `/rosout` are visible under a live master; `/goal`, `/move_base_simple/goal`, `/back_trigger`, `/px4ctrl/takeoff_land`, and `/setpoints_cmd` emit no messages during passive observation.
 - Next: either extend the passive observation window to 60-120 seconds for a stricter idle guarantee, or proceed to a sim dry-run wiring stage that still blocks publishing and only observes state and planned payloads.
 
+- Time: 2026-04-30, extended 120-second headless sim passive observation
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
+- Command:
+  ```bash
+  cd ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner
+  source /opt/ros/noetic/setup.bash
+  source devel/setup.bash
+
+  ROS_LOG_DIR=~/uav-g3c-evidence/roslogs-g3c-14 \
+  QT_QPA_PLATFORM=offscreen \
+  roslaunch ~/uav-g3c-evidence/run_sim_single_headless.launch \
+    > ~/uav-g3c-evidence/g3c-14-headless-sim-120s.log 2>&1 &
+  LAUNCH_PID=$!
+
+  sleep 120
+
+  {
+    date -Is
+    echo "LAUNCH_PID=$LAUNCH_PID alive=$(kill -0 $LAUNCH_PID 2>/dev/null && echo yes || echo no)"
+    echo
+    echo "NODES:"
+    rosnode list || true
+    echo
+    echo "TOPICS:"
+    rostopic list -v || true
+  } | tee ~/uav-g3c-evidence/g3c-15-headless-sim-120s-live-graph.txt
+
+  for t in /goal /move_base_simple/goal /back_trigger /px4ctrl/takeoff_land /setpoints_cmd; do
+    echo "===== $t ====="
+    timeout 5s rostopic echo -n 1 "$t" || echo "NO_MESSAGE_WITHIN_5S"
+  done | tee ~/uav-g3c-evidence/g3c-16-headless-action-topic-120s-passive-echo.txt
+
+  tail -n 120 ~/uav-g3c-evidence/g3c-14-headless-sim-120s.log \
+    | tee ~/uav-g3c-evidence/g3c-17-headless-sim-120s-log-tail.txt
+
+  kill -INT "$LAUNCH_PID" 2>/dev/null || echo "already dead"
+  wait "$LAUNCH_PID" 2>/dev/null || true
+  ```
+- Output:
+  ```text
+  g3c-15 at 2026-04-30T16:06:56+08:00:
+  LAUNCH_PID=32098 alive=yes
+
+  g3c-15 live graph nodes:
+  /drone_0_diff_planner_node
+  /drone_0_manual_take_over
+  /drone_0_odom_visualization
+  /drone_0_pcl_render_node
+  /drone_0_poscmd_2_odom
+  /drone_0_traj_server
+  /multipointplan
+  /random_forest
+  /rosout
+
+  g3c-15 action-surface topic registration:
+  /px4ctrl/takeoff_land [quadrotor_msgs/TakeoffLand] 1 publisher
+  /move_base_simple/goal [geometry_msgs/PoseStamped] 1 publisher, 1 subscriber
+  /back_trigger [geometry_msgs/PoseStamped] 1 publisher, 1 subscriber
+  /goal [geometry_msgs/PoseStamped] 1 publisher, 1 subscriber
+  /planning/yaw [quadrotor_msgs/PositionCommand] 1 publisher, 1 subscriber
+  /setpoints_cmd was not advertised.
+
+  g3c-16 passive action-topic echo after 120 seconds:
+  /goal: NO_MESSAGE_WITHIN_5S
+  /move_base_simple/goal: NO_MESSAGE_WITHIN_5S
+  /back_trigger: NO_MESSAGE_WITHIN_5S
+  /px4ctrl/takeoff_land: NO_MESSAGE_WITHIN_5S
+  /setpoints_cmd: WARNING: topic [/setpoints_cmd] does not appear to be published yet; NO_MESSAGE_WITHIN_5S
+
+  g3c-17 log tail:
+  [FSM]Drone:0, from INIT to WAIT_TARGET
+  [WARN] Finished generate random map
+  [WARN] Global Pointcloud received..
+  [FSM]: state: WAIT_TARGET, Drone:0. Waiting for target,trigger,
+  [FSM]: state: WAIT_TARGET, Drone:0. Waiting for target,trigger,
+  ...
+  [FSM]: state: WAIT_TARGET, Drone:0. Waiting for target,trigger,
+  ```
+- Verdict: G3_C_4_PASS_HEADLESS_SIM_PASSIVE_ECHO_120S. The headless sim launch remains alive after 120 seconds with all eight expected business nodes visible under a live master; the planner FSM stays in `WAIT_TARGET`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, `/px4ctrl/takeoff_land`, and `/setpoints_cmd` emit no messages during the extended passive observation.
+- Next: proceed to sim dry-run wiring. The next stage may run the A-stage report generator while the sim graph is alive and verify it still records `publish_attempted=False` and does not emit action-topic messages.
+
 ## Final Gate
 
 - P0 Verdict: PASS_WITH_D_DRIVE_TARGET_AND_ROS_TLS_RISK. Windows 11, WSL and VirtualMachinePlatform are enabled, HypervisorPresent is true, D: has enough space, and ROS apt HTTP/key URLs are reachable. C: is too small for default WSL storage.
@@ -1476,6 +1557,6 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - P2 Verdict: PASS. ROS Noetic desktop-full is installed; `roscore`, `rosnode`, `rostopic`, `rosmsg`, and standard message introspection work.
 - P3 Verdict: PASS_FULL_CATKIN_BUILD_AND_NODE_VISIBILITY. Diff-planner snapshot is present in WSL; full `catkin_make -j8 -l8` completes; `quadrotor_msgs`, `diff_planner`, `multipoint`, `px4ctrl`, `vins`, and `faster_lio` resolve through `rospack`; `diff_planner_node`, `vins_node`, `run_mapping_online`, and `px4ctrl_node` executables are present.
 - G3-B Verdict: PASS_BASELINE_READ_ONLY_WSL_DRY_RUN_LOCAL_AND_WSL_ADAPTER_TRACES. With only `roscore` running, baseline graph has `/rosout` and `/rosout_agg`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, and `/px4ctrl/takeoff_land` are absent as expected; no action-topic publish occurred. WSL pure-Python `move_relative` dry-run produces a `/goal` payload with `publish_attempted=False`; local and WSL adapter traces record schema validation, state snapshot, safety policy, target point, ROS payload, and confirmation gate; the WSL 11-test A-stage suite passes after the full catkin build.
-- G3-C Verdict: PASS_HEADLESS_SIM_PASSIVE_ECHO_15S. The WSL package environment, launch files, static topic/control scan, target launch parsing, parameter dumps, roscore-only baseline, and headless sim startup all pass; the live graph contains all eight expected business nodes, and no messages are observed on `/goal`, `/move_base_simple/goal`, `/back_trigger`, `/px4ctrl/takeoff_land`, or `/setpoints_cmd` during the 15-second passive observation window.
+- G3-C Verdict: PASS_HEADLESS_SIM_PASSIVE_ECHO_120S. The WSL package environment, launch files, static topic/control scan, target launch parsing, parameter dumps, roscore-only baseline, headless sim startup, and extended 120-second passive observation all pass; the live graph contains all eight expected business nodes, the planner remains in `WAIT_TARGET`, and no messages are observed on `/goal`, `/move_base_simple/goal`, `/back_trigger`, `/px4ctrl/takeoff_land`, or `/setpoints_cmd`.
 - A-stage Closure Decision: CLOSED_DRY_RUN_ONLY. Full WSL build, package/node visibility, WSL A-stage tests, and standalone WSL adapter trace all pass. The closed scope is dry-run only and does not authorize publishing motion/takeoff/land commands.
-- G3-C Entry Decision: READY_FOR_EXTENDED_PASSIVE_OBSERVATION_OR_SIM_DRY_RUN_WIRING. Next work may extend passive observation to 60-120 seconds or start a sim dry-run wiring stage that still blocks publishing, but must not publish movement, takeoff, land, return-home, MAVROS arming, MAVROS set_mode, or MAVROS setpoint commands until a separate action-safety gate is defined and approved.
+- G3-C Entry Decision: READY_FOR_SIM_DRY_RUN_WIRING. Next work may run the A-stage dry-run report generator while the sim graph is alive and verify no action-topic messages are emitted, but must not publish movement, takeoff, land, return-home, MAVROS arming, MAVROS set_mode, or MAVROS setpoint commands until a separate action-safety gate is defined and approved.
