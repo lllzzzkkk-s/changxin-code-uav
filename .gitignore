@@ -1,2 +1,4 @@
 media/*.mp4
 .worktrees/
+__pycache__/
+*.pyc
