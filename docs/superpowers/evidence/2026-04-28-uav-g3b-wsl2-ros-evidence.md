@@ -1001,13 +1001,76 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - Verdict: G3_B_2_PASS_LOCAL_ADAPTER_TRACE; A-stage adapter trace includes input, schema validation, state snapshot, safety policy, target point, ROS payload, and confirmation gate, while still refusing to publish.
 - Next: sync adapter and dependency installer to WSL; rerun the 11-test suite and adapter trace there before marking A closed.
 
+- Time: 2026-04-30, WSL full Diff-planner build and A-stage post-build tests
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
+- Command:
+  ```bash
+  cd ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner
+  source /opt/ros/noetic/setup.bash
+  rm -rf build devel
+  catkin_make -j8 -l8 2>&1 | tee ~/uav-g3b-evidence/p3-catkin-make-after-full-deps-7.txt
+
+  cd ~/changxin-code
+  source /opt/ros/noetic/setup.bash
+  source ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/devel/setup.bash
+  PYTHONPATH="$PWD:${PYTHONPATH:-}" \
+    python3 -m unittest tests.uav_llm_control.test_pipeline tests.uav_llm_control.test_ros_adapter_dry_run \
+    2>&1 | tee ~/uav-g3b-evidence/a-stage-python-tests-after-full-catkin.txt
+
+  cd ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner
+  source /opt/ros/noetic/setup.bash
+  source devel/setup.bash
+  {
+    echo "ROSPACK:"
+    for p in quadrotor_msgs diff_planner multipoint px4ctrl vins faster_lio; do
+      rospack find "$p"
+    done
+
+    echo
+    echo "NODES:"
+    test -x devel/lib/diff_planner/diff_planner_node && echo DIFF_PLANNER_NODE_OK
+    test -x devel/lib/vins/vins_node && echo VINS_NODE_OK
+    test -x devel/lib/faster_lio/run_mapping_online && echo FASTER_LIO_ONLINE_OK
+    test -x devel/lib/px4ctrl/px4ctrl_node && echo PX4CTRL_NODE_OK || true
+  } | tee ~/uav-g3b-evidence/p3-ros-package-node-checks.txt
+  ```
+- Output:
+  ```text
+  [100%] Built target vins_node
+  [100%] Built target run_mapping_online
+  [100%] Built target run_mapping_offline
+
+  Ran 11 tests in 0.002s
+  OK
+
+  ROSPACK:
+  /home/uavdev/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/Utils/quadrotor_msgs
+  /home/uavdev/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/diff_planner/plan_manage
+  /home/uavdev/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint
+  /home/uavdev/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/realflight_modules/px4ctrl
+  /home/uavdev/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/realflight_modules/VINS-Fusion-gpu/vins_estimator
+  /home/uavdev/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/realflight_modules/faster-lio
+
+  NODES:
+  DIFF_PLANNER_NODE_OK
+  VINS_NODE_OK
+  FASTER_LIO_ONLINE_OK
+  PX4CTRL_NODE_OK
+  ```
+- Notes:
+  ```text
+  The WSL build links both OpenCV 3.4 and ROS/apt OpenCV 4.2 libraries in VINS-related targets, producing linker conflict warnings. The build still completes. For real-aircraft CUDA deployment, use one consistent CUDA OpenCV/contrib stack and a matching cv_bridge build.
+  ```
+- Verdict: P3_PASS_FULL_CATKIN_BUILD_AND_NODE_VISIBILITY; the full Diff-planner workspace builds in WSL, the A-stage Python suite passes after sourcing the built workspace, and the main planner/VINS/Faster-LIO/PX4 control packages and node executables are visible.
+- Next: capture a standalone WSL adapter trace output from `build_dry_run_report` before marking A closed.
+
 ## Final Gate
 
 - P0 Verdict: PASS_WITH_D_DRIVE_TARGET_AND_ROS_TLS_RISK. Windows 11, WSL and VirtualMachinePlatform are enabled, HypervisorPresent is true, D: has enough space, and ROS apt HTTP/key URLs are reachable. C: is too small for default WSL storage.
 - P1 Verdict: PASS. Ubuntu-20.04 was imported on D:\WSL as WSL2 and verified as `Ubuntu 20.04.3 LTS` under `5.10.16.3-microsoft-standard-WSL2`; `uavdev` exists.
 - P1.5 Verdict: PASS. Interactive WSL shell works, direct apt network works, and base packages `curl`, `gnupg`, `lsb-release`, `build-essential`, `git`, and `python3-pip` are installed.
 - P2 Verdict: PASS. ROS Noetic desktop-full is installed; `roscore`, `rosnode`, `rostopic`, `rosmsg`, and standard message introspection work.
-- P3 Verdict: PASS_STATIC_ONLY_WITH_CORE_MSGS_AND_DEP_INSTALLER_READY. Diff-planner snapshot is present in WSL; whitelisted `quadrotor_msgs` build passes; `quadrotor_msgs/TakeoffLand` and `geometry_msgs/PoseStamped` are visible; static source evidence confirms `/goal` planner input and `multipoint` trigger wiring. Full build dependency completion is prepared through `uav/01-scripts/install_diff_planner_deps_focal.sh`, but remote full-build retry remains pending.
-- G3-B Verdict: PASS_BASELINE_READ_ONLY_WSL_DRY_RUN_AND_LOCAL_ADAPTER_TRACE. With only `roscore` running, baseline graph has `/rosout` and `/rosout_agg`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, and `/px4ctrl/takeoff_land` are absent as expected; no action-topic publish occurred. WSL pure-Python `move_relative` dry-run produces a `/goal` payload with `publish_attempted=False`; local adapter trace now records schema validation, state snapshot, safety policy, target point, ROS payload, and confirmation gate.
-- A-stage Closure Decision: NOT_CLOSED_YET. Before entering B, sync this commit to WSL, run the dependency installer, retry full `catkin_make`, rerun the 11-test A-stage suite, and capture a WSL adapter trace. Only then mark A closed.
-- G3-C Entry Decision: NOT_READY_FOR_PLANNER_RUNTIME_OR_ACTION_TESTS. Do not launch planner/multipoint or publish movement/takeoff/land commands until the remote dependency/full-build retry and WSL adapter trace are recorded.
+- P3 Verdict: PASS_FULL_CATKIN_BUILD_AND_NODE_VISIBILITY. Diff-planner snapshot is present in WSL; full `catkin_make -j8 -l8` completes; `quadrotor_msgs`, `diff_planner`, `multipoint`, `px4ctrl`, `vins`, and `faster_lio` resolve through `rospack`; `diff_planner_node`, `vins_node`, `run_mapping_online`, and `px4ctrl_node` executables are present.
+- G3-B Verdict: PASS_BASELINE_READ_ONLY_WSL_DRY_RUN_LOCAL_ADAPTER_TRACE_AND_WSL_POST_BUILD_TESTS. With only `roscore` running, baseline graph has `/rosout` and `/rosout_agg`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, and `/px4ctrl/takeoff_land` are absent as expected; no action-topic publish occurred. WSL pure-Python `move_relative` dry-run produces a `/goal` payload with `publish_attempted=False`; local adapter trace records schema validation, state snapshot, safety policy, target point, ROS payload, and confirmation gate; the WSL 11-test A-stage suite passes after the full catkin build.
+- A-stage Closure Decision: PENDING_STANDALONE_WSL_ADAPTER_TRACE. Full WSL build, package/node visibility, and WSL A-stage tests now pass. Capture one standalone WSL adapter trace output before marking A closed.
+- G3-C Entry Decision: NOT_READY_FOR_PLANNER_RUNTIME_OR_ACTION_TESTS. Do not launch planner/multipoint or publish movement/takeoff/land commands until the standalone WSL adapter trace is recorded and reviewed.
