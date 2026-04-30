@@ -732,12 +732,76 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 ## G3-B ROS Graph
 
 ### G3-B.1 Read-only Topic And Node Observation
-- Time:
-- Server:
+- Time: 2026-04-30
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
 - Command:
+  ```bash
+  source /opt/ros/noetic/setup.bash
+  pkill -f roscore || true
+  pkill -f rosmaster || true
+  roscore > ~/uav-g3b-evidence/g3b-roscore.log 2>&1 &
+  echo $! | tee ~/uav-g3b-evidence/g3b-roscore.pid
+  sleep 5
+  {
+    date -Is
+    rosnode list
+    rostopic list
+    rostopic info /goal || true
+    rostopic type /goal || true
+    rosmsg show geometry_msgs/PoseStamped
+    rostopic info /move_base_simple/goal || true
+    rostopic info /back_trigger || true
+    rostopic info /px4ctrl/takeoff_land || true
+  } 2>&1 | tee ~/uav-g3b-evidence/g3b-baseline-graph.txt
+  kill "$(cat ~/uav-g3b-evidence/g3b-roscore.pid)" || true
+  sleep 2
+  pgrep -af 'roscore|rosmaster' | tee ~/uav-g3b-evidence/g3b-roscore-after-kill.txt || true
+  ```
 - Output:
-- Verdict:
-- Next:
+  ```text
+  roscore PID: 29617
+
+  2026-04-30T10:32:15+08:00
+  rosnode list:
+  /rosout
+
+  rostopic list:
+  /rosout
+  /rosout_agg
+
+  rostopic info /goal:
+  ERROR: Unknown topic /goal
+  rostopic type /goal:
+  unknown topic type [/goal]
+
+  rosmsg show geometry_msgs/PoseStamped:
+  std_msgs/Header header
+    uint32 seq
+    time stamp
+    string frame_id
+  geometry_msgs/Pose pose
+    geometry_msgs/Point position
+      float64 x
+      float64 y
+      float64 z
+    geometry_msgs/Quaternion orientation
+      float64 x
+      float64 y
+      float64 z
+      float64 w
+
+  rostopic info /move_base_simple/goal:
+  ERROR: Unknown topic /move_base_simple/goal
+  rostopic info /back_trigger:
+  ERROR: Unknown topic /back_trigger
+  rostopic info /px4ctrl/takeoff_land:
+  ERROR: Unknown topic /px4ctrl/takeoff_land
+
+  roscore exited after kill.
+  pgrep after kill only matched the `tee ... g3b-roscore-after-kill.txt` command line, not a live roscore/rosmaster process.
+  ```
+- Verdict: G3_B_1_PASS_BASELINE_READ_ONLY; with only `roscore` running, no planner/action topics exist, no action topic is published, and standard goal message type introspection works.
+- Next: complete final gate review. Do not attempt planner launch in this environment because P3 full build is blocked by non-core VINS/OpenCV/Ceres dependencies.
 
 ### G3-B.2 Dry-run Payload Evidence
 - Time:
