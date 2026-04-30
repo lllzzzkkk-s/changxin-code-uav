@@ -729,6 +729,54 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - Verdict: P3_3_PASS_STATIC_ONLY_WITH_CORE_MSGS; `/goal` is the planner goal subscriber/publisher path, `/move_base_simple/goal` and `/back_trigger` are multipoint triggers, and both single LIO/VIO experiment launches use `flight_type=1`.
 - Next: proceed to G3-B baseline read-only ROS graph observation. Do not launch planner nodes because full workspace build is blocked by non-core VINS/OpenCV/Ceres dependencies.
 
+### P3.4 Full Diff-planner Dependency Completion
+- Time: 2026-04-30, local implementation of remote WSL dependency installer
+- Server: local Codex worktree; script is intended to run inside Ubuntu-20.04 WSL2 as `uavdev`
+- Root cause:
+  ```text
+  Full catkin_make stopped inside realflight_modules/VINS-Fusion-gpu/camera_models.
+  The first hard blocker is a hard-coded include path:
+    /home/nv/Lib/opencv3.4.14/install/OpenCVConfig.cmake
+  The second hard blocker is a missing Ceres package config:
+    CeresConfig.cmake or ceres-config.cmake
+  ```
+- Added script:
+  ```text
+  uav/01-scripts/install_diff_planner_deps_focal.sh
+  ```
+- Remote command to run after syncing this commit into WSL:
+  ```bash
+  cd ~/changxin-code
+  chmod +x uav/01-scripts/install_diff_planner_deps_focal.sh
+  UAV_DEPS_JOBS=8 uav/01-scripts/install_diff_planner_deps_focal.sh all
+
+  source /opt/ros/noetic/setup.bash
+  cd ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner
+  rm -rf build devel
+  catkin_make 2>&1 | tee ~/uav-g3b-evidence/p3-catkin-make-after-full-deps.txt
+  ```
+- Script coverage:
+  ```text
+  Required apt deps: Ceres, Eigen3, SuiteSparse, glog/gflags, Boost, PCL, cv_bridge,
+  image_transport, tf/tf2, diagnostic_updater, ddynamic_reconfigure, librealsense
+  binary package candidates, OpenCV build prerequisites, protobuf/yaml/glfw.
+
+  Source-built dep: OpenCV 3.4.14 installed to the exact VINS hard-coded prefix:
+  /home/nv/Lib/opencv3.4.14/install
+
+  GPU/CUDA handling: detect and log nvidia-smi, nvcc, and /usr/local/cuda/version.txt.
+  It does not install CUDA by default because WSL CUDA must match the Windows host
+  NVIDIA driver. Ubuntu nvidia-cuda-toolkit install is gated behind
+  UAV_ALLOW_UBUNTU_CUDA_TOOLKIT=1.
+  ```
+- Local verification:
+  ```text
+  bash -n uav/01-scripts/install_diff_planner_deps_focal.sh
+  OK
+  ```
+- Verdict: P3_4_DEP_INSTALLER_READY_NOT_EXECUTED_REMOTE; the missing VINS/OpenCV/Ceres path now has a reproducible installer, but the remote WSL full-build verdict remains pending until the script is run on the Windows server.
+- Next: sync this script to WSL, run it, retry full `catkin_make`, and capture the next concrete blocker if CUDA/Realsense/Livox surfaces after OpenCV/Ceres.
+
 ## G3-B ROS Graph
 
 ### G3-B.1 Read-only Topic And Node Observation
@@ -909,12 +957,57 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - Verdict: G3_B_2_PASS_WSL_DRY_RUN; the A-stage service layer is synced into WSL and the same `move_relative` dry-run passes there with no publish side effect.
 - Next: use this WSL dry-run as the A-stage evidence baseline before adding ROS adapter code.
 
+- Time: 2026-04-30, local ROS adapter dry-run trace
+- Server: local Codex worktree, pure Python adapter report; no ROS master required and no topic publish attempted
+- Command:
+  ```bash
+  python -m unittest tests.uav_llm_control.test_pipeline tests.uav_llm_control.test_ros_adapter_dry_run
+  python - <<'PY'
+  from uav.llm_control.ros_adapters.dry_run import build_dry_run_report
+  from uav.llm_control.schemas.models import BatterySnapshot, FcuSnapshot, LocalizationSnapshot, RcSnapshot, StateSnapshot
+
+  snapshot = StateSnapshot(
+      captured_at=100.0,
+      fcu=FcuSnapshot(connected=True, armed=True, mode='OFFBOARD', updated_at=100.0),
+      battery=BatterySnapshot(voltage=24.1, percentage=0.75, updated_at=100.0),
+      rc=RcSnapshot(channels=[1000,1500,1500,1500,1000,1000,1800,1500], updated_at=100.0),
+      localization=LocalizationSnapshot(source='lio', position={'x': 1.0, 'y': 2.0, 'z': 1.0}, velocity={'x': 0.0, 'y': 0.0, 'z': 0.0}, yaw=0.0, updated_at=100.0),
+  )
+  report = build_dry_run_report({
+      'meta': {'request_id': 'g3b-a-adapter-local'},
+      'intent': {'name': 'move_relative'},
+      'arguments': {'frame': 'world', 'direction': 'forward', 'distance_m': 1.0},
+  }, snapshot, now=100.0).as_dict()
+  print('status:', report['status'])
+  print('publish_attempted:', report['publish_attempted'])
+  print('trace_stages:', [entry['stage'] for entry in report['trace']])
+  print('target_position:', report['trace'][4]['target_position'])
+  print('ros_payload_topic:', report['trace'][5]['topic'])
+  print('confirmation_gate:', report['trace'][6]['status'])
+  PY
+  ```
+- Output:
+  ```text
+  Ran 11 tests in 0.002s
+  OK
+
+  status: needs_confirmation
+  publish_attempted: False
+  trace_stages: ['input', 'schema_validation', 'state_snapshot', 'safety_policy', 'target_point', 'ros_payload', 'confirmation_gate']
+  target_position: {'x': 2.0, 'y': 2.0, 'z': 1.0}
+  ros_payload_topic: /goal
+  confirmation_gate: blocked_for_confirmation
+  ```
+- Verdict: G3_B_2_PASS_LOCAL_ADAPTER_TRACE; A-stage adapter trace includes input, schema validation, state snapshot, safety policy, target point, ROS payload, and confirmation gate, while still refusing to publish.
+- Next: sync adapter and dependency installer to WSL; rerun the 11-test suite and adapter trace there before marking A closed.
+
 ## Final Gate
 
 - P0 Verdict: PASS_WITH_D_DRIVE_TARGET_AND_ROS_TLS_RISK. Windows 11, WSL and VirtualMachinePlatform are enabled, HypervisorPresent is true, D: has enough space, and ROS apt HTTP/key URLs are reachable. C: is too small for default WSL storage.
 - P1 Verdict: PASS. Ubuntu-20.04 was imported on D:\WSL as WSL2 and verified as `Ubuntu 20.04.3 LTS` under `5.10.16.3-microsoft-standard-WSL2`; `uavdev` exists.
 - P1.5 Verdict: PASS. Interactive WSL shell works, direct apt network works, and base packages `curl`, `gnupg`, `lsb-release`, `build-essential`, `git`, and `python3-pip` are installed.
 - P2 Verdict: PASS. ROS Noetic desktop-full is installed; `roscore`, `rosnode`, `rostopic`, `rosmsg`, and standard message introspection work.
-- P3 Verdict: PASS_STATIC_ONLY_WITH_CORE_MSGS. Diff-planner snapshot is present in WSL; full build is blocked by non-core VINS/OpenCV/Ceres dependencies; whitelisted `quadrotor_msgs` build passes; `quadrotor_msgs/TakeoffLand` and `geometry_msgs/PoseStamped` are visible; static source evidence confirms `/goal` planner input and `multipoint` trigger wiring.
-- G3-B Verdict: PASS_BASELINE_READ_ONLY_AND_WSL_DRY_RUN. With only `roscore` running, baseline graph has `/rosout` and `/rosout_agg`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, and `/px4ctrl/takeoff_land` are absent as expected; no action-topic publish occurred. WSL pure-Python `move_relative` dry-run produces a `/goal` payload with `publish_attempted=False`.
-- G3-C Entry Decision: NOT_READY_FOR_PLANNER_RUNTIME_OR_ACTION_TESTS. Ready to build the next A-stage ROS adapter/dry-run trace layer inside WSL. Not ready to launch planner/multipoint or publish movement/takeoff/land commands until non-core build dependencies are addressed or a minimal launchable package set is isolated and reviewed.
+- P3 Verdict: PASS_STATIC_ONLY_WITH_CORE_MSGS_AND_DEP_INSTALLER_READY. Diff-planner snapshot is present in WSL; whitelisted `quadrotor_msgs` build passes; `quadrotor_msgs/TakeoffLand` and `geometry_msgs/PoseStamped` are visible; static source evidence confirms `/goal` planner input and `multipoint` trigger wiring. Full build dependency completion is prepared through `uav/01-scripts/install_diff_planner_deps_focal.sh`, but remote full-build retry remains pending.
+- G3-B Verdict: PASS_BASELINE_READ_ONLY_WSL_DRY_RUN_AND_LOCAL_ADAPTER_TRACE. With only `roscore` running, baseline graph has `/rosout` and `/rosout_agg`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, and `/px4ctrl/takeoff_land` are absent as expected; no action-topic publish occurred. WSL pure-Python `move_relative` dry-run produces a `/goal` payload with `publish_attempted=False`; local adapter trace now records schema validation, state snapshot, safety policy, target point, ROS payload, and confirmation gate.
+- A-stage Closure Decision: NOT_CLOSED_YET. Before entering B, sync this commit to WSL, run the dependency installer, retry full `catkin_make`, rerun the 11-test A-stage suite, and capture a WSL adapter trace. Only then mark A closed.
+- G3-C Entry Decision: NOT_READY_FOR_PLANNER_RUNTIME_OR_ACTION_TESTS. Do not launch planner/multipoint or publish movement/takeoff/land commands until the remote dependency/full-build retry and WSL adapter trace are recorded.
