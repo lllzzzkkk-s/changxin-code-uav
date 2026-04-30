@@ -175,6 +175,13 @@ guard = '''if(DEFINED OpenCV_LIBRARIES)
   endif()
 endif()'''
 
+old_opencv_guard = '''if(DEFINED OLD_OPENCV)
+  list(LENGTH OLD_OPENCV _uavdeps_old_opencv_count)
+  if(_uavdeps_old_opencv_count GREATER 0)
+    list(REMOVE_ITEM catkin_LIBRARIES ${OLD_OPENCV})
+  endif()
+endif()'''
+
 for path in files:
     if not path.exists():
         print(f"skip missing {path}")
@@ -195,6 +202,15 @@ for path in files:
                 patched.append(line)
                 continue
             for guard_line in guard.splitlines():
+                patched.append(f"{indent}{guard_line}")
+            continue
+        if stripped.startswith("list(REMOVE_ITEM catkin_LIBRARIES") and "OLD_OPENCV" in stripped:
+            indent = line[: len(line) - len(line.lstrip())]
+            previous = patched[-1].strip() if patched else ""
+            if previous == "if(_uavdeps_old_opencv_count GREATER 0)":
+                patched.append(line)
+                continue
+            for guard_line in old_opencv_guard.splitlines():
                 patched.append(f"{indent}{guard_line}")
             continue
         patched.append(line)
