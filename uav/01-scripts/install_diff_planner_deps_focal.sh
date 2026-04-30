@@ -6,7 +6,10 @@ EVIDENCE_DIR="${UAV_G3B_EVIDENCE_DIR:-$HOME/uav-g3b-evidence}"
 SRC_DIR="${UAV_DEPS_SRC_DIR:-$HOME/uav-deps/src}"
 BUILD_DIR="${UAV_DEPS_BUILD_DIR:-$HOME/uav-deps/build}"
 OPENCV_VERSION="${UAV_OPENCV_VERSION:-3.4.14}"
+OPENCV_CONTRIB_VERSION="${UAV_OPENCV_CONTRIB_VERSION:-$OPENCV_VERSION}"
 OPENCV_PREFIX="${UAV_OPENCV_PREFIX:-/home/nv/Lib/opencv3.4.14/install}"
+OPENCV_ENABLE_CUDA="${UAV_ENABLE_OPENCV_CUDA:-0}"
+OPENCV_CUDA_ARCH_BIN="${UAV_CUDA_ARCH_BIN:-}"
 DIFF_PLANNER_DIR="${UAV_DIFF_PLANNER_DIR:-$HOME/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner}"
 LIVOX_SDK2_REPO="${UAV_LIVOX_SDK2_REPO:-https://github.com/Livox-SDK/Livox-SDK2.git}"
 JOBS="${UAV_DEPS_JOBS:-$(nproc)}"
@@ -97,9 +100,14 @@ download_tarball() {
 
 build_opencv_314() {
   local config_file="$OPENCV_PREFIX/OpenCVConfig.cmake"
+  local cuda_header="$OPENCV_PREFIX/include/opencv2/cudaoptflow.hpp"
   if [[ -f "$config_file" ]]; then
-    log "OpenCV ${OPENCV_VERSION} already present at $config_file"
-    return
+    if [[ "$OPENCV_ENABLE_CUDA" != "1" || -f "$cuda_header" ]]; then
+      log "OpenCV ${OPENCV_VERSION} already present at $config_file"
+      ensure_opencv_compat_config
+      return
+    fi
+    log "OpenCV ${OPENCV_VERSION} config exists, but CUDA contrib header is missing; rebuilding with opencv_contrib"
   fi
 
   local tarball="$SRC_DIR/opencv-${OPENCV_VERSION}.tar.gz"
@@ -115,22 +123,63 @@ build_opencv_314() {
     tar -xzf "$tarball" -C "$SRC_DIR"
   fi
 
+  local cmake_args=(
+    -S "$src_root"
+    -B "$build_root"
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_INSTALL_PREFIX="$OPENCV_PREFIX"
+    -DBUILD_EXAMPLES=OFF
+    -DBUILD_opencv_python2=OFF
+    -DBUILD_opencv_python3=OFF
+    -DBUILD_PERF_TESTS=OFF
+    -DBUILD_TESTS=OFF
+  )
+
+  if [[ "$OPENCV_ENABLE_CUDA" == "1" ]]; then
+    if ! command -v nvcc >/dev/null 2>&1; then
+      echo "UAV_ENABLE_OPENCV_CUDA=1 requires nvcc in PATH. Install the target CUDA toolkit first." >&2
+      exit 5
+    fi
+
+    local contrib_tarball="$SRC_DIR/opencv_contrib-${OPENCV_CONTRIB_VERSION}.tar.gz"
+    local contrib_root="$SRC_DIR/opencv_contrib-${OPENCV_CONTRIB_VERSION}"
+    download_tarball \
+      "https://github.com/opencv/opencv_contrib/archive/${OPENCV_CONTRIB_VERSION}.tar.gz" \
+      "$contrib_tarball"
+
+    if [[ ! -d "$contrib_root" ]]; then
+      log "Extracting OpenCV contrib ${OPENCV_CONTRIB_VERSION}"
+      tar -xzf "$contrib_tarball" -C "$SRC_DIR"
+    fi
+
+    build_root="$BUILD_DIR/opencv-${OPENCV_VERSION}-cuda"
+    cmake_args[3]="$build_root"
+    cmake_args+=(
+      -DOPENCV_EXTRA_MODULES_PATH="$contrib_root/modules"
+      -DWITH_CUDA=ON
+      -DWITH_CUBLAS=ON
+      -DENABLE_FAST_MATH=ON
+      -DCUDA_FAST_MATH=ON
+      -DBUILD_opencv_cudacodec=OFF
+    )
+    if [[ -n "$OPENCV_CUDA_ARCH_BIN" ]]; then
+      cmake_args+=(-DCUDA_ARCH_BIN="$OPENCV_CUDA_ARCH_BIN")
+    fi
+  else
+    cmake_args+=(-DWITH_CUDA=OFF)
+  fi
+
   log "Configuring OpenCV ${OPENCV_VERSION} for the path hard-coded by VINS-Fusion-gpu"
-  cmake -S "$src_root" -B "$build_root" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="$OPENCV_PREFIX" \
-    -DBUILD_EXAMPLES=OFF \
-    -DBUILD_opencv_python2=OFF \
-    -DBUILD_opencv_python3=OFF \
-    -DBUILD_PERF_TESTS=OFF \
-    -DBUILD_TESTS=OFF \
-    -DWITH_CUDA=OFF
+  cmake "${cmake_args[@]}"
 
   log "Building OpenCV ${OPENCV_VERSION} with ${JOBS} jobs"
   cmake --build "$build_root" -- -j"$JOBS"
   log "Installing OpenCV ${OPENCV_VERSION} to $OPENCV_PREFIX"
   sudo cmake --install "$build_root"
   ensure_opencv_compat_config
+  if [[ "$OPENCV_ENABLE_CUDA" == "1" ]]; then
+    test -f "$cuda_header"
+  fi
 }
 
 ensure_opencv_compat_config() {
@@ -403,8 +452,10 @@ verify_deps() {
     cat /etc/os-release
     echo
     echo "CeresConfig=$ceres_config"
+    echo "OpenCVCudaRequested=$OPENCV_ENABLE_CUDA"
     echo "OpenCVConfig=$OPENCV_PREFIX/OpenCVConfig.cmake"
     test -f "$OPENCV_PREFIX/OpenCVConfig.cmake" && echo "OpenCVConfigPresent=yes" || echo "OpenCVConfigPresent=no"
+    test -f "$OPENCV_PREFIX/include/opencv2/cudaoptflow.hpp" && echo "OpenCVCudaOptFlowHeader=yes" || echo "OpenCVCudaOptFlowHeader=no"
     echo
     echo "CUDA/NVIDIA:"
     command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi || echo "nvidia-smi not found"
