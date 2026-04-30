@@ -1549,6 +1549,81 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - Verdict: G3_C_4_PASS_HEADLESS_SIM_PASSIVE_ECHO_120S. The headless sim launch remains alive after 120 seconds with all eight expected business nodes visible under a live master; the planner FSM stays in `WAIT_TARGET`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, `/px4ctrl/takeoff_land`, and `/setpoints_cmd` emit no messages during the extended passive observation.
 - Next: proceed to sim dry-run wiring. The next stage may run the A-stage report generator while the sim graph is alive and verify it still records `publish_attempted=False` and does not emit action-topic messages.
 
+- Time: 2026-04-30, first sim dry-run wiring attempt
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
+- Command:
+  ```bash
+  cd ~/changxin-code
+  source /opt/ros/noetic/setup.bash
+  source ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/devel/setup.bash
+
+  PYTHONPATH="$PWD:${PYTHONPATH:-}" python3 - <<'PY' \
+    | tee ~/uav-g3c-evidence/g3c-18-sim-live-a-stage-dry-run-report.txt
+  from uav.llm_control.ros_adapters.dry_run import build_dry_run_report
+  from uav.llm_control.schemas.models import BatterySnapshot, FcuSnapshot, LocalizationSnapshot, RcSnapshot, StateSnapshot
+
+  snapshot = StateSnapshot(
+      captured_at=100.0,
+      fcu=FcuSnapshot(connected=True, armed=True, mode="OFFBOARD", updated_at=100.0),
+      battery=BatterySnapshot(voltage=24.1, percentage=0.75, updated_at=100.0),
+      rc=RcSnapshot(channels=[1000,1500,1500,1500,1000,1000,1800,1500], updated_at=100.0),
+      localization=LocalizationSnapshot(
+          source="sim",
+          position={"x": -15.0, "y": 0.0, "z": 1.0},
+          velocity={"x": 0.0, "y": 0.0, "z": 0.0},
+          yaw=0.0,
+          updated_at=100.0,
+      ),
+  )
+  report = build_dry_run_report({
+      "meta": {"request_id": "g3c-sim-live-dry-run"},
+      "intent": {"name": "move_relative"},
+      "arguments": {"frame": "world", "direction": "forward", "distance_m": 1.0},
+  }, snapshot, now=100.0).as_dict()
+
+  print("status:", report["status"])
+  print("publish_attempted:", report["publish_attempted"])
+  print("trace_stages:", [entry["stage"] for entry in report["trace"]])
+  print("target_position:", report["trace"][4]["target_position"])
+  print("ros_payload_topic:", report["trace"][5]["topic"])
+  print("ros_payload_type:", report["trace"][5]["message_type"])
+  print("confirmation_gate:", report["trace"][6]["status"])
+  PY
+
+  for t in /goal /move_base_simple/goal /back_trigger /px4ctrl/takeoff_land /setpoints_cmd; do
+    echo "===== $t ====="
+    timeout 5s rostopic echo -n 1 "$t" || echo "NO_MESSAGE_WITHIN_5S"
+  done | tee ~/uav-g3c-evidence/g3c-19-post-dry-run-action-topic-passive-echo.txt
+  ```
+- Output:
+  ```text
+  status: failed
+  publish_attempted: False
+  trace_stages: ['input', 'schema_validation', 'state_snapshot', 'safety_policy', 'target_point', 'ros_payload', 'confirmation_gate']
+  target_position: None
+  ros_payload_topic: None
+  ros_payload_type: None
+  confirmation_gate: not_reached
+
+  /goal: ERROR: Unable to communicate with master! NO_MESSAGE_WITHIN_5S
+  /move_base_simple/goal: ERROR: Unable to communicate with master! NO_MESSAGE_WITHIN_5S
+  /back_trigger: ERROR: Unable to communicate with master! NO_MESSAGE_WITHIN_5S
+  /px4ctrl/takeoff_land: ERROR: Unable to communicate with master! NO_MESSAGE_WITHIN_5S
+  /setpoints_cmd: ERROR: Unable to communicate with master! NO_MESSAGE_WITHIN_5S
+  ```
+- Diagnosis:
+  ```text
+  The dry-run failure is caused by the A-stage precondition that only accepts localization.source in {"lio", "vio"}. The test snapshot used source="sim", so process_command fails before target resolution with unsupported_localization_source.
+  The passive topic checks are not valid for publish/no-publish evidence because the prior 120-second headless sim launch had already been cleaned up, so ROS master was no longer reachable.
+  ```
+- Local reproduction:
+  ```text
+  source=sim -> failed, precheck_failure, unsupported_localization_source, target=None, topic=None, confirmation=not_reached
+  source=lio -> needs_confirmation, target={'x': -14.0, 'y': 0.0, 'z': 1.0}, topic=/goal, confirmation=blocked_for_confirmation
+  ```
+- Verdict: G3_C_5_SIM_DRY_RUN_WIRING_RETRY_REQUIRED. The report generator still refused to publish, but this attempt does not prove sim-live wiring because it used an unsupported localization source and the ROS master was not live for passive topic checks.
+- Next: rerun sim dry-run wiring with a live headless sim launch and a `localization.source` value of `lio` while keeping the simulated position coordinates. Confirm `publish_attempted=False`, `/goal` payload generation, and no action-topic messages under a live master.
+
 ## Final Gate
 
 - P0 Verdict: PASS_WITH_D_DRIVE_TARGET_AND_ROS_TLS_RISK. Windows 11, WSL and VirtualMachinePlatform are enabled, HypervisorPresent is true, D: has enough space, and ROS apt HTTP/key URLs are reachable. C: is too small for default WSL storage.
@@ -1559,4 +1634,4 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - G3-B Verdict: PASS_BASELINE_READ_ONLY_WSL_DRY_RUN_LOCAL_AND_WSL_ADAPTER_TRACES. With only `roscore` running, baseline graph has `/rosout` and `/rosout_agg`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, and `/px4ctrl/takeoff_land` are absent as expected; no action-topic publish occurred. WSL pure-Python `move_relative` dry-run produces a `/goal` payload with `publish_attempted=False`; local and WSL adapter traces record schema validation, state snapshot, safety policy, target point, ROS payload, and confirmation gate; the WSL 11-test A-stage suite passes after the full catkin build.
 - G3-C Verdict: PASS_HEADLESS_SIM_PASSIVE_ECHO_120S. The WSL package environment, launch files, static topic/control scan, target launch parsing, parameter dumps, roscore-only baseline, headless sim startup, and extended 120-second passive observation all pass; the live graph contains all eight expected business nodes, the planner remains in `WAIT_TARGET`, and no messages are observed on `/goal`, `/move_base_simple/goal`, `/back_trigger`, `/px4ctrl/takeoff_land`, or `/setpoints_cmd`.
 - A-stage Closure Decision: CLOSED_DRY_RUN_ONLY. Full WSL build, package/node visibility, WSL A-stage tests, and standalone WSL adapter trace all pass. The closed scope is dry-run only and does not authorize publishing motion/takeoff/land commands.
-- G3-C Entry Decision: READY_FOR_SIM_DRY_RUN_WIRING. Next work may run the A-stage dry-run report generator while the sim graph is alive and verify no action-topic messages are emitted, but must not publish movement, takeoff, land, return-home, MAVROS arming, MAVROS set_mode, or MAVROS setpoint commands until a separate action-safety gate is defined and approved.
+- G3-C Entry Decision: READY_FOR_SIM_DRY_RUN_WIRING_RETRY. Next work may rerun the A-stage dry-run report generator while a fresh headless sim graph is alive, using `localization.source="lio"` with simulated coordinates, and verify no action-topic messages are emitted; it must not publish movement, takeoff, land, return-home, MAVROS arming, MAVROS set_mode, or MAVROS setpoint commands until a separate action-safety gate is defined and approved.
