@@ -851,6 +851,64 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - Verdict: G3_B_2_PASS_LOCAL_DRY_RUN; `move_relative` compiles into a `/goal` `PoseStamped` dry-run payload and stops at `needs_confirmation` with no publish side effect.
 - Next: sync the `uav/llm_control` implementation into the WSL workspace and repeat this same dry-run there before using it as a remote G3-C gate.
 
+- Time: 2026-04-30, WSL sync and dry-run verification
+- Server: remote Windows host, interactive Ubuntu-20.04 WSL2 shell as `uavdev`
+- Command:
+  ```bash
+  cd ~/changxin-code
+  cp /mnt/d/WSL/Downloads/uav-llm-control-g0.zip .
+  python3 -m zipfile -e uav-llm-control-g0.zip .
+  find uav/llm_control tests/uav_llm_control -maxdepth 3 -type f | sort
+  python3 -m unittest tests.uav_llm_control.test_pipeline
+  python3 - <<'PY'
+  from uav.llm_control.core.pipeline import process_command
+  from uav.llm_control.schemas.models import BatterySnapshot, FcuSnapshot, LocalizationSnapshot, RcSnapshot, StateSnapshot
+
+  snapshot = StateSnapshot(
+      captured_at=100.0,
+      fcu=FcuSnapshot(connected=True, armed=True, mode="OFFBOARD", updated_at=100.0),
+      battery=BatterySnapshot(voltage=24.1, percentage=0.75, updated_at=100.0),
+      rc=RcSnapshot(channels=[1000, 1500, 1500, 1500, 1000, 1000, 1800, 1500], updated_at=100.0),
+      localization=LocalizationSnapshot(source="lio", position={"x": 1.0, "y": 2.0, "z": 1.0}, velocity={"x": 0.0, "y": 0.0, "z": 0.0}, yaw=0.0, updated_at=100.0),
+  )
+  result = process_command({
+      "meta": {"request_id": "g3b-dry-run-wsl"},
+      "intent": {"name": "move_relative"},
+      "arguments": {"frame": "world", "direction": "forward", "distance_m": 1.0},
+  }, snapshot, now=100.0)
+  print(result.as_dict())
+  PY
+  ```
+- Output:
+  ```text
+  tests/uav_llm_control/__init__.py
+  tests/uav_llm_control/test_pipeline.py
+  uav/llm_control/__init__.py
+  uav/llm_control/api/__init__.py
+  uav/llm_control/core/__init__.py
+  uav/llm_control/core/pipeline.py
+  uav/llm_control/llm/__init__.py
+  uav/llm_control/ros_adapters/__init__.py
+  uav/llm_control/schemas/__init__.py
+  uav/llm_control/schemas/models.py
+  uav/llm_control/tools/__init__.py
+  uav/llm_control/tools/catalog.py
+
+  Ran 8 tests in 0.001s
+  OK
+
+  status: needs_confirmation
+  resolution.target_position: {"x": 2.0, "y": 2.0, "z": 1.0}
+  safety.confirmation_policy: always
+  safety.reasons: ["confirmation_required"]
+  execution.dry_run: True
+  execution.publish_attempted: False
+  execution.ros_payload.topic: /goal
+  execution.ros_payload.message_type: geometry_msgs/PoseStamped
+  ```
+- Verdict: G3_B_2_PASS_WSL_DRY_RUN; the A-stage service layer is synced into WSL and the same `move_relative` dry-run passes there with no publish side effect.
+- Next: use this WSL dry-run as the A-stage evidence baseline before adding ROS adapter code.
+
 ## Final Gate
 
 - P0 Verdict: PASS_WITH_D_DRIVE_TARGET_AND_ROS_TLS_RISK. Windows 11, WSL and VirtualMachinePlatform are enabled, HypervisorPresent is true, D: has enough space, and ROS apt HTTP/key URLs are reachable. C: is too small for default WSL storage.
@@ -858,5 +916,5 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - P1.5 Verdict: PASS. Interactive WSL shell works, direct apt network works, and base packages `curl`, `gnupg`, `lsb-release`, `build-essential`, `git`, and `python3-pip` are installed.
 - P2 Verdict: PASS. ROS Noetic desktop-full is installed; `roscore`, `rosnode`, `rostopic`, `rosmsg`, and standard message introspection work.
 - P3 Verdict: PASS_STATIC_ONLY_WITH_CORE_MSGS. Diff-planner snapshot is present in WSL; full build is blocked by non-core VINS/OpenCV/Ceres dependencies; whitelisted `quadrotor_msgs` build passes; `quadrotor_msgs/TakeoffLand` and `geometry_msgs/PoseStamped` are visible; static source evidence confirms `/goal` planner input and `multipoint` trigger wiring.
-- G3-B Verdict: PASS_BASELINE_READ_ONLY_AND_LOCAL_DRY_RUN. With only `roscore` running, baseline graph has `/rosout` and `/rosout_agg`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, and `/px4ctrl/takeoff_land` are absent as expected; no action-topic publish occurred. Local pure-Python `move_relative` dry-run also produces a `/goal` payload with `publish_attempted=False`.
-- G3-C Entry Decision: NOT_READY_FOR_PLANNER_RUNTIME_OR_ACTION_TESTS. Ready to sync and re-run A-stage dry-run tooling inside WSL. Not ready to launch planner/multipoint or publish movement/takeoff/land commands until non-core build dependencies are addressed or a minimal launchable package set is isolated and reviewed.
+- G3-B Verdict: PASS_BASELINE_READ_ONLY_AND_WSL_DRY_RUN. With only `roscore` running, baseline graph has `/rosout` and `/rosout_agg`; `/goal`, `/move_base_simple/goal`, `/back_trigger`, and `/px4ctrl/takeoff_land` are absent as expected; no action-topic publish occurred. WSL pure-Python `move_relative` dry-run produces a `/goal` payload with `publish_attempted=False`.
+- G3-C Entry Decision: NOT_READY_FOR_PLANNER_RUNTIME_OR_ACTION_TESTS. Ready to build the next A-stage ROS adapter/dry-run trace layer inside WSL. Not ready to launch planner/multipoint or publish movement/takeoff/land commands until non-core build dependencies are addressed or a minimal launchable package set is isolated and reviewed.
