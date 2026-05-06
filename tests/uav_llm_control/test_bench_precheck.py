@@ -1,4 +1,7 @@
 import unittest
+from argparse import Namespace
+import importlib.util
+from pathlib import Path
 
 from uav.llm_control.ros_adapters.bench_precheck import (
     BenchGraphSnapshot,
@@ -13,6 +16,13 @@ from uav.llm_control.schemas.models import (
     RcSnapshot,
     StateSnapshot,
 )
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SCRIPT_PATH = REPO_ROOT / "uav/01-scripts/g3e_bench_profile_precheck.py"
+SCRIPT_SPEC = importlib.util.spec_from_file_location("g3e_bench_profile_precheck", SCRIPT_PATH)
+g3e_script = importlib.util.module_from_spec(SCRIPT_SPEC)
+SCRIPT_SPEC.loader.exec_module(g3e_script)
 
 
 def fresh_snapshot(source="lio"):
@@ -72,6 +82,16 @@ def healthy_graph():
 
 
 class TestBenchPrecheck(unittest.TestCase):
+    def test_planner_only_scope_does_not_require_operator_trigger_subscriber(self):
+        args = Namespace(graph_scope="planner-only", required_subscriber_topic=[])
+
+        self.assertEqual(("/goal",), g3e_script.required_subscribed_topics_for_scope(args))
+
+    def test_operator_trigger_scope_requires_back_trigger_subscriber(self):
+        args = Namespace(graph_scope="operator-trigger", required_subscriber_topic=[])
+
+        self.assertEqual(("/goal", "/back_trigger"), g3e_script.required_subscribed_topics_for_scope(args))
+
     def test_graph_snapshot_parses_ros_cli_outputs(self):
         nodes_text = """/drone_0_diff_planner_node
 /drone_0_traj_server

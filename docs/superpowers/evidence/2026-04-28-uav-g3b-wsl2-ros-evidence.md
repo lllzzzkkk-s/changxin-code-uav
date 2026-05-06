@@ -1957,7 +1957,8 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - B-stage design:
   ```text
   bench_precheck builds a B-profile report from an existing dry-run candidate, lio/vio StateSnapshot, required ROS graph nodes/subscribers, and passive action-topic echo status.
-  It requires /drone_0_diff_planner_node, /drone_0_traj_server, /rosout, and subscribers on /goal and /back_trigger by default.
+  It supports a planner-only graph scope for the first real bench read-only precheck, requiring /drone_0_diff_planner_node, /drone_0_traj_server, /rosout, and a /goal subscriber only.
+  It also supports an operator-trigger graph scope for later trigger-path rehearsals, requiring /goal and /back_trigger subscribers.
   It uses b-stage-bench limits: lio/vio only, /goal and /back_trigger only, 0.5 m max relative goal, and 2.0 s max timeout.
   g3e_bench_profile_precheck.py captures rosnode list, rostopic list -v, passively echoes /goal, /move_base_simple/goal, /back_trigger, /px4ctrl/takeoff_land, and /setpoints_cmd, then writes a JSON precheck report and summary.
   It never calls rospy.Publisher, rostopic pub, MAVROS services, arming, set_mode, or setpoints.
@@ -2050,4 +2051,4 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
   ```
 - Verdict: G3E_PASS_B_STAGE_PROFILE_SIM_REHEARSAL_NO_PUBLISH. The B-stage precheck path passed against a live headless sim graph with a `lio` localization source, required planner nodes present, `/goal` and `/back_trigger` subscribed, gate allowed for a 0.3 m `/goal` candidate, `publish_attempted=False`, and no observed action-topic messages.
 - Boundary: This rehearsal does not prove real LIO/VIO sensor health, PX4/MAVROS bench readiness, actuator safety, or radio/RC interlock behavior. Real B-stage entry still requires the same script against an already alive bench graph with actual `lio` or `vio` localization inputs and an operator-approved rollback path.
-- Next Stage Gate: READY_FOR_REAL_BENCH_READ_ONLY_PRECHECK. The next permitted work is still read-only: launch the bench LIO/VIO graph, run `g3e_bench_profile_precheck.py` with the real localization source, and capture graph/echo evidence. Publisher implementation remains blocked.
+- Next Stage Gate: READY_FOR_REAL_BENCH_READ_ONLY_PRECHECK. The next permitted work is still read-only: launch the bench LIO/VIO graph without `px4ctrl` or `multipointplan`, run `g3e_bench_profile_precheck.py --graph-scope planner-only` with the real localization source, and capture graph/echo evidence. Publisher implementation remains blocked.

@@ -22,7 +22,7 @@ The system has three layers:
 2. **Action safety gate:** `evaluate_action_gate` checks whether that dry-run candidate is publish-eligible under strict operator, state, topic, timeout, and rollback requirements. It never publishes.
 3. **Publisher adapter:** not implemented in this stage. Any future publisher must consume an `allowed=True` gate decision and still perform a final ROS graph check before publish.
 4. **G3-D live-sim evidence script:** `g3d_live_action_gate_check.py` runs under an already alive headless sim graph, captures `rosnode`/`rostopic` state, produces an action-gate JSON report, and passively echoes action topics. It does not publish.
-5. **B-stage bench precheck:** `g3e_bench_profile_precheck.py` runs the stricter B profile with `lio` or `vio` localization input, checks required graph nodes and subscribers, produces a bench precheck JSON report, and passively echoes action topics. It does not publish.
+5. **B-stage bench precheck:** `g3e_bench_profile_precheck.py` runs the stricter B profile with `lio` or `vio` localization input, checks required graph nodes and subscribers, produces a bench precheck JSON report, and passively echoes action topics. It supports `planner-only` scope for first bench read-only checks and `operator-trigger` scope for later trigger-path rehearsal. It does not publish.
 
 The important migration rule is that A-stage is not a terminal design. A-stage may use sim localization and broader high-level topics to prove the contract, but the same gate API must run with stricter B/C profiles before any bench or real-aircraft action work.
 
@@ -226,6 +226,7 @@ PYTHONPATH="$PWD:${PYTHONPATH:-}" python3 -m unittest \
 # Run only while the bench/LIO or bench/VIO graph is already alive.
 python3 uav/01-scripts/g3e_bench_profile_precheck.py \
   --evidence-dir ~/uav-g3e-evidence \
+  --graph-scope planner-only \
   --source lio \
   --distance-m 0.3 \
   --requested-timeout-s 1.5

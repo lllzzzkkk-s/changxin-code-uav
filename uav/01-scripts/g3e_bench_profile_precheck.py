@@ -56,8 +56,8 @@ def main() -> int:
         action_summary=args.action_summary,
     )
     config = BenchPrecheckConfig(
-        required_nodes=tuple(args.required_node),
-        required_subscribed_topics=tuple(args.required_subscriber_topic),
+        required_nodes=required_nodes_for_scope(args),
+        required_subscribed_topics=required_subscribed_topics_for_scope(args),
     )
     precheck_report = build_b_stage_bench_precheck_report(
         envelope,
@@ -97,16 +97,40 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--echo-timeout-s", type=float, default=5.0)
     parser.add_argument("--now", type=float, default=time.time())
     parser.add_argument(
+        "--graph-scope",
+        choices=("planner-only", "operator-trigger"),
+        default="operator-trigger",
+        help=(
+            "planner-only checks the planner/traj_server path and /goal subscriber only; "
+            "operator-trigger also requires the operator trigger path such as /back_trigger."
+        ),
+    )
+    parser.add_argument(
         "--required-node",
         action="append",
-        default=["/drone_0_diff_planner_node", "/drone_0_traj_server", "/rosout"],
+        default=[],
+        help="Additional required ROS node. Defaults are selected by --graph-scope.",
     )
     parser.add_argument(
         "--required-subscriber-topic",
         action="append",
-        default=["/goal", "/back_trigger"],
+        default=[],
+        help="Additional required subscribed topic. Defaults are selected by --graph-scope.",
     )
     return parser.parse_args()
+
+
+def required_nodes_for_scope(args: argparse.Namespace) -> tuple:
+    base = ["/drone_0_diff_planner_node", "/drone_0_traj_server", "/rosout"]
+    return tuple(base + list(args.required_node))
+
+
+def required_subscribed_topics_for_scope(args: argparse.Namespace) -> tuple:
+    if args.graph_scope == "planner-only":
+        base = ["/goal"]
+    else:
+        base = ["/goal", "/back_trigger"]
+    return tuple(base + list(args.required_subscriber_topic))
 
 
 def build_snapshot(args: argparse.Namespace, *, now: float) -> StateSnapshot:
@@ -199,6 +223,7 @@ def write_summary(
     lines = [
         "profile: b-stage-bench",
         f"request_id: {args.request_id}",
+        f"graph_scope: {args.graph_scope}",
         f"ros_graph_ok: {graph_ok}",
     ]
     if precheck_report is not None:
