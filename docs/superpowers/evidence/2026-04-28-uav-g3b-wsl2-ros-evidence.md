@@ -1846,3 +1846,66 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
   It never calls rospy.Publisher, rostopic pub, MAVROS services, arming, set_mode, or setpoints.
   ```
 - Verdict: G3D_SCRIPT_READY_LOCAL_TDD_NO_PUBLISH. The next WSL action is a live-sim evidence run, not a publisher implementation.
+
+## G3-D Live-Sim Action Gate Evidence
+
+- Time: 2026-05-06T15:57:42+08:00, WSL2 Ubuntu 20.04 / ROS Noetic live headless sim
+- Server: `LAPTOP-JC`
+- Workspace:
+  ```text
+  ~/changxin-code
+  ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner
+  ```
+- Sync evidence:
+  ```text
+  g3d-sync-postcheck.txt:
+  all 15 target files OK
+
+  g3d-sync-python-tests.txt:
+  Ran 28 tests in 0.009s
+  OK
+  ```
+- Launch check:
+  ```text
+  2026-05-06T15:57:42+08:00
+  LAUNCH_PID=127 alive=yes
+  /drone_0_diff_planner_node
+  /drone_0_manual_take_over
+  /drone_0_odom_visualization
+  /drone_0_pcl_render_node
+  /drone_0_poscmd_2_odom
+  /drone_0_traj_server
+  /multipointplan
+  /random_forest
+  /rosout
+  ```
+- Gate summary:
+  ```text
+  profile: a-stage-sim-dry-run
+  request_id: g3d-live-a-profile-gate
+  ros_graph_ok: True
+  gate_status: gate_allowed
+  gate_allowed: True
+  publish_attempted: False
+  topic: /goal
+  message_type: geometry_msgs/PoseStamped
+  reasons: []
+  target_position: {'x': -14.0, 'y': 0.0, 'z': 1.0}
+  action_topic_message_received: False
+  ```
+- Passive action-topic echo:
+  ```text
+  ===== /goal =====
+  NO_MESSAGE_WITHIN_5S
+  ===== /move_base_simple/goal =====
+  NO_MESSAGE_WITHIN_5S
+  ===== /back_trigger =====
+  NO_MESSAGE_WITHIN_5S
+  ===== /px4ctrl/takeoff_land =====
+  NO_MESSAGE_WITHIN_5S
+  ===== /setpoints_cmd =====
+  NO_MESSAGE_WITHIN_5S
+  ```
+- Verdict: G3D_PASS_LIVE_SIM_ACTION_GATE_NO_PUBLISH. Under a live headless sim graph, the A-stage profile action gate allowed a dry-run `/goal` candidate for target `(-14.0, 0.0, 1.0)` while `publish_attempted=False`; no messages were observed on `/goal`, `/move_base_simple/goal`, `/back_trigger`, `/px4ctrl/takeoff_land`, or `/setpoints_cmd`.
+- Closure Decision: CLOSED_G3D_LIVE_SIM_GATE_NO_PUBLISH. This closes the gate-evaluation stage only. It does not authorize a publisher, motion execution, takeoff, land, return-home, MAVROS arming, MAVROS set_mode, or MAVROS setpoint commands.
+- Next Stage Gate: READY_FOR_B_STAGE_PROFILE_BENCH_PRECHECK. Before any publisher implementation, run B-profile bench prechecks with real `lio` or `vio` localization inputs, explicit rollback plan, topic graph verification, and operator approval path still side-effect free.
