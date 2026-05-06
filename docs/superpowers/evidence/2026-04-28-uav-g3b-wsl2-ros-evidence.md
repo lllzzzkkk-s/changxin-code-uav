@@ -1963,3 +1963,91 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
   It never calls rospy.Publisher, rostopic pub, MAVROS services, arming, set_mode, or setpoints.
   ```
 - Verdict: B_STAGE_BENCH_PRECHECK_SCRIPT_READY_LOCAL_TDD_NO_PUBLISH. The next WSL action is a B-profile bench precheck run against an already alive LIO/VIO graph, not a publisher implementation.
+
+## G3-E B-Stage Profile Sim Rehearsal Evidence
+
+- Time: 2026-05-06T16:49:08+08:00, WSL2 Ubuntu 20.04 / ROS Noetic live headless sim
+- Server: `LAPTOP-JC`
+- Scope: B-stage profile rehearsal on the already validated headless sim graph. This is not a real bench clearance and does not authorize a publisher. It proves that the B-stage script path can evaluate a stricter `lio` profile, inspect the live ROS graph, and remain side-effect free.
+- Workspace:
+  ```text
+  ~/changxin-code
+  ~/changxin-code-sync
+  ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner
+  ```
+- GitHub sync check:
+  ```text
+  cd ~/changxin-code-sync
+  git pull --ff-only
+  Already up to date.
+
+  rsync -avnc ~/changxin-code-sync/uav/llm_control/ ~/changxin-code/uav/llm_control/
+  rsync -avnc ~/changxin-code-sync/tests/uav_llm_control/ ~/changxin-code/tests/uav_llm_control/
+  rsync -avnc ~/changxin-code-sync/uav/01-scripts/ ~/changxin-code/uav/01-scripts/
+  rsync -avnc ~/changxin-code-sync/docs/superpowers/ ~/changxin-code/docs/superpowers/
+
+  All four dry-run rsync checks listed no file changes.
+  ```
+- Launch check:
+  ```text
+  2026-05-06T16:49:08+08:00
+  LAUNCH_PID=652 alive=yes
+
+  /drone_0_diff_planner_node
+  /drone_0_manual_take_over
+  /drone_0_odom_visualization
+  /drone_0_pcl_render_node
+  /drone_0_poscmd_2_odom
+  /drone_0_traj_server
+  /multipointplan
+  /random_forest
+  /rosout
+  ```
+- Command:
+  ```bash
+  PYTHONPATH="$PWD:${PYTHONPATH:-}" \
+  python3 uav/01-scripts/g3e_bench_profile_precheck.py \
+    --evidence-dir ~/uav-g3e-evidence \
+    --request-id g3e-b-stage-sim-rehearsal \
+    --source lio \
+    --x -15.0 \
+    --y 0.0 \
+    --z 1.0 \
+    --distance-m 0.3 \
+    --requested-timeout-s 1.5 \
+    --echo-timeout-s 5
+  ```
+- Summary:
+  ```text
+  profile: b-stage-bench
+  request_id: g3e-b-stage-sim-rehearsal
+  ros_graph_ok: True
+  bench_status: bench_precheck_passed
+  graph_ok: True
+  gate_allowed: True
+  publish_attempted: False
+  action_topic_message_received: False
+  missing_nodes: []
+  missing_subscribed_topics: []
+  topic: /goal
+  message_type: geometry_msgs/PoseStamped
+  reasons: []
+  target_position: {'x': -14.7, 'y': 0.0, 'z': 1.0}
+  localization_source: lio
+  ```
+- Passive action-topic echo:
+  ```text
+  ===== /goal =====
+  NO_MESSAGE_WITHIN_5S
+  ===== /move_base_simple/goal =====
+  NO_MESSAGE_WITHIN_5S
+  ===== /back_trigger =====
+  NO_MESSAGE_WITHIN_5S
+  ===== /px4ctrl/takeoff_land =====
+  NO_MESSAGE_WITHIN_5S
+  ===== /setpoints_cmd =====
+  NO_MESSAGE_WITHIN_5S
+  ```
+- Verdict: G3E_PASS_B_STAGE_PROFILE_SIM_REHEARSAL_NO_PUBLISH. The B-stage precheck path passed against a live headless sim graph with a `lio` localization source, required planner nodes present, `/goal` and `/back_trigger` subscribed, gate allowed for a 0.3 m `/goal` candidate, `publish_attempted=False`, and no observed action-topic messages.
+- Boundary: This rehearsal does not prove real LIO/VIO sensor health, PX4/MAVROS bench readiness, actuator safety, or radio/RC interlock behavior. Real B-stage entry still requires the same script against an already alive bench graph with actual `lio` or `vio` localization inputs and an operator-approved rollback path.
+- Next Stage Gate: READY_FOR_REAL_BENCH_READ_ONLY_PRECHECK. The next permitted work is still read-only: launch the bench LIO/VIO graph, run `g3e_bench_profile_precheck.py` with the real localization source, and capture graph/echo evidence. Publisher implementation remains blocked.
