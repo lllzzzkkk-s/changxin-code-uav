@@ -1909,3 +1909,57 @@ Safety boundary: read-only ROS graph observation only. No action-topic publish i
 - Verdict: G3D_PASS_LIVE_SIM_ACTION_GATE_NO_PUBLISH. Under a live headless sim graph, the A-stage profile action gate allowed a dry-run `/goal` candidate for target `(-14.0, 0.0, 1.0)` while `publish_attempted=False`; no messages were observed on `/goal`, `/move_base_simple/goal`, `/back_trigger`, `/px4ctrl/takeoff_land`, or `/setpoints_cmd`.
 - Closure Decision: CLOSED_G3D_LIVE_SIM_GATE_NO_PUBLISH. This closes the gate-evaluation stage only. It does not authorize a publisher, motion execution, takeoff, land, return-home, MAVROS arming, MAVROS set_mode, or MAVROS setpoint commands.
 - Next Stage Gate: READY_FOR_B_STAGE_PROFILE_BENCH_PRECHECK. Before any publisher implementation, run B-profile bench prechecks with real `lio` or `vio` localization inputs, explicit rollback plan, topic graph verification, and operator approval path still side-effect free.
+
+## B-Stage Bench Profile Precheck Preparation
+
+- Time: 2026-05-06, local pure-Python B-stage precheck adapter and WSL evidence script preparation
+- Server: local Codex worktree
+- Files:
+  ```text
+  tests/uav_llm_control/test_bench_precheck.py
+  tests/uav_llm_control/test_python38_compat.py
+  uav/llm_control/ros_adapters/bench_precheck.py
+  uav/01-scripts/g3e_bench_profile_precheck.py
+  docs/superpowers/specs/2026-04-30-uav-action-safety-gate-design.md
+  ```
+- Red tests:
+  ```bash
+  python -m unittest tests.uav_llm_control.test_bench_precheck
+  python -m unittest tests.uav_llm_control.test_python38_compat
+  ```
+- Red output:
+  ```text
+  ModuleNotFoundError: No module named 'uav.llm_control.ros_adapters.bench_precheck'
+  ImportError: cannot import name 'graph_snapshot_from_ros_cli'
+  FileNotFoundError: uav/01-scripts/g3e_bench_profile_precheck.py
+  ```
+- Green commands:
+  ```bash
+  python -m unittest tests.uav_llm_control.test_python38_compat tests.uav_llm_control.test_bench_precheck
+  python -m unittest tests.uav_llm_control.test_pipeline tests.uav_llm_control.test_ros_adapter_dry_run tests.uav_llm_control.test_action_safety_gate tests.uav_llm_control.test_action_gate_dry_run_adapter tests.uav_llm_control.test_bench_precheck tests.uav_llm_control.test_python38_compat
+  python -m py_compile uav/01-scripts/g3e_bench_profile_precheck.py uav/llm_control/ros_adapters/bench_precheck.py
+  python uav/01-scripts/g3e_bench_profile_precheck.py --help
+  python -m unittest discover
+  ```
+- Green output:
+  ```text
+  Ran 5 tests in 0.009s
+  OK
+
+  Ran 31 tests in 0.019s
+  OK
+
+  Ran 39 tests in 11.168s
+  OK
+
+  g3e_bench_profile_precheck.py --help prints usage and confirms: This script never publishes ROS topics.
+  ```
+- B-stage design:
+  ```text
+  bench_precheck builds a B-profile report from an existing dry-run candidate, lio/vio StateSnapshot, required ROS graph nodes/subscribers, and passive action-topic echo status.
+  It requires /drone_0_diff_planner_node, /drone_0_traj_server, /rosout, and subscribers on /goal and /back_trigger by default.
+  It uses b-stage-bench limits: lio/vio only, /goal and /back_trigger only, 0.5 m max relative goal, and 2.0 s max timeout.
+  g3e_bench_profile_precheck.py captures rosnode list, rostopic list -v, passively echoes /goal, /move_base_simple/goal, /back_trigger, /px4ctrl/takeoff_land, and /setpoints_cmd, then writes a JSON precheck report and summary.
+  It never calls rospy.Publisher, rostopic pub, MAVROS services, arming, set_mode, or setpoints.
+  ```
+- Verdict: B_STAGE_BENCH_PRECHECK_SCRIPT_READY_LOCAL_TDD_NO_PUBLISH. The next WSL action is a B-profile bench precheck run against an already alive LIO/VIO graph, not a publisher implementation.

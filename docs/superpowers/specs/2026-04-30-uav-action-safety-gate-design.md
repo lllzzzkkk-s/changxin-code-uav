@@ -22,6 +22,7 @@ The system has three layers:
 2. **Action safety gate:** `evaluate_action_gate` checks whether that dry-run candidate is publish-eligible under strict operator, state, topic, timeout, and rollback requirements. It never publishes.
 3. **Publisher adapter:** not implemented in this stage. Any future publisher must consume an `allowed=True` gate decision and still perform a final ROS graph check before publish.
 4. **G3-D live-sim evidence script:** `g3d_live_action_gate_check.py` runs under an already alive headless sim graph, captures `rosnode`/`rostopic` state, produces an action-gate JSON report, and passively echoes action topics. It does not publish.
+5. **B-stage bench precheck:** `g3e_bench_profile_precheck.py` runs the stricter B profile with `lio` or `vio` localization input, checks required graph nodes and subscribers, produces a bench precheck JSON report, and passively echoes action topics. It does not publish.
 
 The important migration rule is that A-stage is not a terminal design. A-stage may use sim localization and broader high-level topics to prove the contract, but the same gate API must run with stricter B/C profiles before any bench or real-aircraft action work.
 
@@ -106,11 +107,14 @@ The gate always reports `publish_attempted=False` because it does not publish.
 - `uav/llm_control/safety/profiles.py`
 - `uav/llm_control/safety/__init__.py`
 - `uav/llm_control/ros_adapters/action_gate_dry_run.py`
+- `uav/llm_control/ros_adapters/bench_precheck.py`
 - `uav/01-scripts/g3d_live_action_gate_check.py`
+- `uav/01-scripts/g3e_bench_profile_precheck.py`
 - `uav/llm_control/schemas/models.py`
 - `uav/llm_control/core/pipeline.py`
 - `tests/uav_llm_control/test_action_safety_gate.py`
 - `tests/uav_llm_control/test_action_gate_dry_run_adapter.py`
+- `tests/uav_llm_control/test_bench_precheck.py`
 - `tests/uav_llm_control/test_python38_compat.py`
 - `tests/uav_llm_control/test_pipeline.py`
 
@@ -136,6 +140,9 @@ The gate always reports `publish_attempted=False` because it does not publish.
 | Dry-run compiler accepts sim localization for A-to-B/C transition testing | `test_move_relative_accepts_sim_localization_for_a_to_bc_transition_testing` |
 | G3-D adapter records an A-profile `gate_allowed` report without publish side effect | `test_a_profile_report_allows_gate_without_publish_side_effect` |
 | G3-D adapter records C-profile rejection for the same sim candidate | `test_c_profile_rejects_same_sim_candidate_for_real_aircraft_transition` |
+| B-stage precheck passes with `lio`, B-profile, and required graph | `test_b_stage_precheck_passes_with_lio_source_and_required_graph` |
+| B-stage precheck fails for `sim` localization and missing `/goal` subscriber | `test_b_stage_precheck_fails_for_sim_source_and_missing_goal_subscriber` |
+| B-stage graph parser extracts nodes and topic sections from ROS CLI output | `test_graph_snapshot_parses_ros_cli_outputs` |
 | Runtime files avoid Python 3.10-only type union syntax for WSL Noetic Python 3.8 | `test_wsl_noetic_runtime_files_avoid_python310_type_union_syntax` |
 
 ## Verification Commands
@@ -144,8 +151,9 @@ Local:
 
 ```bash
 python -m unittest tests.uav_llm_control.test_action_safety_gate
-python -m unittest tests.uav_llm_control.test_pipeline tests.uav_llm_control.test_ros_adapter_dry_run tests.uav_llm_control.test_action_safety_gate tests.uav_llm_control.test_action_gate_dry_run_adapter tests.uav_llm_control.test_python38_compat
+python -m unittest tests.uav_llm_control.test_pipeline tests.uav_llm_control.test_ros_adapter_dry_run tests.uav_llm_control.test_action_safety_gate tests.uav_llm_control.test_action_gate_dry_run_adapter tests.uav_llm_control.test_bench_precheck tests.uav_llm_control.test_python38_compat
 python uav/01-scripts/g3d_live_action_gate_check.py --help
+python uav/01-scripts/g3e_bench_profile_precheck.py --help
 python -m unittest discover
 git diff --check
 ```
@@ -161,6 +169,7 @@ PYTHONPATH="$PWD:${PYTHONPATH:-}" python3 -m unittest \
   tests.uav_llm_control.test_ros_adapter_dry_run \
   tests.uav_llm_control.test_action_safety_gate \
   tests.uav_llm_control.test_action_gate_dry_run_adapter \
+  tests.uav_llm_control.test_bench_precheck \
   tests.uav_llm_control.test_python38_compat
 ```
 
@@ -197,4 +206,27 @@ python3 uav/01-scripts/g3d_live_action_gate_check.py \
 
 kill -INT "$LAUNCH_PID" 2>/dev/null || true
 wait "$LAUNCH_PID" 2>/dev/null || true
+```
+
+Minimal WSL B-stage precheck shape after syncing the B-stage script:
+
+```bash
+cd ~/changxin-code
+source /opt/ros/noetic/setup.bash
+source ~/changxin-code/uav/03-drone-code/snapshot_20260421_174511/Diff-planner/devel/setup.bash
+
+PYTHONPATH="$PWD:${PYTHONPATH:-}" python3 -m unittest \
+  tests.uav_llm_control.test_pipeline \
+  tests.uav_llm_control.test_ros_adapter_dry_run \
+  tests.uav_llm_control.test_action_safety_gate \
+  tests.uav_llm_control.test_action_gate_dry_run_adapter \
+  tests.uav_llm_control.test_bench_precheck \
+  tests.uav_llm_control.test_python38_compat
+
+# Run only while the bench/LIO or bench/VIO graph is already alive.
+python3 uav/01-scripts/g3e_bench_profile_precheck.py \
+  --evidence-dir ~/uav-g3e-evidence \
+  --source lio \
+  --distance-m 0.3 \
+  --requested-timeout-s 1.5
 ```

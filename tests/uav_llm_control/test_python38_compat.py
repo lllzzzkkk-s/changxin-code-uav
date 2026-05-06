@@ -8,12 +8,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PYTHON38_FILES = [
     REPO_ROOT / "uav/llm_control/core/pipeline.py",
     REPO_ROOT / "uav/llm_control/ros_adapters/action_gate_dry_run.py",
+    REPO_ROOT / "uav/llm_control/ros_adapters/bench_precheck.py",
     REPO_ROOT / "uav/llm_control/ros_adapters/dry_run.py",
     REPO_ROOT / "uav/llm_control/safety/action_gate.py",
     REPO_ROOT / "uav/llm_control/safety/profiles.py",
     REPO_ROOT / "uav/llm_control/schemas/models.py",
     REPO_ROOT / "uav/llm_control/tools/catalog.py",
     REPO_ROOT / "uav/01-scripts/g3d_live_action_gate_check.py",
+    REPO_ROOT / "uav/01-scripts/g3e_bench_profile_precheck.py",
 ]
 
 
