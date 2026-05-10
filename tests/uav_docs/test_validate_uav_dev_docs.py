@@ -109,6 +109,12 @@ class TestUavDocScaffold(unittest.TestCase):
         }
         self.assertTrue(required.issubset(names))
 
+    def test_startup_examples_use_real_diff_planner_path_case(self):
+        text = (DOC_ROOT / "02-interface-table.csv").read_text(encoding="utf-8")
+        self.assertNotIn("Diff-Planner", text)
+        self.assertIn("cd ~/Diff-planner && ./sh_files/run_single_lio.sh", text)
+        self.assertIn("cd ~/Diff-planner && ./sh_files/run_single_vio.sh", text)
+
     def test_developer_guide_contains_required_headings(self):
         text = (DOC_ROOT / "01-developer-guide.md").read_text(encoding="utf-8")
         for heading in [

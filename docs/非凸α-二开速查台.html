@@ -1,0 +1,2330 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>非凸α二开速查台</title>
+  <style>
+    :root {
+      --bg: #f3efe5;
+      --panel: rgba(255, 252, 245, 0.88);
+      --panel-strong: #fffdf7;
+      --ink: #13201a;
+      --muted: #576258;
+      --line: rgba(19, 32, 26, 0.12);
+      --accent: #1f6b55;
+      --accent-2: #c96a2b;
+      --accent-3: #1a3e5c;
+      --danger: #8c3b2a;
+      --shadow: 0 18px 44px rgba(23, 39, 29, 0.12);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(31, 107, 85, 0.16), transparent 32%),
+        radial-gradient(circle at 80% 10%, rgba(201, 106, 43, 0.18), transparent 24%),
+        linear-gradient(180deg, #f8f3e9 0%, var(--bg) 100%);
+      min-height: 100vh;
+    }
+    a { color: inherit; }
+    code {
+      font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+      background: rgba(20, 46, 36, 0.08);
+      padding: 0.14rem 0.36rem;
+      border-radius: 0.42rem;
+      font-size: 0.92em;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .sidebar {
+      position: sticky;
+      top: 18px;
+      align-self: start;
+      padding: 24px 20px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: rgba(255,255,255,0.52);
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+    }
+    .brand {
+      font-family: "Iowan Old Style", "Palatino Linotype", "Songti SC", serif;
+      font-size: 1.45rem;
+      line-height: 1.15;
+      margin: 0 0 10px;
+    }
+    .sidebar p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    .nav-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 18px;
+      display: grid;
+      gap: 8px;
+    }
+    .nav-list a {
+      display: block;
+      padding: 10px 12px;
+      border-radius: 14px;
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid transparent;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+    .nav-list a:hover {
+      transform: translateX(4px);
+      background: rgba(31, 107, 85, 0.08);
+      border-color: rgba(31, 107, 85, 0.16);
+    }
+    .main {
+      display: grid;
+      gap: 24px;
+    }
+    .hero {
+      padding: 34px;
+      border-radius: 34px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.88), rgba(255,249,240,0.88)),
+        linear-gradient(135deg, rgba(31, 107, 85, 0.08), rgba(201, 106, 43, 0.06));
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -80px -100px auto;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(31, 107, 85, 0.18), transparent 70%);
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(31, 107, 85, 0.1);
+      color: var(--accent);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-size: 0.74rem;
+    }
+    .hero h1 {
+      font-family: "Iowan Old Style", "Palatino Linotype", "Songti SC", serif;
+      font-size: clamp(2.3rem, 5vw, 4rem);
+      margin: 14px 0 12px;
+      line-height: 0.98;
+      letter-spacing: -0.03em;
+      max-width: 10ch;
+    }
+    .hero .summary {
+      max-width: 78ch;
+      font-size: 1.02rem;
+      line-height: 1.72;
+      color: var(--muted);
+      margin: 0 0 24px;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .metric-card, .scenario-card, .feature-card, .mini-card, .doc-card {
+      border-radius: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+    .trace-trigger {
+      cursor: pointer;
+      transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+    }
+    .trace-trigger:hover,
+    .trace-trigger:focus-visible,
+    .trace-trigger.active-trace {
+      outline: none;
+      transform: translateY(-2px);
+      border-color: rgba(31, 107, 85, 0.24);
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 22px 42px rgba(23, 39, 29, 0.16);
+    }
+    .scenario-card {
+      position: relative;
+      cursor: pointer;
+      transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+    }
+    .scenario-card:hover,
+    .scenario-card:focus-visible,
+    .scenario-card.active-scene {
+      outline: none;
+      transform: translateY(-2px);
+      border-color: rgba(31, 107, 85, 0.24);
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 22px 42px rgba(23, 39, 29, 0.16);
+    }
+    .scene-helper,
+    .scene-status {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(31, 107, 85, 0.08);
+      border: 1px solid rgba(31, 107, 85, 0.14);
+      color: var(--ink);
+    }
+    .scene-helper {
+      margin-bottom: 18px;
+      line-height: 1.65;
+      color: var(--muted);
+    }
+    .scene-status {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px 18px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .scene-status strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+    .scene-status p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .scene-status-count {
+      color: var(--accent-3);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .metric-card strong {
+      display: block;
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+    }
+    .metric-card p,
+    .scenario-card p,
+    .feature-card p,
+    .mini-card p,
+    .doc-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.68;
+    }
+    .section {
+      padding: 26px;
+      border-radius: 30px;
+      background: rgba(255,255,255,0.56);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .section-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px 18px;
+      align-items: end;
+      margin-bottom: 20px;
+    }
+    .section-header h2 {
+      margin: 0;
+      font-size: 1.7rem;
+      line-height: 1.1;
+    }
+    .section-header p {
+      margin: 0;
+      max-width: 72ch;
+      color: var(--muted);
+      line-height: 1.68;
+    }
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(26, 62, 92, 0.08);
+      color: var(--accent-3);
+      font-size: 0.88rem;
+      border: 1px solid rgba(26, 62, 92, 0.11);
+    }
+    .card-kicker {
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .feature-card.deployed .card-kicker { color: var(--accent); }
+    .feature-card.extension .card-kicker { color: var(--accent-2); }
+    .feature-card h3,
+    .scenario-card h3,
+    .mini-card h3,
+    .interface-row h3 {
+      margin: 0 0 10px;
+      font-size: 1.12rem;
+      line-height: 1.35;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .meta-grid div {
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(19, 32, 26, 0.04);
+      border: 1px solid rgba(19, 32, 26, 0.06);
+    }
+    .meta-grid dt {
+      margin: 0 0 4px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .meta-grid dd {
+      margin: 0;
+      line-height: 1.5;
+    }
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .chain-card,
+    .param-card {
+      border-radius: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+    .flow-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .flow-step {
+      display: inline-flex;
+      align-items: center;
+      padding: 9px 12px;
+      border-radius: 14px;
+      background: rgba(31, 107, 85, 0.08);
+      color: var(--accent);
+      border: 1px solid rgba(31, 107, 85, 0.12);
+      font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+      font-size: 0.86rem;
+    }
+    .flow-step::after {
+      content: "→";
+      margin-left: 10px;
+      color: rgba(31, 107, 85, 0.54);
+    }
+    .flow-step:last-child::after {
+      display: none;
+    }
+    .chain-footer {
+      display: grid;
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .param-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(201, 106, 43, 0.12);
+      color: var(--accent-2);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .trace-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .trace-panel,
+    .trace-guide-card {
+      border-radius: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+    .trace-panel {
+      position: sticky;
+      top: 18px;
+    }
+    .trace-guide {
+      display: grid;
+      gap: 14px;
+    }
+    .trace-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .trace-grid div,
+    .trace-source,
+    .trace-io {
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(19, 32, 26, 0.04);
+      border: 1px solid rgba(19, 32, 26, 0.06);
+    }
+    .trace-grid span,
+    .trace-source span,
+    .trace-io span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 6px;
+    }
+    .trace-source code {
+      display: block;
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.6;
+    }
+    .trace-io-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .controls input {
+      flex: 1 1 280px;
+      min-width: 220px;
+      border: 1px solid var(--line);
+      background: var(--panel-strong);
+      border-radius: 16px;
+      padding: 12px 14px;
+      font: inherit;
+      color: var(--ink);
+    }
+    .filter-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .filter-buttons button,
+    .download-link {
+      border: 1px solid var(--line);
+      background: var(--panel-strong);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+    }
+    .filter-buttons button.active,
+    .filter-buttons button:hover,
+    .download-link:hover {
+      background: rgba(31, 107, 85, 0.12);
+      border-color: rgba(31, 107, 85, 0.18);
+      transform: translateY(-1px);
+    }
+    .interface-list {
+      display: grid;
+      gap: 14px;
+    }
+    .interface-row {
+      padding: 18px 20px;
+      border-radius: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+    .interface-row header {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(201, 106, 43, 0.12);
+      color: var(--accent-2);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .lead {
+      margin: 0 0 14px;
+      color: var(--muted);
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .detail-grid div {
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(19, 32, 26, 0.04);
+    }
+    .detail-grid span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 4px;
+    }
+    .detail-grid strong {
+      font-size: 0.96rem;
+      line-height: 1.5;
+    }
+    .card-note {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    .card-note.danger { color: var(--danger); }
+    .doc-columns {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+    .doc-card {
+      overflow: hidden;
+    }
+    .doc-card h1, .doc-card h2, .doc-card h3 {
+      margin-top: 1.1em;
+      margin-bottom: 0.5em;
+      line-height: 1.25;
+    }
+    .doc-card h1:first-child,
+    .doc-card h2:first-child,
+    .doc-card h3:first-child { margin-top: 0; }
+    .doc-card ul,
+    .doc-card ol {
+      padding-left: 1.2rem;
+      margin: 0.7rem 0;
+      color: var(--muted);
+      line-height: 1.68;
+    }
+    .doc-card .body-line,
+    .doc-card .chain-line {
+      color: var(--muted);
+      line-height: 1.68;
+      margin: 0.6rem 0;
+    }
+    .doc-card .chain-line {
+      font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+      color: var(--accent-3);
+    }
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 22px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--line);
+      line-height: 1.6;
+    }
+    th {
+      background: rgba(31, 107, 85, 0.1);
+      font-size: 0.86rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .download-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .footer-note {
+      color: var(--muted);
+      line-height: 1.7;
+      margin-top: 10px;
+    }
+    @media (max-width: 1080px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        position: static;
+      }
+      .trace-layout {
+        grid-template-columns: 1fr;
+      }
+      .trace-panel {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1 class="brand">非凸α<br>二开速查台</h1>
+      <p>这不是另一本说明书，而是把当前这台机器真正可用的主链、接口、参数、边界和速查入口压进一个本地页面。</p>
+      <nav>
+        <ul class="nav-list">
+          <li><a href="#overview">机器总览</a></li><li><a href="#scenes">场景入口</a></li><li><a href="#deployed">当前已部署</a></li><li><a href="#chains">启动链速览</a></li><li><a href="#params">参数聚焦</a></li><li><a href="#trace">源码追踪</a></li><li><a href="#recommended">推荐接口</a></li><li><a href="#explorer">接口检索</a></li><li><a href="#docs">完整文档</a></li><li><a href="#gaps">素材缺口</a></li><li><a href="#evidence">证据索引</a></li><li><a href="#downloads">导出件</a></li>
+        </ul>
+      </nav>
+      <p class="footer-note">当前主链是单机 LIO / VIO + Diff-planner + px4ctrl + mavros + multipoint。</p>
+    </aside>
+
+    <main class="main">
+      <section class="hero" id="overview">
+        <span class="eyebrow">Developer Portal</span>
+        <h1>非凸α二开速查台</h1>
+        <p class="summary">当前主链是单机 LIO / VIO + Diff-planner + px4ctrl + mavros + multipoint。D435 + VINS 是当前视觉定位主链假设，Elastic 不属于当前实机默认部署链路。这个页面先给你“先看哪里”，再把完整文档、接口、参数、部署边界和素材缺口全部接进去。</p>
+        <div class="card-grid">
+          <article class="metric-card"><strong>当前主链</strong><p>当前主链是单机 LIO / VIO + Diff-planner + px4ctrl + mavros + multipoint</p></article><article class="metric-card"><strong>视觉链</strong><p>D435 + VINS 是当前视觉定位主链假设</p></article><article class="metric-card"><strong>当前边界</strong><p>Elastic 不属于当前实机默认部署链路</p></article><article class="metric-card"><strong>主工作空间</strong><p>Diff-planner</p></article>
+        </div>
+        
+    <div class="download-row">
+      <a class="download-link" href="./非凸α-开发者文档包.docx">开发文档包.docx</a>
+      <a class="download-link" href="./非凸α-接口总表.xlsx">接口总表.xlsx</a>
+      <a class="download-link" href="./非凸α-功能部署矩阵.xlsx">功能部署矩阵.xlsx</a>
+      <a class="download-link" href="./非凸α-素材缺口表.xlsx">素材缺口表.xlsx</a>
+    </div>
+    
+      </section>
+
+      <section class="section" id="scenes">
+        <div class="section-header">
+          <div>
+            <h2>场景入口</h2>
+            <p>如果你已经知道自己现在要做什么，就从这里进，不要先扎进原始表格。每张卡都对应一类开发或排障任务。</p>
+          </div>
+        </div>
+        <p class="scene-helper">点击任一场景卡片后，会自动把下方接口检索区切到对应关键词。</p>
+        <div class="card-grid">
+        <article class="scenario-card scene-jump" role="button" tabindex="0" data-scene-query="battery" data-scene-filter="state" data-scene-title="看电量" data-scene-summary="电量异常时顺手联看飞控状态和遥控器输入，避免把供电问题看成规划问题。">
+          <div class="card-kicker">场景入口</div>
+          <h3>看电量</h3>
+          <p>先确认 mavros 在线，再看电压和 percentage。</p>
+          <div class="pill-row"><span class="pill">/mavros/battery</span><span class="pill">/mavros/state</span><span class="pill">/mavros/rc/in</span></div>
+          <p class="card-note">电量异常时顺手联看飞控状态和遥控器输入，避免把供电问题看成规划问题。</p>
+        </article>
+        
+        <article class="scenario-card scene-jump" role="button" tabindex="0" data-scene-query="/mavros/state" data-scene-filter="state" data-scene-title="看飞控状态" data-scene-summary="起飞前、接管异常、动作无响应时都先看它。">
+          <div class="card-kicker">场景入口</div>
+          <h3>看飞控状态</h3>
+          <p>先看 connected / armed / mode，别直接猜 PX4 当前状态。</p>
+          <div class="pill-row"><span class="pill">/mavros/state</span></div>
+          <p class="card-note">起飞前、接管异常、动作无响应时都先看它。</p>
+        </article>
+        
+        <article class="scenario-card scene-jump" role="button" tabindex="0" data-scene-query="odom" data-scene-filter="state" data-scene-title="看定位是否正常" data-scene-summary="LIO 看 /ekf/ekf_odom + 点云，VIO 看 /vins/imu_propagate + 相机链。">
+          <div class="card-kicker">场景入口</div>
+          <h3>看定位是否正常</h3>
+          <p>按当前启动链二选一，不要把 LIO 和 VIO 混着判断。</p>
+          <div class="pill-row"><span class="pill">/ekf/ekf_odom</span><span class="pill">/vins/imu_propagate</span><span class="pill">/laserMapping/cloud_registered</span></div>
+          <p class="card-note">LIO 看 /ekf/ekf_odom + 点云，VIO 看 /vins/imu_propagate + 相机链。</p>
+        </article>
+        
+        <article class="scenario-card scene-jump" role="button" tabindex="0" data-scene-query="" data-scene-filter="action" data-scene-title="起飞 / 开始任务 / 返程 / 降落" data-scene-summary="触发动作前，确认 RC Channel 8 不会和脚本触发打架。">
+          <div class="card-kicker">场景入口</div>
+          <h3>起飞 / 开始任务 / 返程 / 降落</h3>
+          <p>优先用现成动作原语，不要直接从控制器最底层切入。</p>
+          <div class="pill-row"><span class="pill">/px4ctrl/takeoff_land</span><span class="pill">/move_base_simple/goal</span><span class="pill">/back_trigger</span></div>
+          <p class="card-note">触发动作前，确认 RC Channel 8 不会和脚本触发打架。</p>
+        </article>
+        
+        <article class="scenario-card scene-jump" role="button" tabindex="0" data-scene-query="" data-scene-filter="parameter" data-scene-title="改航点 / 起飞高度" data-scene-summary="航点看 points.yaml，起飞高度看 ctrl_param_fpv.yaml，任务触发行为看 multipointplan。">
+          <div class="card-kicker">场景入口</div>
+          <h3>改航点 / 起飞高度</h3>
+          <p>先改参数文件，不要误改到底层规划或控制器核心。</p>
+          <div class="pill-row"><span class="pill">points.yaml</span><span class="pill">ctrl_param_fpv.yaml</span><span class="pill">multipointplan_exp_lio.launch</span></div>
+          <p class="card-note">航点看 points.yaml，起飞高度看 ctrl_param_fpv.yaml，任务触发行为看 multipointplan。</p>
+        </article>
+        
+        <article class="scenario-card scene-jump" role="button" tabindex="0" data-scene-query="mavros" data-scene-filter="state" data-scene-title="接上层 Agent / MQTT" data-scene-summary="先接状态观测，再补动作原语；第一轮不要直接碰 /setpoints_cmd 和 px4ctrl 状态机。">
+          <div class="card-kicker">场景入口</div>
+          <h3>接上层 Agent / MQTT</h3>
+          <p>第一刀先做状态订阅 + 动作发布闭环，先把接口边界站稳。</p>
+          <div class="pill-row"><span class="pill">/mavros/state</span><span class="pill">/mavros/battery</span><span class="pill">/px4ctrl/takeoff_land</span><span class="pill">/move_base_simple/goal</span></div>
+          <p class="card-note">先接状态观测，再补动作原语；第一轮不要直接碰 /setpoints_cmd 和 px4ctrl 状态机。</p>
+        </article>
+        </div>
+      </section>
+
+      <section class="section" id="deployed">
+        <div class="section-header">
+          <div>
+            <h2>当前已部署</h2>
+            <p>这里列出的才是当前机器应进入主流程的能力。扩展能力保留在下面单独展示，不再和当前主链混写。</p>
+          </div>
+        </div>
+        <div class="card-grid">
+        <article class="feature-card deployed">
+          <div class="card-kicker">当前已部署</div>
+          <h3>单机 LIO</h3>
+          <p>Ego/规划主链之一</p>
+          <dl class="meta-grid">
+            <div><dt>入口</dt><dd>sh_files/run_single_lio.sh</dd></div>
+            <div><dt>验证</dt><dd>启动后检查 /ekf/ekf_odom 和 /laserMapping/cloud_registered</dd></div>
+            <div><dt>硬件</dt><dd>Livox MID360 + PX4 + Jetson</dd></div>
+            <div><dt>可直接运行</dt><dd>是</dd></div>
+          </dl>
+        </article>
+        
+        <article class="feature-card deployed">
+          <div class="card-kicker">当前已部署</div>
+          <h3>单机 VIO</h3>
+          <p>当前视觉定位主链</p>
+          <dl class="meta-grid">
+            <div><dt>入口</dt><dd>sh_files/run_single_vio.sh</dd></div>
+            <div><dt>验证</dt><dd>启动后检查 /vins/imu_propagate 和相机图像 topic</dd></div>
+            <div><dt>硬件</dt><dd>D435 + PX4 + Jetson</dd></div>
+            <div><dt>可直接运行</dt><dd>是</dd></div>
+          </dl>
+        </article>
+        
+        <article class="feature-card deployed">
+          <div class="card-kicker">当前已部署</div>
+          <h3>单机规划</h3>
+          <p>当前主路径</p>
+          <dl class="meta-grid">
+            <div><dt>入口</dt><dd>diff_planner + multipoint</dd></div>
+            <div><dt>验证</dt><dd>检查 /drone_0_planning/trajectory 与 /setpoints_cmd</dd></div>
+            <div><dt>硬件</dt><dd>LIO 或 VIO 任一定位链</dd></div>
+            <div><dt>可直接运行</dt><dd>是</dd></div>
+          </dl>
+        </article>
+        
+        <article class="feature-card deployed">
+          <div class="card-kicker">当前已部署</div>
+          <h3>多点任务</h3>
+          <p>当前主路径</p>
+          <dl class="meta-grid">
+            <div><dt>入口</dt><dd>multipointplan_exp_lio.launch 或 multipointplan_exp_vio.launch</dd></div>
+            <div><dt>验证</dt><dd>修改 points.yaml 后触发 /move_base_simple/goal</dd></div>
+            <div><dt>硬件</dt><dd>定位链 + multipoint</dd></div>
+            <div><dt>可直接运行</dt><dd>是</dd></div>
+          </dl>
+        </article>
+        
+        <article class="feature-card deployed">
+          <div class="card-kicker">当前已部署</div>
+          <h3>自动起降</h3>
+          <p>动作原语层</p>
+          <dl class="meta-grid">
+            <div><dt>入口</dt><dd>/px4ctrl/takeoff_land 或遥控器 8 通</dd></div>
+            <div><dt>验证</dt><dd>起飞命令 1 降落命令 2</dd></div>
+            <div><dt>硬件</dt><dd>px4ctrl + mavros + RC</dd></div>
+            <div><dt>可直接运行</dt><dd>是</dd></div>
+          </dl>
+        </article>
+        
+        <article class="feature-card deployed">
+          <div class="card-kicker">当前已部署</div>
+          <h3>状态观测</h3>
+          <p>当前主路径</p>
+          <dl class="meta-grid">
+            <div><dt>入口</dt><dd>/mavros/state /mavros/battery /ekf/ekf_odom</dd></div>
+            <div><dt>验证</dt><dd>rostopic echo 关键状态接口</dd></div>
+            <div><dt>硬件</dt><dd>mavros + 定位链</dd></div>
+            <div><dt>可直接运行</dt><dd>是</dd></div>
+          </dl>
+        </article>
+        </div>
+        <div class="section-header" style="margin-top:26px;">
+          <div>
+            <h2>扩展边界</h2>
+            <p>这些能力可以进路线图，但不应写成这台机器“当前默认已落地”的能力。</p>
+          </div>
+        </div>
+        <div class="card-grid">
+        <article class="feature-card extension">
+          <div class="card-kicker">扩展能力</div>
+          <h3>Elastic / 目标跟踪</h3>
+          <p>产品线文档提到，但当前机上未落地</p>
+          <p class="card-note">仅作为后续扩展需求</p>
+          <dl class="meta-grid">
+            <div><dt>需要补什么</dt><dd>单目相机 + apriltag / usb_cam</dd></div>
+            <div><dt>入口</dt><dd>N/A</dd></div>
+          </dl>
+        </article>
+        
+        <article class="feature-card extension">
+          <div class="card-kicker">扩展能力</div>
+          <h3>FUEL / 自主探索</h3>
+          <p>产品线文档提到，但当前机上未落地</p>
+          <p class="card-note">仅作为后续扩展需求</p>
+          <dl class="meta-grid">
+            <div><dt>需要补什么</dt><dd>探索工作空间与相关依赖</dd></div>
+            <div><dt>入口</dt><dd>N/A</dd></div>
+          </dl>
+        </article>
+        
+        <article class="feature-card extension">
+          <div class="card-kicker">扩展能力</div>
+          <h3>Formation / 集群</h3>
+          <p>源码片段存在，但非实机主链</p>
+          <p class="card-note">源码片段存在但非实机主链</p>
+          <dl class="meta-grid">
+            <div><dt>需要补什么</dt><dd>多机网络 + formation_ws</dd></div>
+            <div><dt>入口</dt><dd>swarm_bridge 仅部分源码</dd></div>
+          </dl>
+        </article>
+        
+        <article class="feature-card extension">
+          <div class="card-kicker">扩展能力</div>
+          <h3>YOLO 检测</h3>
+          <p>产品线文档提到，但当前机上未落地</p>
+          <p class="card-note">仅作为后续扩展需求</p>
+          <dl class="meta-grid">
+            <div><dt>需要补什么</dt><dd>模型文件 + 检测工作空间</dd></div>
+            <div><dt>入口</dt><dd>N/A</dd></div>
+          </dl>
+        </article>
+        </div>
+      </section>
+
+      <section class="section" id="chains">
+        <div class="section-header">
+          <div>
+            <h2>启动链速览</h2>
+            <p>这部分不是“系统架构大图”，而是告诉你当前机器真正怎么从脚本一路起到定位、规划、控制和任务层。后续排障时先按这条链切。</p>
+          </div>
+        </div>
+        <div class="stack-grid">
+        <article class="chain-card">
+          <div class="card-kicker">run_single_lio.sh</div>
+          <h3>LIO 全栈启动</h3>
+          <p>机上雷达定位主链。雷达、融合、规划、控制和任务编排都在同一个入口脚本里拉起。</p>
+          <div class="flow-row"><span class="flow-step">run_single_lio.sh</span><span class="flow-step">mavros</span><span class="flow-step">faster_lio</span><span class="flow-step">ekf</span><span class="flow-step">planner</span><span class="flow-step">px4ctrl</span><span class="flow-step">multipoint</span></div>
+          <div class="chain-footer">
+            <div>
+              <strong>先看</strong>
+              <div class="pill-row"><span class="pill">/mavros/state</span><span class="pill">/ekf/ekf_odom</span><span class="pill">/laserMapping/cloud_registered</span></div>
+            </div>
+            <p class="card-note danger"><strong>风险：</strong>启动较慢时先别误判失败，先确认 ROS graph 还在继续起节点。</p>
+          </div>
+        </article>
+        
+        <article class="chain-card">
+          <div class="card-kicker">run_single_vio.sh</div>
+          <h3>VIO 全栈启动</h3>
+          <p>机上视觉定位主链。D435 与 VINS 是当前视觉路径的核心，适合你后续做视觉相关二开。</p>
+          <div class="flow-row"><span class="flow-step">run_single_vio.sh</span><span class="flow-step">mavros</span><span class="flow-step">realsense</span><span class="flow-step">vins</span><span class="flow-step">planner</span><span class="flow-step">px4ctrl</span><span class="flow-step">multipoint</span></div>
+          <div class="chain-footer">
+            <div>
+              <strong>先看</strong>
+              <div class="pill-row"><span class="pill">/mavros/state</span><span class="pill">/vins/imu_propagate</span><span class="pill">相机图像 topic</span></div>
+            </div>
+            <p class="card-note danger"><strong>风险：</strong>相机或 USB 链路掉了，VIO 整链就失效，不要只盯 planner。</p>
+          </div>
+        </article>
+        
+        <article class="chain-card">
+          <div class="card-kicker">takeoff.sh / pub_trigger.sh / back.sh / land.sh</div>
+          <h3>任务动作链</h3>
+          <p>脚本和 RC 最后都落在动作 topic 上。后续接上层系统时，优先复用这条动作链而不是绕过它。</p>
+          <div class="flow-row"><span class="flow-step">动作脚本或 RC 8 通</span><span class="flow-step">动作 topic</span><span class="flow-step">multipoint / px4ctrl</span><span class="flow-step">planner</span><span class="flow-step">/setpoints_cmd</span><span class="flow-step">px4ctrl</span></div>
+          <div class="chain-footer">
+            <div>
+              <strong>先看</strong>
+              <div class="pill-row"><span class="pill">/px4ctrl/takeoff_land</span><span class="pill">/move_base_simple/goal</span><span class="pill">/back_trigger</span><span class="pill">/setpoints_cmd</span></div>
+            </div>
+            <p class="card-note danger"><strong>风险：</strong>动作 topic 和 RC 触发同时存在，二开时必须把仲裁关系想清楚。</p>
+          </div>
+        </article>
+        </div>
+      </section>
+
+      <section class="section" id="params">
+        <div class="section-header">
+          <div>
+            <h2>参数聚焦</h2>
+            <p>你后续二开最常改、也最容易误改的入口先集中在这里。先动任务参数，再动规划参数，最后才考虑控制器细节。</p>
+          </div>
+        </div>
+        <div class="stack-grid">
+        <article class="param-card trace-trigger" role="button" tabindex="0" data-trace-title="points.yaml" data-trace-kind="参数入口" data-trace-layer="任务配置层：第一轮二开优先从这里下手，成本最低，风险也最低。" data-trace-purpose="任务点和返程点都先从这里改。你要改任务内容，先改它，不要上来就动 planner。" data-trace-evidence="E015_points_yaml" data-trace-claim="航点和返程点定义位于 points.yaml" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/config/points.yaml" data-trace-preconditions="任务模式与航点格式要匹配" data-trace-example="src/user_command/multipoint/config/points.yaml" data-trace-risk="数组长度错会直接读取失败" data-trace-upstream="multipoint config" data-trace-downstream="multipoint" data-trace-status="当前机上主链" data-trace-notes="写入参数索引" data-trace-default="true">
+          <div class="param-head">
+            <span class="badge">第一手改</span>
+            <code>points.yaml</code>
+          </div>
+          <h3>定义任务点和返程点</h3>
+          <p>任务点和返程点都先从这里改。你要改任务内容，先改它，不要上来就动 planner。</p>
+          <div class="meta-grid">
+            <div><dt>先盯这里</dt><dd>支持 [x,y,z] / [x,y,z,time] / [x,y,z,yaw] / [x,y,z,yaw,time] 四种格式。</dd></div>
+            <div><dt>前置条件</dt><dd>任务模式与航点格式要匹配</dd></div>
+            <div><dt>关键字段</dt><dd>test1 test2 test3 test4 test_back</dd></div>
+            <div><dt>命令示例</dt><dd>src/user_command/multipoint/config/points.yaml</dd></div>
+          </div>
+          <p class="card-note danger"><strong>风险：</strong>数组长度错会直接读取失败</p>
+        </article>
+        
+        <article class="param-card trace-trigger" role="button" tabindex="0" data-trace-title="ctrl_param_fpv.yaml" data-trace-kind="参数入口" data-trace-layer="控制配置层：涉及起飞高度、电压阈值和安全边界，改动必须谨慎。" data-trace-purpose="起飞高度、低电压阈值、人工接管速度都在这里，属于低频但高风险参数入口。" data-trace-evidence="E014_ctrl_params" data-trace-claim="起飞高度与低压阈值位于 ctrl_param_fpv.yaml" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/realflight_modules/px4ctrl/config/ctrl_param_fpv.yaml" data-trace-preconditions="px4ctrl 启动前读取" data-trace-example="src/realflight_modules/px4ctrl/config/ctrl_param_fpv.yaml" data-trace-risk="改前必须确认起飞高度范围无障碍" data-trace-upstream="px4ctrl config" data-trace-downstream="px4ctrl" data-trace-status="当前机上主链" data-trace-notes="写入参数索引">
+          <div class="param-head">
+            <span class="badge">安全参数</span>
+            <code>ctrl_param_fpv.yaml</code>
+          </div>
+          <h3>控制起飞高度和电池阈值</h3>
+          <p>起飞高度、低电压阈值、人工接管速度都在这里，属于低频但高风险参数入口。</p>
+          <div class="meta-grid">
+            <div><dt>先盯这里</dt><dd>关注 auto_takeoff_land.takeoff_height、low_voltage、max_manual_vel。</dd></div>
+            <div><dt>前置条件</dt><dd>px4ctrl 启动前读取</dd></div>
+            <div><dt>关键字段</dt><dd>low_voltage takeoff_height takeoff_land_speed</dd></div>
+            <div><dt>命令示例</dt><dd>src/realflight_modules/px4ctrl/config/ctrl_param_fpv.yaml</dd></div>
+          </div>
+          <p class="card-note danger"><strong>风险：</strong>改前必须确认起飞高度范围无障碍</p>
+        </article>
+        
+        <article class="param-card trace-trigger" role="button" tabindex="0" data-trace-title="multipointplan_exp_lio.launch" data-trace-kind="参数入口" data-trace-layer="任务配置层：第一轮二开优先从这里下手，成本最低，风险也最低。" data-trace-purpose="start_plan、back_plan、fligt_type 这类任务行为开关在这里，决定 multipoint 怎么触发和怎么走点。" data-trace-evidence="E015_points_yaml" data-trace-claim="multipointplan_exp_lio.launch 用于选择航点模式和触发行为" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/launch/multipointplan_exp_lio.launch" data-trace-preconditions="LIO 任务链启动前读取" data-trace-example="roslaunch multipoint multipointplan_exp_lio.launch" data-trace-risk="fligt_type 拼写就是源码现状 不要擅自改名" data-trace-upstream="launch config" data-trace-downstream="multipoint" data-trace-status="当前机上主链" data-trace-notes="写入参数索引">
+          <div class="param-head">
+            <span class="badge">任务行为</span>
+            <code>multipointplan_exp_lio.launch</code>
+          </div>
+          <h3>选择航点模式和触发行为</h3>
+          <p>start_plan、back_plan、fligt_type 这类任务行为开关在这里，决定 multipoint 怎么触发和怎么走点。</p>
+          <div class="meta-grid">
+            <div><dt>先盯这里</dt><dd>你如果要改任务模式，不先看它，后面一定会把动作接口理解错。</dd></div>
+            <div><dt>前置条件</dt><dd>LIO 任务链启动前读取</dd></div>
+            <div><dt>关键字段</dt><dd>fligt_type next_distance start_plan back_plan</dd></div>
+            <div><dt>命令示例</dt><dd>roslaunch multipoint multipointplan_exp_lio.launch</dd></div>
+          </div>
+          <p class="card-note danger"><strong>风险：</strong>fligt_type 拼写就是源码现状 不要擅自改名</p>
+        </article>
+        
+        <article class="param-card trace-trigger" role="button" tabindex="0" data-trace-title="run_exp_single_lio.launch" data-trace-kind="参数入口" data-trace-layer="规划配置层：适合做轨迹、地图和性能实验，不适合日常任务改点。" data-trace-purpose="地图尺寸、速度加速度上限、LIO 规划入口参数都在这里，适合做规划层实验。" data-trace-evidence="E006_run_single_lio_script" data-trace-claim="run_exp_single_lio.launch 用于配置 LIO 规划参数" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/diff_planner/plan_manage/launch/exp/run_exp_single_lio.launch" data-trace-preconditions="LIO 规划链启动前读取" data-trace-example="roslaunch diff_planner run_exp_single_lio.launch" data-trace-risk="是规划参数不是飞控参数" data-trace-upstream="launch config" data-trace-downstream="planner" data-trace-status="当前机上主链" data-trace-notes="实机主入口">
+          <div class="param-head">
+            <span class="badge">LIO 规划</span>
+            <code>run_exp_single_lio.launch</code>
+          </div>
+          <h3>配置 LIO 规划参数</h3>
+          <p>地图尺寸、速度加速度上限、LIO 规划入口参数都在这里，适合做规划层实验。</p>
+          <div class="meta-grid">
+            <div><dt>先盯这里</dt><dd>这是规划层参数，不是日常任务参数；别拿它当航点配置文件。</dd></div>
+            <div><dt>前置条件</dt><dd>LIO 规划链启动前读取</dd></div>
+            <div><dt>关键字段</dt><dd>max_vel max_acc map_resolution flight_type</dd></div>
+            <div><dt>命令示例</dt><dd>roslaunch diff_planner run_exp_single_lio.launch</dd></div>
+          </div>
+          <p class="card-note danger"><strong>风险：</strong>是规划参数不是飞控参数</p>
+        </article>
+        
+        <article class="param-card trace-trigger" role="button" tabindex="0" data-trace-title="run_exp_single_vio.launch" data-trace-kind="参数入口" data-trace-layer="规划配置层：适合做轨迹、地图和性能实验，不适合日常任务改点。" data-trace-purpose="VIO 主链对应的规划参数入口。你后续如果主要围绕单目/深度视觉链二开，这个文件必须熟。" data-trace-evidence="E007_run_single_vio_script" data-trace-claim="run_exp_single_vio.launch 用于配置 VIO 规划参数" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/diff_planner/plan_manage/launch/exp/run_exp_single_vio.launch" data-trace-preconditions="VIO 规划链启动前读取" data-trace-example="roslaunch diff_planner run_exp_single_vio.launch" data-trace-risk="视觉内参错误会直接破坏 VIO 规划" data-trace-upstream="launch config" data-trace-downstream="planner" data-trace-status="当前机上主链" data-trace-notes="实机主入口">
+          <div class="param-head">
+            <span class="badge">VIO 规划</span>
+            <code>run_exp_single_vio.launch</code>
+          </div>
+          <h3>配置 VIO 规划参数</h3>
+          <p>VIO 主链对应的规划参数入口。你后续如果主要围绕单目/深度视觉链二开，这个文件必须熟。</p>
+          <div class="meta-grid">
+            <div><dt>先盯这里</dt><dd>改它之前先确认相机链和 VINS 输出已经稳定，否则会把定位问题误判成规划问题。</dd></div>
+            <div><dt>前置条件</dt><dd>VIO 规划链启动前读取</dd></div>
+            <div><dt>关键字段</dt><dd>cx cy fx fy max_vel max_acc</dd></div>
+            <div><dt>命令示例</dt><dd>roslaunch diff_planner run_exp_single_vio.launch</dd></div>
+          </div>
+          <p class="card-note danger"><strong>风险：</strong>视觉内参错误会直接破坏 VIO 规划</p>
+        </article>
+        </div>
+      </section>
+
+      <section class="section" id="trace">
+        <div class="section-header">
+          <div>
+            <h2>源码追踪</h2>
+            <p>点任意接口卡或参数卡，我直接把它追到证据 ID、源码路径和建议改造层级。这样你不需要再在 CSV、知识库和源码快照之间来回跳。</p>
+          </div>
+        </div>
+        <div class="trace-layout">
+          <article class="trace-panel">
+            <div class="card-kicker" id="trace-kind">参数入口</div>
+            <h3 id="trace-title">points.yaml</h3>
+            <p class="lead" id="trace-purpose">定义任务点和返程点</p>
+            <div class="trace-grid">
+              <div><span>建议改造层级</span><strong id="trace-layer">任务配置层：第一轮二开优先从这里下手，成本最低，风险也最低。</strong></div>
+              <div><span>证据 ID</span><strong id="trace-evidence">E015_points_yaml</strong></div>
+              <div><span>机上状态</span><strong id="trace-status">当前机上主链</strong></div>
+              <div><span>前置条件</span><strong id="trace-preconditions">任务模式与航点格式要匹配</strong></div>
+            </div>
+            <div class="trace-source" style="margin-top:12px;">
+              <span>源码 / 文档路径</span>
+              <code id="trace-source">uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/config/points.yaml</code>
+            </div>
+            <div class="trace-io-grid">
+              <div class="trace-io"><span>证据结论</span><strong id="trace-claim">航点和返程点定义位于 points.yaml</strong></div>
+              <div class="trace-io"><span>上游 / 下游</span><strong id="trace-updown">multipoint config → multipoint</strong></div>
+            </div>
+            <p class="card-note"><strong>示例：</strong><span id="trace-example">src/user_command/multipoint/config/points.yaml</span></p>
+            <p class="card-note danger"><strong>风险：</strong><span id="trace-risk">数组长度错会直接读取失败</span></p>
+            <p class="footer-note" id="trace-notes">写入参数索引</p>
+          </article>
+          <div class="trace-guide">
+            <article class="trace-guide-card">
+              <div class="card-kicker">使用顺序</div>
+              <h3>先定层，再改代码</h3>
+              <p>状态接口先读，动作接口先接，参数入口先改，RC 只当安全边界。你如果一上来就碰控制器，基本是在扩大问题面。</p>
+            </article>
+            <article class="trace-guide-card">
+              <div class="card-kicker">追踪逻辑</div>
+              <h3>接口、证据、源码三件事必须闭环</h3>
+              <p>一个可改入口至少要同时知道它的用途、证据出处和实际源码位置。只有名字，没有路径；或者只有 topic，没有证据，都是没吃透。</p>
+            </article>
+            <article class="trace-guide-card">
+              <div class="card-kicker">建议</div>
+              <h3>第一轮二开别越层</h3>
+              <p>外部系统先复用动作原语，任务改造先动 multipoint 参数，视觉或规划实验再往 `run_exp_single_*` 走，最后才考虑 `px4ctrl`。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="recommended">
+        <div class="section-header">
+          <div>
+            <h2>推荐接口</h2>
+            <p>先把这几条状态订阅和动作原语接起来，建立一个不会直接碰到底层控制器的最小闭环。</p>
+          </div>
+        </div>
+        <div class="card-grid">
+        <article class="mini-card interface-card trace-trigger" role="button" tabindex="0" data-category="state" data-search="I013 state /mavros/state ros_topic publish mavros_msgs/State connected armed mode mavros operator / px4ctrl mavros 已启动 查看飞控连接与模式 rostopic echo -n 1 /mavros/state onboard-active 最先判断 FCU 是否连上 E013_battery_topic uav/10-knowledge-base/06-指令速查-含隐藏命令.md" data-trace-title="/mavros/state" data-trace-kind="状态接口" data-trace-layer="状态观测层：优先只读订阅，适合监控、日志和上层 Agent 观测。" data-trace-purpose="查看飞控连接与模式" data-trace-evidence="E013_battery_topic" data-trace-claim="/mavros/state 用于查看飞控连接与模式" data-trace-source="uav/10-knowledge-base/06-指令速查-含隐藏命令.md" data-trace-preconditions="mavros 已启动" data-trace-example="rostopic echo -n 1 /mavros/state" data-trace-risk="最先判断 FCU 是否连上" data-trace-upstream="mavros" data-trace-downstream="operator / px4ctrl" data-trace-status="当前机上主链" data-trace-notes="写入状态接口表">
+          <div class="card-kicker">状态接口</div>
+          <h3>/mavros/state</h3>
+          <p>查看飞控连接与模式</p>
+          <dl class="meta-grid">
+            <div><dt>类型</dt><dd>ros_topic</dd></div>
+            <div><dt>方向</dt><dd>publish</dd></div>
+            <div><dt>前置</dt><dd>mavros 已启动</dd></div>
+            <div><dt>风险</dt><dd>最先判断 FCU 是否连上</dd></div>
+          </dl>
+        </article>
+        
+        <article class="mini-card interface-card trace-trigger" role="button" tabindex="0" data-category="state" data-search="I014 state /mavros/battery ros_topic publish sensor_msgs/BatteryState voltage percentage current mavros operator / px4ctrl mavros 已启动 查看电量 rostopic echo -n 1 /mavros/battery onboard-active 低压阈值与 ctrl_param_fpv.yaml 联动 E013_battery_topic uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-title="/mavros/battery" data-trace-kind="状态接口" data-trace-layer="状态观测层：优先只读订阅，适合监控、日志和上层 Agent 观测。" data-trace-purpose="查看电量" data-trace-evidence="E013_battery_topic" data-trace-claim="电量通过 /mavros/battery 读取" data-trace-source="uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-preconditions="mavros 已启动" data-trace-example="rostopic echo -n 1 /mavros/battery" data-trace-risk="低压阈值与 ctrl_param_fpv.yaml 联动" data-trace-upstream="mavros" data-trace-downstream="operator / px4ctrl" data-trace-status="当前机上主链" data-trace-notes="写入状态接口表">
+          <div class="card-kicker">状态接口</div>
+          <h3>/mavros/battery</h3>
+          <p>查看电量</p>
+          <dl class="meta-grid">
+            <div><dt>类型</dt><dd>ros_topic</dd></div>
+            <div><dt>方向</dt><dd>publish</dd></div>
+            <div><dt>前置</dt><dd>mavros 已启动</dd></div>
+            <div><dt>风险</dt><dd>低压阈值与 ctrl_param_fpv.yaml 联动</dd></div>
+          </dl>
+        </article>
+        
+        <article class="mini-card interface-card trace-trigger" role="button" tabindex="0" data-category="state" data-search="I015 state /mavros/rc/in ros_topic publish mavros_msgs/RCIn channels[0..] mavros multipoint / px4ctrl mavros 已启动且 RC 在线 查看遥控器输入 rostopic echo -n 1 /mavros/rc/in onboard-active 是安全门也是动作触发来源 E009_rc_mapping uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-title="/mavros/rc/in" data-trace-kind="状态接口" data-trace-layer="状态观测层：优先只读订阅，适合监控、日志和上层 Agent 观测。" data-trace-purpose="查看遥控器输入" data-trace-evidence="E009_rc_mapping" data-trace-claim="multipoint 会订阅 /mavros/rc/in 并把 8 通变化映射为起飞/开始/返航/降落" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-preconditions="mavros 已启动且 RC 在线" data-trace-example="rostopic echo -n 1 /mavros/rc/in" data-trace-risk="是安全门也是动作触发来源" data-trace-upstream="mavros" data-trace-downstream="multipoint / px4ctrl" data-trace-status="当前机上主链" data-trace-notes="写入接口总表和截图附录">
+          <div class="card-kicker">状态接口</div>
+          <h3>/mavros/rc/in</h3>
+          <p>查看遥控器输入</p>
+          <dl class="meta-grid">
+            <div><dt>类型</dt><dd>ros_topic</dd></div>
+            <div><dt>方向</dt><dd>publish</dd></div>
+            <div><dt>前置</dt><dd>mavros 已启动且 RC 在线</dd></div>
+            <div><dt>风险</dt><dd>是安全门也是动作触发来源</dd></div>
+          </dl>
+        </article>
+        
+        <article class="mini-card interface-card trace-trigger" role="button" tabindex="0" data-category="state" data-search="I018 state /ekf/ekf_odom ros_topic publish nav_msgs/Odometry pose twist ekf planner / operator LIO 主链已启动 查看融合 odom rostopic echo -n 1 /ekf/ekf_odom onboard-active LIO 主链下的核心定位输出 E012_ekf_output uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-title="/ekf/ekf_odom" data-trace-kind="状态接口" data-trace-layer="状态观测层：优先只读订阅，适合监控、日志和上层 Agent 观测。" data-trace-purpose="查看融合 odom" data-trace-evidence="E012_ekf_output" data-trace-claim="LIO 融合主输出为 /ekf/ekf_odom" data-trace-source="uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-preconditions="LIO 主链已启动" data-trace-example="rostopic echo -n 1 /ekf/ekf_odom" data-trace-risk="LIO 主链下的核心定位输出" data-trace-upstream="ekf" data-trace-downstream="planner / operator" data-trace-status="当前机上主链" data-trace-notes="写入状态接口表">
+          <div class="card-kicker">状态接口</div>
+          <h3>/ekf/ekf_odom</h3>
+          <p>查看融合 odom</p>
+          <dl class="meta-grid">
+            <div><dt>类型</dt><dd>ros_topic</dd></div>
+            <div><dt>方向</dt><dd>publish</dd></div>
+            <div><dt>前置</dt><dd>LIO 主链已启动</dd></div>
+            <div><dt>风险</dt><dd>LIO 主链下的核心定位输出</dd></div>
+          </dl>
+        </article>
+        
+        <article class="mini-card interface-card trace-trigger" role="button" tabindex="0" data-category="state" data-search="I021 state /vins/imu_propagate ros_topic publish nav_msgs/Odometry pose twist vins planner / operator VIO 主链已启动 查看视觉惯性 odom rostopic echo -n 1 /vins/imu_propagate onboard-active 当前视觉定位主输出 E011_vins_output uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-title="/vins/imu_propagate" data-trace-kind="状态接口" data-trace-layer="状态观测层：优先只读订阅，适合监控、日志和上层 Agent 观测。" data-trace-purpose="查看视觉惯性 odom" data-trace-evidence="E011_vins_output" data-trace-claim="VIO 主输出为 /vins/imu_propagate" data-trace-source="uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-preconditions="VIO 主链已启动" data-trace-example="rostopic echo -n 1 /vins/imu_propagate" data-trace-risk="当前视觉定位主输出" data-trace-upstream="vins" data-trace-downstream="planner / operator" data-trace-status="当前机上主链" data-trace-notes="写入状态接口表">
+          <div class="card-kicker">状态接口</div>
+          <h3>/vins/imu_propagate</h3>
+          <p>查看视觉惯性 odom</p>
+          <dl class="meta-grid">
+            <div><dt>类型</dt><dd>ros_topic</dd></div>
+            <div><dt>方向</dt><dd>publish</dd></div>
+            <div><dt>前置</dt><dd>VIO 主链已启动</dd></div>
+            <div><dt>风险</dt><dd>当前视觉定位主输出</dd></div>
+          </dl>
+        </article>
+        
+        <article class="mini-card interface-card trace-trigger" role="button" tabindex="0" data-category="action" data-search="I007 action /px4ctrl/takeoff_land ros_topic publish / subscribe quadrotor_msgs/TakeoffLand takeoff_land_cmd={1 takeoff,2 land} script or RC bridge px4ctrl px4ctrl 与定位链正常 起飞与降落动作原语 rostopic pub -1 /px4ctrl/takeoff_land quadrotor_msgs/TakeoffLand &#x27;takeoff_land_cmd: 1&#x27; onboard-active RC 档位不对会被拒绝 E008_takeoff_topic uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/takeoff.sh" data-trace-title="/px4ctrl/takeoff_land" data-trace-kind="动作接口" data-trace-layer="动作原语层：优先在这层做任务系统、桥接服务和外部控制接入。" data-trace-purpose="起飞与降落动作原语" data-trace-evidence="E008_takeoff_topic" data-trace-claim="自动起飞和降落通过 /px4ctrl/takeoff_land 触发" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/takeoff.sh" data-trace-preconditions="px4ctrl 与定位链正常" data-trace-example="rostopic pub -1 /px4ctrl/takeoff_land quadrotor_msgs/TakeoffLand &#x27;takeoff_land_cmd: 1&#x27;" data-trace-risk="RC 档位不对会被拒绝" data-trace-upstream="script or RC bridge" data-trace-downstream="px4ctrl" data-trace-status="当前机上主链" data-trace-notes="配合 land.sh 使用">
+          <div class="card-kicker">动作接口</div>
+          <h3>/px4ctrl/takeoff_land</h3>
+          <p>起飞与降落动作原语</p>
+          <dl class="meta-grid">
+            <div><dt>类型</dt><dd>ros_topic</dd></div>
+            <div><dt>方向</dt><dd>publish / subscribe</dd></div>
+            <div><dt>前置</dt><dd>px4ctrl 与定位链正常</dd></div>
+            <div><dt>风险</dt><dd>RC 档位不对会被拒绝</dd></div>
+          </dl>
+        </article>
+        
+        <article class="mini-card interface-card trace-trigger" role="button" tabindex="0" data-category="action" data-search="I008 action /move_base_simple/goal ros_topic publish / subscribe geometry_msgs/PoseStamped header stamp only is sufficient for trigger script or RC bridge multipoint multipoint 启动且 start_plan=1 开始执行点位任务 rostopic pub -1 /move_base_simple/goal geometry_msgs/PoseStamped &#x27;{}&#x27; onboard-active 不要和 RC 八通重复发 E009_rc_mapping uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-title="/move_base_simple/goal" data-trace-kind="动作接口" data-trace-layer="动作原语层：优先在这层做任务系统、桥接服务和外部控制接入。" data-trace-purpose="开始执行点位任务" data-trace-evidence="E009_rc_mapping" data-trace-claim="multipoint 会订阅 /mavros/rc/in 并把 8 通变化映射为起飞/开始/返航/降落" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-preconditions="multipoint 启动且 start_plan=1" data-trace-example="rostopic pub -1 /move_base_simple/goal geometry_msgs/PoseStamped &#x27;{}&#x27;" data-trace-risk="不要和 RC 八通重复发" data-trace-upstream="script or RC bridge" data-trace-downstream="multipoint" data-trace-status="当前机上主链" data-trace-notes="写入接口总表和截图附录">
+          <div class="card-kicker">动作接口</div>
+          <h3>/move_base_simple/goal</h3>
+          <p>开始执行点位任务</p>
+          <dl class="meta-grid">
+            <div><dt>类型</dt><dd>ros_topic</dd></div>
+            <div><dt>方向</dt><dd>publish / subscribe</dd></div>
+            <div><dt>前置</dt><dd>multipoint 启动且 start_plan=1</dd></div>
+            <div><dt>风险</dt><dd>不要和 RC 八通重复发</dd></div>
+          </dl>
+        </article>
+        
+        <article class="mini-card interface-card trace-trigger" role="button" tabindex="0" data-category="action" data-search="I009 action /back_trigger ros_topic publish / subscribe geometry_msgs/PoseStamped header stamp only is sufficient for trigger script or RC bridge multipoint multipoint 启动且 back_plan=1 开始返程任务 rostopic pub -1 /back_trigger geometry_msgs/PoseStamped &#x27;{}&#x27; onboard-active 返回路径依赖 test_back E009_rc_mapping uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-title="/back_trigger" data-trace-kind="动作接口" data-trace-layer="动作原语层：优先在这层做任务系统、桥接服务和外部控制接入。" data-trace-purpose="开始返程任务" data-trace-evidence="E009_rc_mapping" data-trace-claim="multipoint 会订阅 /mavros/rc/in 并把 8 通变化映射为起飞/开始/返航/降落" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-preconditions="multipoint 启动且 back_plan=1" data-trace-example="rostopic pub -1 /back_trigger geometry_msgs/PoseStamped &#x27;{}&#x27;" data-trace-risk="返回路径依赖 test_back" data-trace-upstream="script or RC bridge" data-trace-downstream="multipoint" data-trace-status="当前机上主链" data-trace-notes="写入接口总表和截图附录">
+          <div class="card-kicker">动作接口</div>
+          <h3>/back_trigger</h3>
+          <p>开始返程任务</p>
+          <dl class="meta-grid">
+            <div><dt>类型</dt><dd>ros_topic</dd></div>
+            <div><dt>方向</dt><dd>publish / subscribe</dd></div>
+            <div><dt>前置</dt><dd>multipoint 启动且 back_plan=1</dd></div>
+            <div><dt>风险</dt><dd>返回路径依赖 test_back</dd></div>
+          </dl>
+        </article>
+        </div>
+      </section>
+
+      <section class="section" id="explorer">
+        <div class="section-header">
+          <div>
+            <h2>接口检索</h2>
+            <p>这里保留所有接口明细，但先给你检索和分类入口，不再逼你从 CSV 原表里横向扫 16 列。</p>
+          </div>
+        </div>
+        <div class="scene-status" id="scene-status">
+          <div>
+            <strong id="scene-status-title">当前未锁定场景</strong>
+            <p id="scene-status-desc">你可以手动搜索，也可以点上面的场景卡，把接口区切到你当前真正关心的入口。</p>
+          </div>
+          <span class="scene-status-count" id="scene-status-count"></span>
+        </div>
+        <div class="controls">
+          <input id="interface-search" type="search" placeholder="搜 topic、脚本、参数文件、用途或风险">
+          <div class="filter-buttons" id="filter-buttons">
+            <button class="active" data-filter="all">全部</button>
+            <button data-filter="state">状态</button>
+            <button data-filter="action">动作</button>
+            <button data-filter="script">脚本</button>
+            <button data-filter="parameter">参数</button>
+            <button data-filter="rc">RC</button>
+          </div>
+        </div>
+        <div class="interface-list" id="interface-list">
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="script" data-search="I001 script run_single_lio.sh shell entrypoint bash script mavros, faster_lio, ekf, planner, px4ctrl, multipoint operator ROS graph Diff-planner workspace sourced 启动单机 LIO 全栈 cd ~/Diff-planner &amp;&amp; ./sh_files/run_single_lio.sh onboard-active 启动慢时不要误判失败 E006_run_single_lio_script uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/run_single_lio.sh" data-trace-title="run_single_lio.sh" data-trace-kind="启动脚本" data-trace-layer="脚本编排层：适合梳理启动链和最小自动化，但不适合长期协议设计。" data-trace-purpose="启动单机 LIO 全栈" data-trace-evidence="E006_run_single_lio_script" data-trace-claim="LIO 全栈入口脚本存在且会拉起 mavros/faster_lio/ekf/planner/px4ctrl/multipoint" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/run_single_lio.sh" data-trace-preconditions="Diff-planner workspace sourced" data-trace-example="cd ~/Diff-planner &amp;&amp; ./sh_files/run_single_lio.sh" data-trace-risk="启动慢时不要误判失败" data-trace-upstream="operator" data-trace-downstream="ROS graph" data-trace-status="当前机上主链" data-trace-notes="实机主入口">
+          <header>
+            <span class="tag">启动脚本</span>
+            <h3>run_single_lio.sh</h3>
+          </header>
+          <p class="lead">启动单机 LIO 全栈</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>shell</strong></div>
+            <div><span>方向</span><strong>entrypoint</strong></div>
+            <div><span>格式</span><strong>bash script</strong></div>
+            <div><span>前置条件</span><strong>Diff-planner workspace sourced</strong></div>
+            <div><span>上游</span><strong>operator</strong></div>
+            <div><span>下游</span><strong>ROS graph</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>cd ~/Diff-planner &amp;&amp; ./sh_files/run_single_lio.sh</p>
+          <p class="card-note danger"><strong>风险：</strong>启动慢时不要误判失败</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="script" data-search="I002 script run_single_vio.sh shell entrypoint bash script mavros, realsense, vins, planner, px4ctrl, multipoint operator ROS graph Diff-planner workspace sourced 启动单机 VIO 全栈 cd ~/Diff-planner &amp;&amp; ./sh_files/run_single_vio.sh onboard-active 相机起不来时 VIO 全链失效 E007_run_single_vio_script uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/run_single_vio.sh" data-trace-title="run_single_vio.sh" data-trace-kind="启动脚本" data-trace-layer="脚本编排层：适合梳理启动链和最小自动化，但不适合长期协议设计。" data-trace-purpose="启动单机 VIO 全栈" data-trace-evidence="E007_run_single_vio_script" data-trace-claim="VIO 全栈入口脚本存在且会拉起 mavros/realsense/vins/planner/px4ctrl/multipoint" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/run_single_vio.sh" data-trace-preconditions="Diff-planner workspace sourced" data-trace-example="cd ~/Diff-planner &amp;&amp; ./sh_files/run_single_vio.sh" data-trace-risk="相机起不来时 VIO 全链失效" data-trace-upstream="operator" data-trace-downstream="ROS graph" data-trace-status="当前机上主链" data-trace-notes="实机主入口">
+          <header>
+            <span class="tag">启动脚本</span>
+            <h3>run_single_vio.sh</h3>
+          </header>
+          <p class="lead">启动单机 VIO 全栈</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>shell</strong></div>
+            <div><span>方向</span><strong>entrypoint</strong></div>
+            <div><span>格式</span><strong>bash script</strong></div>
+            <div><span>前置条件</span><strong>Diff-planner workspace sourced</strong></div>
+            <div><span>上游</span><strong>operator</strong></div>
+            <div><span>下游</span><strong>ROS graph</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>cd ~/Diff-planner &amp;&amp; ./sh_files/run_single_vio.sh</p>
+          <p class="card-note danger"><strong>风险：</strong>相机起不来时 VIO 全链失效</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="script" data-search="I003 script takeoff.sh shell publish rostopic pub -1 quadrotor_msgs/TakeoffLand takeoff_land_cmd=1 operator /px4ctrl/takeoff_land px4ctrl 已启动 触发自动起飞 ./sh_files/takeoff.sh onboard-active RC 状态不满足时 px4ctrl 会拒绝 E008_takeoff_topic uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/takeoff.sh" data-trace-title="takeoff.sh" data-trace-kind="启动脚本" data-trace-layer="脚本编排层：适合梳理启动链和最小自动化，但不适合长期协议设计。" data-trace-purpose="触发自动起飞" data-trace-evidence="E008_takeoff_topic" data-trace-claim="自动起飞和降落通过 /px4ctrl/takeoff_land 触发" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/takeoff.sh" data-trace-preconditions="px4ctrl 已启动" data-trace-example="./sh_files/takeoff.sh" data-trace-risk="RC 状态不满足时 px4ctrl 会拒绝" data-trace-upstream="operator" data-trace-downstream="/px4ctrl/takeoff_land" data-trace-status="当前机上主链" data-trace-notes="配合 land.sh 使用">
+          <header>
+            <span class="tag">启动脚本</span>
+            <h3>takeoff.sh</h3>
+          </header>
+          <p class="lead">触发自动起飞</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>shell</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>rostopic pub -1 quadrotor_msgs/TakeoffLand</strong></div>
+            <div><span>前置条件</span><strong>px4ctrl 已启动</strong></div>
+            <div><span>上游</span><strong>operator</strong></div>
+            <div><span>下游</span><strong>/px4ctrl/takeoff_land</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>./sh_files/takeoff.sh</p>
+          <p class="card-note danger"><strong>风险：</strong>RC 状态不满足时 px4ctrl 会拒绝</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="script" data-search="I004 script pub_trigger.sh shell publish rostopic pub -1 geometry_msgs/PoseStamped empty pose trigger operator /move_base_simple/goal multipoint 已启动 触发开始任务 ./sh_files/pub_trigger.sh onboard-active 不要与 8 通上拨重复触发 E009_rc_mapping uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/pub_trigger.sh" data-trace-title="pub_trigger.sh" data-trace-kind="启动脚本" data-trace-layer="脚本编排层：适合梳理启动链和最小自动化，但不适合长期协议设计。" data-trace-purpose="触发开始任务" data-trace-evidence="E009_rc_mapping" data-trace-claim="pub_trigger.sh 用于触发开始任务" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/pub_trigger.sh" data-trace-preconditions="multipoint 已启动" data-trace-example="./sh_files/pub_trigger.sh" data-trace-risk="不要与 8 通上拨重复触发" data-trace-upstream="operator" data-trace-downstream="/move_base_simple/goal" data-trace-status="当前机上主链" data-trace-notes="写入接口总表和截图附录">
+          <header>
+            <span class="tag">启动脚本</span>
+            <h3>pub_trigger.sh</h3>
+          </header>
+          <p class="lead">触发开始任务</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>shell</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>rostopic pub -1 geometry_msgs/PoseStamped</strong></div>
+            <div><span>前置条件</span><strong>multipoint 已启动</strong></div>
+            <div><span>上游</span><strong>operator</strong></div>
+            <div><span>下游</span><strong>/move_base_simple/goal</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>./sh_files/pub_trigger.sh</p>
+          <p class="card-note danger"><strong>风险：</strong>不要与 8 通上拨重复触发</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="script" data-search="I005 script back.sh shell publish rostopic pub -1 geometry_msgs/PoseStamped empty pose trigger operator /back_trigger multipoint 已启动 触发返程 ./sh_files/back.sh onboard-active 不要与 8 通中拨重复触发 E009_rc_mapping uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/back.sh" data-trace-title="back.sh" data-trace-kind="启动脚本" data-trace-layer="脚本编排层：适合梳理启动链和最小自动化，但不适合长期协议设计。" data-trace-purpose="触发返程" data-trace-evidence="E009_rc_mapping" data-trace-claim="back.sh 用于触发返程" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/back.sh" data-trace-preconditions="multipoint 已启动" data-trace-example="./sh_files/back.sh" data-trace-risk="不要与 8 通中拨重复触发" data-trace-upstream="operator" data-trace-downstream="/back_trigger" data-trace-status="当前机上主链" data-trace-notes="写入接口总表和截图附录">
+          <header>
+            <span class="tag">启动脚本</span>
+            <h3>back.sh</h3>
+          </header>
+          <p class="lead">触发返程</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>shell</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>rostopic pub -1 geometry_msgs/PoseStamped</strong></div>
+            <div><span>前置条件</span><strong>multipoint 已启动</strong></div>
+            <div><span>上游</span><strong>operator</strong></div>
+            <div><span>下游</span><strong>/back_trigger</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>./sh_files/back.sh</p>
+          <p class="card-note danger"><strong>风险：</strong>不要与 8 通中拨重复触发</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="script" data-search="I006 script land.sh shell publish rostopic pub -1 quadrotor_msgs/TakeoffLand takeoff_land_cmd=2 operator /px4ctrl/takeoff_land px4ctrl 已启动 触发自动降落 ./sh_files/land.sh onboard-active 与 takeoff.sh 共用同一 topic E008_takeoff_topic uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/land.sh" data-trace-title="land.sh" data-trace-kind="启动脚本" data-trace-layer="脚本编排层：适合梳理启动链和最小自动化，但不适合长期协议设计。" data-trace-purpose="触发自动降落" data-trace-evidence="E008_takeoff_topic" data-trace-claim="land.sh 用于触发自动降落" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/land.sh" data-trace-preconditions="px4ctrl 已启动" data-trace-example="./sh_files/land.sh" data-trace-risk="与 takeoff.sh 共用同一 topic" data-trace-upstream="operator" data-trace-downstream="/px4ctrl/takeoff_land" data-trace-status="当前机上主链" data-trace-notes="配合 land.sh 使用">
+          <header>
+            <span class="tag">启动脚本</span>
+            <h3>land.sh</h3>
+          </header>
+          <p class="lead">触发自动降落</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>shell</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>rostopic pub -1 quadrotor_msgs/TakeoffLand</strong></div>
+            <div><span>前置条件</span><strong>px4ctrl 已启动</strong></div>
+            <div><span>上游</span><strong>operator</strong></div>
+            <div><span>下游</span><strong>/px4ctrl/takeoff_land</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>./sh_files/land.sh</p>
+          <p class="card-note danger"><strong>风险：</strong>与 takeoff.sh 共用同一 topic</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="action" data-search="I007 action /px4ctrl/takeoff_land ros_topic publish / subscribe quadrotor_msgs/TakeoffLand takeoff_land_cmd={1 takeoff,2 land} script or RC bridge px4ctrl px4ctrl 与定位链正常 起飞与降落动作原语 rostopic pub -1 /px4ctrl/takeoff_land quadrotor_msgs/TakeoffLand &#x27;takeoff_land_cmd: 1&#x27; onboard-active RC 档位不对会被拒绝 E008_takeoff_topic uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/takeoff.sh" data-trace-title="/px4ctrl/takeoff_land" data-trace-kind="动作接口" data-trace-layer="动作原语层：优先在这层做任务系统、桥接服务和外部控制接入。" data-trace-purpose="起飞与降落动作原语" data-trace-evidence="E008_takeoff_topic" data-trace-claim="自动起飞和降落通过 /px4ctrl/takeoff_land 触发" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/takeoff.sh" data-trace-preconditions="px4ctrl 与定位链正常" data-trace-example="rostopic pub -1 /px4ctrl/takeoff_land quadrotor_msgs/TakeoffLand &#x27;takeoff_land_cmd: 1&#x27;" data-trace-risk="RC 档位不对会被拒绝" data-trace-upstream="script or RC bridge" data-trace-downstream="px4ctrl" data-trace-status="当前机上主链" data-trace-notes="配合 land.sh 使用">
+          <header>
+            <span class="tag">动作接口</span>
+            <h3>/px4ctrl/takeoff_land</h3>
+          </header>
+          <p class="lead">起飞与降落动作原语</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish / subscribe</strong></div>
+            <div><span>格式</span><strong>quadrotor_msgs/TakeoffLand</strong></div>
+            <div><span>前置条件</span><strong>px4ctrl 与定位链正常</strong></div>
+            <div><span>上游</span><strong>script or RC bridge</strong></div>
+            <div><span>下游</span><strong>px4ctrl</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>rostopic pub -1 /px4ctrl/takeoff_land quadrotor_msgs/TakeoffLand &#x27;takeoff_land_cmd: 1&#x27;</p>
+          <p class="card-note danger"><strong>风险：</strong>RC 档位不对会被拒绝</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="action" data-search="I008 action /move_base_simple/goal ros_topic publish / subscribe geometry_msgs/PoseStamped header stamp only is sufficient for trigger script or RC bridge multipoint multipoint 启动且 start_plan=1 开始执行点位任务 rostopic pub -1 /move_base_simple/goal geometry_msgs/PoseStamped &#x27;{}&#x27; onboard-active 不要和 RC 八通重复发 E009_rc_mapping uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-title="/move_base_simple/goal" data-trace-kind="动作接口" data-trace-layer="动作原语层：优先在这层做任务系统、桥接服务和外部控制接入。" data-trace-purpose="开始执行点位任务" data-trace-evidence="E009_rc_mapping" data-trace-claim="multipoint 会订阅 /mavros/rc/in 并把 8 通变化映射为起飞/开始/返航/降落" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-preconditions="multipoint 启动且 start_plan=1" data-trace-example="rostopic pub -1 /move_base_simple/goal geometry_msgs/PoseStamped &#x27;{}&#x27;" data-trace-risk="不要和 RC 八通重复发" data-trace-upstream="script or RC bridge" data-trace-downstream="multipoint" data-trace-status="当前机上主链" data-trace-notes="写入接口总表和截图附录">
+          <header>
+            <span class="tag">动作接口</span>
+            <h3>/move_base_simple/goal</h3>
+          </header>
+          <p class="lead">开始执行点位任务</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish / subscribe</strong></div>
+            <div><span>格式</span><strong>geometry_msgs/PoseStamped</strong></div>
+            <div><span>前置条件</span><strong>multipoint 启动且 start_plan=1</strong></div>
+            <div><span>上游</span><strong>script or RC bridge</strong></div>
+            <div><span>下游</span><strong>multipoint</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>rostopic pub -1 /move_base_simple/goal geometry_msgs/PoseStamped &#x27;{}&#x27;</p>
+          <p class="card-note danger"><strong>风险：</strong>不要和 RC 八通重复发</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="action" data-search="I009 action /back_trigger ros_topic publish / subscribe geometry_msgs/PoseStamped header stamp only is sufficient for trigger script or RC bridge multipoint multipoint 启动且 back_plan=1 开始返程任务 rostopic pub -1 /back_trigger geometry_msgs/PoseStamped &#x27;{}&#x27; onboard-active 返回路径依赖 test_back E009_rc_mapping uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-title="/back_trigger" data-trace-kind="动作接口" data-trace-layer="动作原语层：优先在这层做任务系统、桥接服务和外部控制接入。" data-trace-purpose="开始返程任务" data-trace-evidence="E009_rc_mapping" data-trace-claim="multipoint 会订阅 /mavros/rc/in 并把 8 通变化映射为起飞/开始/返航/降落" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-preconditions="multipoint 启动且 back_plan=1" data-trace-example="rostopic pub -1 /back_trigger geometry_msgs/PoseStamped &#x27;{}&#x27;" data-trace-risk="返回路径依赖 test_back" data-trace-upstream="script or RC bridge" data-trace-downstream="multipoint" data-trace-status="当前机上主链" data-trace-notes="写入接口总表和截图附录">
+          <header>
+            <span class="tag">动作接口</span>
+            <h3>/back_trigger</h3>
+          </header>
+          <p class="lead">开始返程任务</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish / subscribe</strong></div>
+            <div><span>格式</span><strong>geometry_msgs/PoseStamped</strong></div>
+            <div><span>前置条件</span><strong>multipoint 启动且 back_plan=1</strong></div>
+            <div><span>上游</span><strong>script or RC bridge</strong></div>
+            <div><span>下游</span><strong>multipoint</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>rostopic pub -1 /back_trigger geometry_msgs/PoseStamped &#x27;{}&#x27;</p>
+          <p class="card-note danger"><strong>风险：</strong>返回路径依赖 test_back</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="action" data-search="I010 action /goal ros_topic publish geometry_msgs/PoseStamped position xyz multipoint planner 任务已启动 逐个向规划器发目标点 由 multipoint 自动发布 onboard-active 通常不建议外部直接绕过 multipoint 写它 E009_rc_mapping uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-title="/goal" data-trace-kind="动作接口" data-trace-layer="动作原语层：优先在这层做任务系统、桥接服务和外部控制接入。" data-trace-purpose="逐个向规划器发目标点" data-trace-evidence="E009_rc_mapping" data-trace-claim="multipoint 会订阅 /mavros/rc/in 并把 8 通变化映射为起飞/开始/返航/降落" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-preconditions="任务已启动" data-trace-example="由 multipoint 自动发布" data-trace-risk="通常不建议外部直接绕过 multipoint 写它" data-trace-upstream="multipoint" data-trace-downstream="planner" data-trace-status="当前机上主链" data-trace-notes="写入接口总表和截图附录">
+          <header>
+            <span class="tag">动作接口</span>
+            <h3>/goal</h3>
+          </header>
+          <p class="lead">逐个向规划器发目标点</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>geometry_msgs/PoseStamped</strong></div>
+            <div><span>前置条件</span><strong>任务已启动</strong></div>
+            <div><span>上游</span><strong>multipoint</strong></div>
+            <div><span>下游</span><strong>planner</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>由 multipoint 自动发布</p>
+          <p class="card-note danger"><strong>风险：</strong>通常不建议外部直接绕过 multipoint 写它</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="action" data-search="I011 action /planning/yaw ros_topic publish quadrotor_msgs/PositionCommand yaw multipoint planner 使用 test3 或 test4 按航点注入 yaw 由 multipoint 自动发布 onboard-active VIO 模式不建议使用自定义 yaw E009_rc_mapping uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-title="/planning/yaw" data-trace-kind="动作接口" data-trace-layer="动作原语层：优先在这层做任务系统、桥接服务和外部控制接入。" data-trace-purpose="按航点注入 yaw" data-trace-evidence="E009_rc_mapping" data-trace-claim="multipoint 会订阅 /mavros/rc/in 并把 8 通变化映射为起飞/开始/返航/降落" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-preconditions="使用 test3 或 test4" data-trace-example="由 multipoint 自动发布" data-trace-risk="VIO 模式不建议使用自定义 yaw" data-trace-upstream="multipoint" data-trace-downstream="planner" data-trace-status="当前机上主链" data-trace-notes="写入接口总表和截图附录">
+          <header>
+            <span class="tag">动作接口</span>
+            <h3>/planning/yaw</h3>
+          </header>
+          <p class="lead">按航点注入 yaw</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>quadrotor_msgs/PositionCommand</strong></div>
+            <div><span>前置条件</span><strong>使用 test3 或 test4</strong></div>
+            <div><span>上游</span><strong>multipoint</strong></div>
+            <div><span>下游</span><strong>planner</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>由 multipoint 自动发布</p>
+          <p class="card-note danger"><strong>风险：</strong>VIO 模式不建议使用自定义 yaw</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="action" data-search="I012 action /setpoints_cmd ros_topic publish / subscribe quadrotor_msgs/PositionCommand position velocity acceleration yaw traj_server px4ctrl planner 与 px4ctrl 同时存在 规划器给控制器的核心命令通道 内部 remap 到 /setpoints_cmd onboard-active 高风险接口 不要先从这里直接接上层系统 E006_run_single_lio_script uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/realflight_modules/px4ctrl/launch/run_ctrl_lio.launch" data-trace-title="/setpoints_cmd" data-trace-kind="动作接口" data-trace-layer="规划-控制边界层：这里只适合高级控制改造，不该作为第一接入点。" data-trace-purpose="规划器给控制器的核心命令通道" data-trace-evidence="E006_run_single_lio_script" data-trace-claim="/setpoints_cmd 用于规划器给控制器的核心命令通道" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/realflight_modules/px4ctrl/launch/run_ctrl_lio.launch" data-trace-preconditions="planner 与 px4ctrl 同时存在" data-trace-example="内部 remap 到 /setpoints_cmd" data-trace-risk="高风险接口 不要先从这里直接接上层系统" data-trace-upstream="traj_server" data-trace-downstream="px4ctrl" data-trace-status="当前机上主链" data-trace-notes="实机主入口">
+          <header>
+            <span class="tag">动作接口</span>
+            <h3>/setpoints_cmd</h3>
+          </header>
+          <p class="lead">规划器给控制器的核心命令通道</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish / subscribe</strong></div>
+            <div><span>格式</span><strong>quadrotor_msgs/PositionCommand</strong></div>
+            <div><span>前置条件</span><strong>planner 与 px4ctrl 同时存在</strong></div>
+            <div><span>上游</span><strong>traj_server</strong></div>
+            <div><span>下游</span><strong>px4ctrl</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>内部 remap 到 /setpoints_cmd</p>
+          <p class="card-note danger"><strong>风险：</strong>高风险接口 不要先从这里直接接上层系统</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="state" data-search="I013 state /mavros/state ros_topic publish mavros_msgs/State connected armed mode mavros operator / px4ctrl mavros 已启动 查看飞控连接与模式 rostopic echo -n 1 /mavros/state onboard-active 最先判断 FCU 是否连上 E013_battery_topic uav/10-knowledge-base/06-指令速查-含隐藏命令.md" data-trace-title="/mavros/state" data-trace-kind="状态接口" data-trace-layer="状态观测层：优先只读订阅，适合监控、日志和上层 Agent 观测。" data-trace-purpose="查看飞控连接与模式" data-trace-evidence="E013_battery_topic" data-trace-claim="/mavros/state 用于查看飞控连接与模式" data-trace-source="uav/10-knowledge-base/06-指令速查-含隐藏命令.md" data-trace-preconditions="mavros 已启动" data-trace-example="rostopic echo -n 1 /mavros/state" data-trace-risk="最先判断 FCU 是否连上" data-trace-upstream="mavros" data-trace-downstream="operator / px4ctrl" data-trace-status="当前机上主链" data-trace-notes="写入状态接口表">
+          <header>
+            <span class="tag">状态接口</span>
+            <h3>/mavros/state</h3>
+          </header>
+          <p class="lead">查看飞控连接与模式</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>mavros_msgs/State</strong></div>
+            <div><span>前置条件</span><strong>mavros 已启动</strong></div>
+            <div><span>上游</span><strong>mavros</strong></div>
+            <div><span>下游</span><strong>operator / px4ctrl</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>rostopic echo -n 1 /mavros/state</p>
+          <p class="card-note danger"><strong>风险：</strong>最先判断 FCU 是否连上</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="state" data-search="I014 state /mavros/battery ros_topic publish sensor_msgs/BatteryState voltage percentage current mavros operator / px4ctrl mavros 已启动 查看电量 rostopic echo -n 1 /mavros/battery onboard-active 低压阈值与 ctrl_param_fpv.yaml 联动 E013_battery_topic uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-title="/mavros/battery" data-trace-kind="状态接口" data-trace-layer="状态观测层：优先只读订阅，适合监控、日志和上层 Agent 观测。" data-trace-purpose="查看电量" data-trace-evidence="E013_battery_topic" data-trace-claim="电量通过 /mavros/battery 读取" data-trace-source="uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-preconditions="mavros 已启动" data-trace-example="rostopic echo -n 1 /mavros/battery" data-trace-risk="低压阈值与 ctrl_param_fpv.yaml 联动" data-trace-upstream="mavros" data-trace-downstream="operator / px4ctrl" data-trace-status="当前机上主链" data-trace-notes="写入状态接口表">
+          <header>
+            <span class="tag">状态接口</span>
+            <h3>/mavros/battery</h3>
+          </header>
+          <p class="lead">查看电量</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>sensor_msgs/BatteryState</strong></div>
+            <div><span>前置条件</span><strong>mavros 已启动</strong></div>
+            <div><span>上游</span><strong>mavros</strong></div>
+            <div><span>下游</span><strong>operator / px4ctrl</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>rostopic echo -n 1 /mavros/battery</p>
+          <p class="card-note danger"><strong>风险：</strong>低压阈值与 ctrl_param_fpv.yaml 联动</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="state" data-search="I015 state /mavros/rc/in ros_topic publish mavros_msgs/RCIn channels[0..] mavros multipoint / px4ctrl mavros 已启动且 RC 在线 查看遥控器输入 rostopic echo -n 1 /mavros/rc/in onboard-active 是安全门也是动作触发来源 E009_rc_mapping uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-title="/mavros/rc/in" data-trace-kind="状态接口" data-trace-layer="状态观测层：优先只读订阅，适合监控、日志和上层 Agent 观测。" data-trace-purpose="查看遥控器输入" data-trace-evidence="E009_rc_mapping" data-trace-claim="multipoint 会订阅 /mavros/rc/in 并把 8 通变化映射为起飞/开始/返航/降落" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-preconditions="mavros 已启动且 RC 在线" data-trace-example="rostopic echo -n 1 /mavros/rc/in" data-trace-risk="是安全门也是动作触发来源" data-trace-upstream="mavros" data-trace-downstream="multipoint / px4ctrl" data-trace-status="当前机上主链" data-trace-notes="写入接口总表和截图附录">
+          <header>
+            <span class="tag">状态接口</span>
+            <h3>/mavros/rc/in</h3>
+          </header>
+          <p class="lead">查看遥控器输入</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>mavros_msgs/RCIn</strong></div>
+            <div><span>前置条件</span><strong>mavros 已启动且 RC 在线</strong></div>
+            <div><span>上游</span><strong>mavros</strong></div>
+            <div><span>下游</span><strong>multipoint / px4ctrl</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>rostopic echo -n 1 /mavros/rc/in</p>
+          <p class="card-note danger"><strong>风险：</strong>是安全门也是动作触发来源</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="state" data-search="I016 state /mavros/imu/data ros_topic publish sensor_msgs/Imu orientation angular_velocity linear_acceleration mavros px4ctrl mavros 已启动 飞控 IMU 输入 rostopic echo -n 1 /mavros/imu/data onboard-active px4ctrl 明确使用 data 非 data_raw E006_run_single_lio_script uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/realflight_modules/px4ctrl/src/px4ctrl_node.cpp" data-trace-title="/mavros/imu/data" data-trace-kind="状态接口" data-trace-layer="状态观测层：优先只读订阅，适合监控、日志和上层 Agent 观测。" data-trace-purpose="飞控 IMU 输入" data-trace-evidence="E006_run_single_lio_script" data-trace-claim="/mavros/imu/data 用于飞控 IMU 输入" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/realflight_modules/px4ctrl/src/px4ctrl_node.cpp" data-trace-preconditions="mavros 已启动" data-trace-example="rostopic echo -n 1 /mavros/imu/data" data-trace-risk="px4ctrl 明确使用 data 非 data_raw" data-trace-upstream="mavros" data-trace-downstream="px4ctrl" data-trace-status="当前机上主链" data-trace-notes="实机主入口">
+          <header>
+            <span class="tag">状态接口</span>
+            <h3>/mavros/imu/data</h3>
+          </header>
+          <p class="lead">飞控 IMU 输入</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>sensor_msgs/Imu</strong></div>
+            <div><span>前置条件</span><strong>mavros 已启动</strong></div>
+            <div><span>上游</span><strong>mavros</strong></div>
+            <div><span>下游</span><strong>px4ctrl</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>rostopic echo -n 1 /mavros/imu/data</p>
+          <p class="card-note danger"><strong>风险：</strong>px4ctrl 明确使用 data 非 data_raw</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="state" data-search="I017 state /mavros/local_position/pose ros_topic publish geometry_msgs/PoseStamped pose mavros operator mavros 已启动 查看 PX4 本地位姿 rostopic echo -n 1 /mavros/local_position/pose onboard-active 与机载 EKF 输出不同源 E013_battery_topic uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-title="/mavros/local_position/pose" data-trace-kind="状态接口" data-trace-layer="状态观测层：优先只读订阅，适合监控、日志和上层 Agent 观测。" data-trace-purpose="查看 PX4 本地位姿" data-trace-evidence="E013_battery_topic" data-trace-claim="电量通过 /mavros/battery 读取" data-trace-source="uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-preconditions="mavros 已启动" data-trace-example="rostopic echo -n 1 /mavros/local_position/pose" data-trace-risk="与机载 EKF 输出不同源" data-trace-upstream="mavros" data-trace-downstream="operator" data-trace-status="当前机上主链" data-trace-notes="写入状态接口表">
+          <header>
+            <span class="tag">状态接口</span>
+            <h3>/mavros/local_position/pose</h3>
+          </header>
+          <p class="lead">查看 PX4 本地位姿</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>geometry_msgs/PoseStamped</strong></div>
+            <div><span>前置条件</span><strong>mavros 已启动</strong></div>
+            <div><span>上游</span><strong>mavros</strong></div>
+            <div><span>下游</span><strong>operator</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>rostopic echo -n 1 /mavros/local_position/pose</p>
+          <p class="card-note danger"><strong>风险：</strong>与机载 EKF 输出不同源</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="state" data-search="I018 state /ekf/ekf_odom ros_topic publish nav_msgs/Odometry pose twist ekf planner / operator LIO 主链已启动 查看融合 odom rostopic echo -n 1 /ekf/ekf_odom onboard-active LIO 主链下的核心定位输出 E012_ekf_output uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-title="/ekf/ekf_odom" data-trace-kind="状态接口" data-trace-layer="状态观测层：优先只读订阅，适合监控、日志和上层 Agent 观测。" data-trace-purpose="查看融合 odom" data-trace-evidence="E012_ekf_output" data-trace-claim="LIO 融合主输出为 /ekf/ekf_odom" data-trace-source="uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-preconditions="LIO 主链已启动" data-trace-example="rostopic echo -n 1 /ekf/ekf_odom" data-trace-risk="LIO 主链下的核心定位输出" data-trace-upstream="ekf" data-trace-downstream="planner / operator" data-trace-status="当前机上主链" data-trace-notes="写入状态接口表">
+          <header>
+            <span class="tag">状态接口</span>
+            <h3>/ekf/ekf_odom</h3>
+          </header>
+          <p class="lead">查看融合 odom</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>nav_msgs/Odometry</strong></div>
+            <div><span>前置条件</span><strong>LIO 主链已启动</strong></div>
+            <div><span>上游</span><strong>ekf</strong></div>
+            <div><span>下游</span><strong>planner / operator</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>rostopic echo -n 1 /ekf/ekf_odom</p>
+          <p class="card-note danger"><strong>风险：</strong>LIO 主链下的核心定位输出</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="state" data-search="I019 state /laserMapping/odometry ros_topic publish nav_msgs/Odometry pose twist faster_lio ekf / operator faster_lio 已启动 查看雷达 odom rostopic echo -n 1 /laserMapping/odometry onboard-active ekf 会依赖它 E012_ekf_output uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-title="/laserMapping/odometry" data-trace-kind="状态接口" data-trace-layer="状态观测层：优先只读订阅，适合监控、日志和上层 Agent 观测。" data-trace-purpose="查看雷达 odom" data-trace-evidence="E012_ekf_output" data-trace-claim="LIO 融合主输出为 /ekf/ekf_odom" data-trace-source="uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-preconditions="faster_lio 已启动" data-trace-example="rostopic echo -n 1 /laserMapping/odometry" data-trace-risk="ekf 会依赖它" data-trace-upstream="faster_lio" data-trace-downstream="ekf / operator" data-trace-status="当前机上主链" data-trace-notes="写入状态接口表">
+          <header>
+            <span class="tag">状态接口</span>
+            <h3>/laserMapping/odometry</h3>
+          </header>
+          <p class="lead">查看雷达 odom</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>nav_msgs/Odometry</strong></div>
+            <div><span>前置条件</span><strong>faster_lio 已启动</strong></div>
+            <div><span>上游</span><strong>faster_lio</strong></div>
+            <div><span>下游</span><strong>ekf / operator</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>rostopic echo -n 1 /laserMapping/odometry</p>
+          <p class="card-note danger"><strong>风险：</strong>ekf 会依赖它</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="state" data-search="I020 state /laserMapping/cloud_registered ros_topic publish sensor_msgs/PointCloud2 point cloud faster_lio planner / rviz faster_lio 已启动 查看规划输入点云 rostopic hz /laserMapping/cloud_registered onboard-active rviz 观察质量时重点看它 E012_ekf_output uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-title="/laserMapping/cloud_registered" data-trace-kind="状态接口" data-trace-layer="状态观测层：优先只读订阅，适合监控、日志和上层 Agent 观测。" data-trace-purpose="查看规划输入点云" data-trace-evidence="E012_ekf_output" data-trace-claim="LIO 融合主输出为 /ekf/ekf_odom" data-trace-source="uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-preconditions="faster_lio 已启动" data-trace-example="rostopic hz /laserMapping/cloud_registered" data-trace-risk="rviz 观察质量时重点看它" data-trace-upstream="faster_lio" data-trace-downstream="planner / rviz" data-trace-status="当前机上主链" data-trace-notes="写入状态接口表">
+          <header>
+            <span class="tag">状态接口</span>
+            <h3>/laserMapping/cloud_registered</h3>
+          </header>
+          <p class="lead">查看规划输入点云</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>sensor_msgs/PointCloud2</strong></div>
+            <div><span>前置条件</span><strong>faster_lio 已启动</strong></div>
+            <div><span>上游</span><strong>faster_lio</strong></div>
+            <div><span>下游</span><strong>planner / rviz</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>rostopic hz /laserMapping/cloud_registered</p>
+          <p class="card-note danger"><strong>风险：</strong>rviz 观察质量时重点看它</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="state" data-search="I021 state /vins/imu_propagate ros_topic publish nav_msgs/Odometry pose twist vins planner / operator VIO 主链已启动 查看视觉惯性 odom rostopic echo -n 1 /vins/imu_propagate onboard-active 当前视觉定位主输出 E011_vins_output uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-title="/vins/imu_propagate" data-trace-kind="状态接口" data-trace-layer="状态观测层：优先只读订阅，适合监控、日志和上层 Agent 观测。" data-trace-purpose="查看视觉惯性 odom" data-trace-evidence="E011_vins_output" data-trace-claim="VIO 主输出为 /vins/imu_propagate" data-trace-source="uav/10-knowledge-base/05-传感器与状态回传.md" data-trace-preconditions="VIO 主链已启动" data-trace-example="rostopic echo -n 1 /vins/imu_propagate" data-trace-risk="当前视觉定位主输出" data-trace-upstream="vins" data-trace-downstream="planner / operator" data-trace-status="当前机上主链" data-trace-notes="写入状态接口表">
+          <header>
+            <span class="tag">状态接口</span>
+            <h3>/vins/imu_propagate</h3>
+          </header>
+          <p class="lead">查看视觉惯性 odom</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>nav_msgs/Odometry</strong></div>
+            <div><span>前置条件</span><strong>VIO 主链已启动</strong></div>
+            <div><span>上游</span><strong>vins</strong></div>
+            <div><span>下游</span><strong>planner / operator</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>rostopic echo -n 1 /vins/imu_propagate</p>
+          <p class="card-note danger"><strong>风险：</strong>当前视觉定位主输出</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="state" data-search="I022 state /drone_0_planning/trajectory ros_topic publish traj_utils/PolyTraj trajectory traj_server operator / px4ctrl 规划链已启动 查看当前规划结果 rostopic echo -n 1 /drone_0_planning/trajectory onboard-active 轨迹有了不等于控制器一定执行 E006_run_single_lio_script uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/diff_planner/plan_manage/launch/exp/run_exp_single_lio.launch" data-trace-title="/drone_0_planning/trajectory" data-trace-kind="状态接口" data-trace-layer="状态观测层：优先只读订阅，适合监控、日志和上层 Agent 观测。" data-trace-purpose="查看当前规划结果" data-trace-evidence="E006_run_single_lio_script" data-trace-claim="/drone_0_planning/trajectory 用于查看当前规划结果" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/diff_planner/plan_manage/launch/exp/run_exp_single_lio.launch" data-trace-preconditions="规划链已启动" data-trace-example="rostopic echo -n 1 /drone_0_planning/trajectory" data-trace-risk="轨迹有了不等于控制器一定执行" data-trace-upstream="traj_server" data-trace-downstream="operator / px4ctrl" data-trace-status="当前机上主链" data-trace-notes="实机主入口">
+          <header>
+            <span class="tag">状态接口</span>
+            <h3>/drone_0_planning/trajectory</h3>
+          </header>
+          <p class="lead">查看当前规划结果</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>ros_topic</strong></div>
+            <div><span>方向</span><strong>publish</strong></div>
+            <div><span>格式</span><strong>traj_utils/PolyTraj</strong></div>
+            <div><span>前置条件</span><strong>规划链已启动</strong></div>
+            <div><span>上游</span><strong>traj_server</strong></div>
+            <div><span>下游</span><strong>operator / px4ctrl</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>rostopic echo -n 1 /drone_0_planning/trajectory</p>
+          <p class="card-note danger"><strong>风险：</strong>轨迹有了不等于控制器一定执行</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="parameter" data-search="I023 parameter points.yaml file read yaml test1 test2 test3 test4 test_back multipoint config multipoint 任务模式与航点格式要匹配 定义任务点和返程点 src/user_command/multipoint/config/points.yaml onboard-active 数组长度错会直接读取失败 E015_points_yaml uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/config/points.yaml" data-trace-title="points.yaml" data-trace-kind="参数入口" data-trace-layer="任务配置层：第一轮二开优先从这里下手，成本最低，风险也最低。" data-trace-purpose="定义任务点和返程点" data-trace-evidence="E015_points_yaml" data-trace-claim="航点和返程点定义位于 points.yaml" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/config/points.yaml" data-trace-preconditions="任务模式与航点格式要匹配" data-trace-example="src/user_command/multipoint/config/points.yaml" data-trace-risk="数组长度错会直接读取失败" data-trace-upstream="multipoint config" data-trace-downstream="multipoint" data-trace-status="当前机上主链" data-trace-notes="写入参数索引" data-trace-default="true">
+          <header>
+            <span class="tag">参数入口</span>
+            <h3>points.yaml</h3>
+          </header>
+          <p class="lead">定义任务点和返程点</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>file</strong></div>
+            <div><span>方向</span><strong>read</strong></div>
+            <div><span>格式</span><strong>yaml</strong></div>
+            <div><span>前置条件</span><strong>任务模式与航点格式要匹配</strong></div>
+            <div><span>上游</span><strong>multipoint config</strong></div>
+            <div><span>下游</span><strong>multipoint</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>src/user_command/multipoint/config/points.yaml</p>
+          <p class="card-note danger"><strong>风险：</strong>数组长度错会直接读取失败</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="parameter" data-search="I024 parameter ctrl_param_fpv.yaml file read yaml low_voltage takeoff_height takeoff_land_speed px4ctrl config px4ctrl px4ctrl 启动前读取 控制起飞高度和电池阈值 src/realflight_modules/px4ctrl/config/ctrl_param_fpv.yaml onboard-active 改前必须确认起飞高度范围无障碍 E014_ctrl_params uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/realflight_modules/px4ctrl/config/ctrl_param_fpv.yaml" data-trace-title="ctrl_param_fpv.yaml" data-trace-kind="参数入口" data-trace-layer="控制配置层：涉及起飞高度、电压阈值和安全边界，改动必须谨慎。" data-trace-purpose="控制起飞高度和电池阈值" data-trace-evidence="E014_ctrl_params" data-trace-claim="起飞高度与低压阈值位于 ctrl_param_fpv.yaml" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/realflight_modules/px4ctrl/config/ctrl_param_fpv.yaml" data-trace-preconditions="px4ctrl 启动前读取" data-trace-example="src/realflight_modules/px4ctrl/config/ctrl_param_fpv.yaml" data-trace-risk="改前必须确认起飞高度范围无障碍" data-trace-upstream="px4ctrl config" data-trace-downstream="px4ctrl" data-trace-status="当前机上主链" data-trace-notes="写入参数索引">
+          <header>
+            <span class="tag">参数入口</span>
+            <h3>ctrl_param_fpv.yaml</h3>
+          </header>
+          <p class="lead">控制起飞高度和电池阈值</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>file</strong></div>
+            <div><span>方向</span><strong>read</strong></div>
+            <div><span>格式</span><strong>yaml</strong></div>
+            <div><span>前置条件</span><strong>px4ctrl 启动前读取</strong></div>
+            <div><span>上游</span><strong>px4ctrl config</strong></div>
+            <div><span>下游</span><strong>px4ctrl</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>src/realflight_modules/px4ctrl/config/ctrl_param_fpv.yaml</p>
+          <p class="card-note danger"><strong>风险：</strong>改前必须确认起飞高度范围无障碍</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="parameter" data-search="I025 parameter multipointplan_exp_lio.launch file read roslaunch args fligt_type next_distance start_plan back_plan launch config multipoint LIO 任务链启动前读取 选择航点模式和触发行为 roslaunch multipoint multipointplan_exp_lio.launch onboard-active fligt_type 拼写就是源码现状 不要擅自改名 E015_points_yaml uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/launch/multipointplan_exp_lio.launch" data-trace-title="multipointplan_exp_lio.launch" data-trace-kind="参数入口" data-trace-layer="任务配置层：第一轮二开优先从这里下手，成本最低，风险也最低。" data-trace-purpose="选择航点模式和触发行为" data-trace-evidence="E015_points_yaml" data-trace-claim="multipointplan_exp_lio.launch 用于选择航点模式和触发行为" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/launch/multipointplan_exp_lio.launch" data-trace-preconditions="LIO 任务链启动前读取" data-trace-example="roslaunch multipoint multipointplan_exp_lio.launch" data-trace-risk="fligt_type 拼写就是源码现状 不要擅自改名" data-trace-upstream="launch config" data-trace-downstream="multipoint" data-trace-status="当前机上主链" data-trace-notes="写入参数索引">
+          <header>
+            <span class="tag">参数入口</span>
+            <h3>multipointplan_exp_lio.launch</h3>
+          </header>
+          <p class="lead">选择航点模式和触发行为</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>file</strong></div>
+            <div><span>方向</span><strong>read</strong></div>
+            <div><span>格式</span><strong>roslaunch args</strong></div>
+            <div><span>前置条件</span><strong>LIO 任务链启动前读取</strong></div>
+            <div><span>上游</span><strong>launch config</strong></div>
+            <div><span>下游</span><strong>multipoint</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>roslaunch multipoint multipointplan_exp_lio.launch</p>
+          <p class="card-note danger"><strong>风险：</strong>fligt_type 拼写就是源码现状 不要擅自改名</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="parameter" data-search="I026 parameter run_exp_single_lio.launch file read roslaunch args max_vel max_acc map_resolution flight_type launch config planner LIO 规划链启动前读取 配置 LIO 规划参数 roslaunch diff_planner run_exp_single_lio.launch onboard-active 是规划参数不是飞控参数 E006_run_single_lio_script uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/diff_planner/plan_manage/launch/exp/run_exp_single_lio.launch" data-trace-title="run_exp_single_lio.launch" data-trace-kind="参数入口" data-trace-layer="规划配置层：适合做轨迹、地图和性能实验，不适合日常任务改点。" data-trace-purpose="配置 LIO 规划参数" data-trace-evidence="E006_run_single_lio_script" data-trace-claim="run_exp_single_lio.launch 用于配置 LIO 规划参数" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/diff_planner/plan_manage/launch/exp/run_exp_single_lio.launch" data-trace-preconditions="LIO 规划链启动前读取" data-trace-example="roslaunch diff_planner run_exp_single_lio.launch" data-trace-risk="是规划参数不是飞控参数" data-trace-upstream="launch config" data-trace-downstream="planner" data-trace-status="当前机上主链" data-trace-notes="实机主入口">
+          <header>
+            <span class="tag">参数入口</span>
+            <h3>run_exp_single_lio.launch</h3>
+          </header>
+          <p class="lead">配置 LIO 规划参数</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>file</strong></div>
+            <div><span>方向</span><strong>read</strong></div>
+            <div><span>格式</span><strong>roslaunch args</strong></div>
+            <div><span>前置条件</span><strong>LIO 规划链启动前读取</strong></div>
+            <div><span>上游</span><strong>launch config</strong></div>
+            <div><span>下游</span><strong>planner</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>roslaunch diff_planner run_exp_single_lio.launch</p>
+          <p class="card-note danger"><strong>风险：</strong>是规划参数不是飞控参数</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="parameter" data-search="I027 parameter run_exp_single_vio.launch file read roslaunch args cx cy fx fy max_vel max_acc launch config planner VIO 规划链启动前读取 配置 VIO 规划参数 roslaunch diff_planner run_exp_single_vio.launch onboard-active 视觉内参错误会直接破坏 VIO 规划 E007_run_single_vio_script uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/diff_planner/plan_manage/launch/exp/run_exp_single_vio.launch" data-trace-title="run_exp_single_vio.launch" data-trace-kind="参数入口" data-trace-layer="规划配置层：适合做轨迹、地图和性能实验，不适合日常任务改点。" data-trace-purpose="配置 VIO 规划参数" data-trace-evidence="E007_run_single_vio_script" data-trace-claim="run_exp_single_vio.launch 用于配置 VIO 规划参数" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/diff_planner/plan_manage/launch/exp/run_exp_single_vio.launch" data-trace-preconditions="VIO 规划链启动前读取" data-trace-example="roslaunch diff_planner run_exp_single_vio.launch" data-trace-risk="视觉内参错误会直接破坏 VIO 规划" data-trace-upstream="launch config" data-trace-downstream="planner" data-trace-status="当前机上主链" data-trace-notes="实机主入口">
+          <header>
+            <span class="tag">参数入口</span>
+            <h3>run_exp_single_vio.launch</h3>
+          </header>
+          <p class="lead">配置 VIO 规划参数</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>file</strong></div>
+            <div><span>方向</span><strong>read</strong></div>
+            <div><span>格式</span><strong>roslaunch args</strong></div>
+            <div><span>前置条件</span><strong>VIO 规划链启动前读取</strong></div>
+            <div><span>上游</span><strong>launch config</strong></div>
+            <div><span>下游</span><strong>planner</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>roslaunch diff_planner run_exp_single_vio.launch</p>
+          <p class="card-note danger"><strong>风险：</strong>视觉内参错误会直接破坏 VIO 规划</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="rc" data-search="I028 rc RC Channel 5 physical_input input remote control 光流 / 姿态 / onboard operator PX4 / px4ctrl 遥控器在线 切换飞行模式 上=光流 中=姿态 下=onboard onboard-active 软件控制会被它打断 E009_rc_mapping uav/10-knowledge-base/01-硬件与系统.md" data-trace-title="RC Channel 5" data-trace-kind="遥控器映射" data-trace-layer="人工安全边界层：这是安全兜底，不是普通软件 API。" data-trace-purpose="切换飞行模式" data-trace-evidence="E009_rc_mapping" data-trace-claim="RC Channel 5 用于切换飞行模式" data-trace-source="uav/10-knowledge-base/01-硬件与系统.md" data-trace-preconditions="遥控器在线" data-trace-example="上=光流 中=姿态 下=onboard" data-trace-risk="软件控制会被它打断" data-trace-upstream="operator" data-trace-downstream="PX4 / px4ctrl" data-trace-status="当前机上主链" data-trace-notes="写入接口总表和截图附录">
+          <header>
+            <span class="tag">遥控器映射</span>
+            <h3>RC Channel 5</h3>
+          </header>
+          <p class="lead">切换飞行模式</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>physical_input</strong></div>
+            <div><span>方向</span><strong>input</strong></div>
+            <div><span>格式</span><strong>remote control</strong></div>
+            <div><span>前置条件</span><strong>遥控器在线</strong></div>
+            <div><span>上游</span><strong>operator</strong></div>
+            <div><span>下游</span><strong>PX4 / px4ctrl</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>上=光流 中=姿态 下=onboard</p>
+          <p class="card-note danger"><strong>风险：</strong>软件控制会被它打断</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="rc" data-search="I029 rc RC Channel 6 physical_input input remote control 悬停 / 轨迹 operator PX4 / px4ctrl 遥控器在线 切换悬停与轨迹控制 上=悬停 下=轨迹 onboard-active 异常时上拨 6 通是重要兜底 E009_rc_mapping uav/10-knowledge-base/01-硬件与系统.md" data-trace-title="RC Channel 6" data-trace-kind="遥控器映射" data-trace-layer="人工安全边界层：这是安全兜底，不是普通软件 API。" data-trace-purpose="切换悬停与轨迹控制" data-trace-evidence="E009_rc_mapping" data-trace-claim="RC Channel 6 用于切换悬停与轨迹控制" data-trace-source="uav/10-knowledge-base/01-硬件与系统.md" data-trace-preconditions="遥控器在线" data-trace-example="上=悬停 下=轨迹" data-trace-risk="异常时上拨 6 通是重要兜底" data-trace-upstream="operator" data-trace-downstream="PX4 / px4ctrl" data-trace-status="当前机上主链" data-trace-notes="写入接口总表和截图附录">
+          <header>
+            <span class="tag">遥控器映射</span>
+            <h3>RC Channel 6</h3>
+          </header>
+          <p class="lead">切换悬停与轨迹控制</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>physical_input</strong></div>
+            <div><span>方向</span><strong>input</strong></div>
+            <div><span>格式</span><strong>remote control</strong></div>
+            <div><span>前置条件</span><strong>遥控器在线</strong></div>
+            <div><span>上游</span><strong>operator</strong></div>
+            <div><span>下游</span><strong>PX4 / px4ctrl</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>上=悬停 下=轨迹</p>
+          <p class="card-note danger"><strong>风险：</strong>异常时上拨 6 通是重要兜底</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="rc" data-search="I030 rc RC Channel 7 physical_input input remote control 解锁 / 锁桨 / 急停 operator PX4 遥控器在线 电机安全控制 上=解锁 下=急停 onboard-active 最高安全优先级 E009_rc_mapping uav/10-knowledge-base/01-硬件与系统.md" data-trace-title="RC Channel 7" data-trace-kind="遥控器映射" data-trace-layer="人工安全边界层：这是安全兜底，不是普通软件 API。" data-trace-purpose="电机安全控制" data-trace-evidence="E009_rc_mapping" data-trace-claim="RC Channel 7 用于电机安全控制" data-trace-source="uav/10-knowledge-base/01-硬件与系统.md" data-trace-preconditions="遥控器在线" data-trace-example="上=解锁 下=急停" data-trace-risk="最高安全优先级" data-trace-upstream="operator" data-trace-downstream="PX4" data-trace-status="当前机上主链" data-trace-notes="写入接口总表和截图附录">
+          <header>
+            <span class="tag">遥控器映射</span>
+            <h3>RC Channel 7</h3>
+          </header>
+          <p class="lead">电机安全控制</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>physical_input</strong></div>
+            <div><span>方向</span><strong>input</strong></div>
+            <div><span>格式</span><strong>remote control</strong></div>
+            <div><span>前置条件</span><strong>遥控器在线</strong></div>
+            <div><span>上游</span><strong>operator</strong></div>
+            <div><span>下游</span><strong>PX4</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>上=解锁 下=急停</p>
+          <p class="card-note danger"><strong>风险：</strong>最高安全优先级</p>
+        </article>
+        
+        <article class="interface-row trace-trigger" role="button" tabindex="0" data-category="rc" data-search="I031 rc RC Channel 8 physical_input input remote control 下-&gt;中 takeoff 中-&gt;上 start 上-&gt;中 back 中-&gt;下 land operator multipoint / PX4 遥控器在线且 mavros/rc/in 正常 任务动作触发 下/中/上 档位切换 onboard-active 脚本与 RC 触发方式不要混用 E009_rc_mapping uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-title="RC Channel 8" data-trace-kind="遥控器映射" data-trace-layer="人工安全边界层：这是安全兜底，不是普通软件 API。" data-trace-purpose="任务动作触发" data-trace-evidence="E009_rc_mapping" data-trace-claim="multipoint 会订阅 /mavros/rc/in 并把 8 通变化映射为起飞/开始/返航/降落" data-trace-source="uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp" data-trace-preconditions="遥控器在线且 mavros/rc/in 正常" data-trace-example="下/中/上 档位切换" data-trace-risk="脚本与 RC 触发方式不要混用" data-trace-upstream="operator" data-trace-downstream="multipoint / PX4" data-trace-status="当前机上主链" data-trace-notes="写入接口总表和截图附录">
+          <header>
+            <span class="tag">遥控器映射</span>
+            <h3>RC Channel 8</h3>
+          </header>
+          <p class="lead">任务动作触发</p>
+          <div class="detail-grid">
+            <div><span>类型</span><strong>physical_input</strong></div>
+            <div><span>方向</span><strong>input</strong></div>
+            <div><span>格式</span><strong>remote control</strong></div>
+            <div><span>前置条件</span><strong>遥控器在线且 mavros/rc/in 正常</strong></div>
+            <div><span>上游</span><strong>operator</strong></div>
+            <div><span>下游</span><strong>multipoint / PX4</strong></div>
+          </div>
+          <p class="card-note"><strong>示例：</strong>下/中/上 档位切换</p>
+          <p class="card-note danger"><strong>风险：</strong>脚本与 RC 触发方式不要混用</p>
+        </article>
+        </div>
+      </section>
+
+      <section class="section" id="docs">
+        <div class="section-header">
+          <div>
+            <h2>完整文档</h2>
+            <p>这里把开发主文档、截图附录和导航页直接铺开。你既可以先看上面的卡片式入口，也可以在这里顺着完整文档读。</p>
+          </div>
+        </div>
+        <div class="doc-columns">
+          <article class="doc-card"><h1>非凸α开发者文档</h1>
+<h2>1. 机器现状总览</h2>
+<ul>
+<li>当前资料来源由实机快照、机上源码快照、PDF、wiki 和本地知识库组成。</li>
+<li>事实优先级按“实机快照 &gt; 机上源码快照 &gt; 本地知识库 &gt; PDF &gt; wiki”执行。</li>
+<li>当前主链是单机 LIO / VIO + Diff-planner + px4ctrl + mavros + multipoint。</li>
+<li>D435 + VINS 是当前视觉定位主链假设，不以 Elastic 为默认链路。</li>
+<li>Elastic 不属于当前实机默认部署链路。</li>
+<li>当前必须区分“实机已部署”“源码存在但非主链”“产品线文档提到但未落机”三种状态。</li>
+</ul>
+<h3>1.1 当前机器画像</h3>
+<ul>
+<li>机载电脑：Jetson Orin NX 16GB。</li>
+<li>系统：Ubuntu 20.04.6。</li>
+<li>ROS：Noetic。</li>
+<li>视觉主硬件：Intel RealSense D435。</li>
+<li>雷达主硬件：Livox MID360。</li>
+<li>主工作空间：Diff-planner。</li>
+<li>当前主入口脚本：<code>run_single_lio.sh</code>、<code>run_single_vio.sh</code>、<code>takeoff.sh</code>、<code>pub_trigger.sh</code>、<code>back.sh</code>、<code>land.sh</code>。</li>
+</ul>
+<h3>1.2 与产品线文档的关键偏差</h3>
+<ul>
+<li>wiki / PDF 会展示目标跟踪、集群、YOLO 等扩展能力。</li>
+<li>当前实机文档主路径只写 LIO、VIO、单机规划、多点任务、自动起降、状态观测和接管安全。</li>
+<li>Elastic、FUEL、Formation、YOLO 只能出现在部署矩阵和扩展附录中。</li>
+</ul>
+<h2>2. 当前已部署功能清单</h2>
+<h3>2.1 当前主路径功能</h3>
+<ul>
+<li>单机 LIO：通过 <code>run_single_lio.sh</code> 拉起 <code>mavros + faster_lio + ekf + diff_planner + px4ctrl + multipoint</code>。</li>
+<li>单机 VIO：通过 <code>run_single_vio.sh</code> 拉起 <code>mavros + realsense2_camera + vins + diff_planner + px4ctrl + multipoint</code>。</li>
+<li>单机规划：由 <code>diff_planner</code> 输出轨迹，<code>traj_server</code> 送入 <code>/setpoints_cmd</code>。</li>
+<li>多点任务：由 <code>multipoint</code> 读取 <code>points.yaml</code>，触发方式为脚本或 RC 8 通映射。</li>
+<li>自动起降：通过 <code>/px4ctrl/takeoff_land</code> 的 <code>takeoff_land_cmd=1/2</code>。</li>
+<li>状态观测：依赖 <code>/mavros/state</code>、<code>/mavros/battery</code>、<code>/mavros/rc/in</code>、<code>/ekf/ekf_odom</code>、<code>/vins/imu_propagate</code> 等接口。</li>
+</ul>
+<h3>2.2 扩展能力边界</h3>
+<ul>
+<li>Elastic / 目标跟踪：当前不作为实机默认链路。</li>
+<li>FUEL / 自主探索：当前不作为实机默认链路。</li>
+<li>Formation / 集群：当前不作为实机默认链路。</li>
+<li>YOLO 检测：当前不作为实机默认链路。</li>
+</ul>
+<h2>3. 启动链与运行链</h2>
+<h3>3.1 LIO 启动链</h3>
+<p class="chain-line"><code>run_single_lio.sh</code></p>
+<p class="chain-line">-&gt; <code>roslaunch mavros px4.launch</code></p>
+<p class="chain-line">-&gt; <code>rosrun mavros mavcmd long ...</code></p>
+<p class="chain-line">-&gt; <code>roslaunch faster_lio mapping_mid360.launch</code></p>
+<p class="chain-line">-&gt; <code>roslaunch ekf ekf_lidar.launch</code></p>
+<p class="chain-line">-&gt; <code>roslaunch diff_planner run_exp_single_lio.launch</code></p>
+<p class="chain-line">-&gt; <code>roslaunch px4ctrl run_ctrl_lio.launch</code></p>
+<p class="chain-line">-&gt; <code>roslaunch multipoint multipointplan_exp_lio.launch</code></p>
+<p class="chain-line">-&gt; <code>roslaunch diff_planner exp_rviz.launch</code></p>
+<h3>3.2 VIO 启动链</h3>
+<p class="chain-line"><code>run_single_vio.sh</code></p>
+<p class="chain-line">-&gt; <code>roslaunch mavros px4.launch</code></p>
+<p class="chain-line">-&gt; <code>rosrun mavros mavcmd long ...</code></p>
+<p class="chain-line">-&gt; <code>roslaunch realsense2_camera rs_camera.launch</code></p>
+<p class="chain-line">-&gt; <code>roslaunch vins vins_d435.launch</code></p>
+<p class="chain-line">-&gt; <code>roslaunch diff_planner run_exp_single_vio.launch</code></p>
+<p class="chain-line">-&gt; <code>roslaunch px4ctrl run_ctrl_vio.launch</code></p>
+<p class="chain-line">-&gt; <code>roslaunch multipoint multipointplan_exp_vio.launch</code></p>
+<p class="chain-line">-&gt; <code>roslaunch diff_planner exp_rviz.launch</code></p>
+<h3>3.3 动作触发链</h3>
+<ul>
+<li>起飞：<code>takeoff.sh</code> 或 RC 8 通下-&gt;中 -&gt; <code>/px4ctrl/takeoff_land</code></li>
+<li>开始任务：<code>pub_trigger.sh</code> 或 RC 8 通中-&gt;上 -&gt; <code>/move_base_simple/goal</code></li>
+<li>返程：<code>back.sh</code> 或 RC 8 通上-&gt;中 -&gt; <code>/back_trigger</code></li>
+<li>降落：<code>land.sh</code> 或 RC 8 通中-&gt;下 -&gt; <code>/px4ctrl/takeoff_land</code></li>
+</ul>
+<h2>4. 接口说明</h2>
+<h3>4.1 人工物理层</h3>
+<ul>
+<li>RC 5 通：光流 / 姿态 / onboard 模式切换，是上层控制能否真正接管 <code>px4ctrl</code> 的前置门。</li>
+<li>RC 6 通：悬停 / 轨迹模式切换，异常时优先上拨 6 通回到安全兜底状态。</li>
+<li>RC 7 通：解锁 / 锁桨 / 急停，是最高优先级安全通道。</li>
+<li>RC 8 通：起飞 / 开始任务 / 返程 / 降落动作触发，<code>multipoint</code> 会直接读取 <code>/mavros/rc/in</code> 中该通道的变化。</li>
+</ul>
+<h3>4.2 脚本编排层</h3>
+<ul>
+<li><code>run_single_lio.sh</code>：LIO 全栈入口，负责把 <code>mavros</code>、<code>faster_lio</code>、<code>ekf</code>、<code>diff_planner</code>、<code>px4ctrl</code>、<code>multipoint</code> 依次拉起。</li>
+<li><code>run_single_vio.sh</code>：VIO 全栈入口，负责把 <code>mavros</code>、<code>realsense2_camera</code>、<code>vins</code>、<code>diff_planner</code>、<code>px4ctrl</code>、<code>multipoint</code> 依次拉起。</li>
+<li><code>takeoff.sh</code>：向 <code>/px4ctrl/takeoff_land</code> 发布起飞命令。</li>
+<li><code>pub_trigger.sh</code>：向 <code>/move_base_simple/goal</code> 发布开始任务触发。</li>
+<li><code>back.sh</code>：向 <code>/back_trigger</code> 发布返程触发。</li>
+<li><code>land.sh</code>：向 <code>/px4ctrl/takeoff_land</code> 发布降落命令。</li>
+</ul>
+<h3>4.3 ROS 动作层</h3>
+<ul>
+<li><code>/px4ctrl/takeoff_land</code>：<code>quadrotor_msgs/TakeoffLand</code>，通过 <code>takeoff_land_cmd=1/2</code> 表示起飞 / 降落。</li>
+<li><code>/move_base_simple/goal</code>：<code>geometry_msgs/PoseStamped</code>，被 <code>multipoint</code> 用作开始任务触发。</li>
+<li><code>/back_trigger</code>：<code>geometry_msgs/PoseStamped</code>，被 <code>multipoint</code> 用作返程触发。</li>
+<li><code>/goal</code>：<code>geometry_msgs/PoseStamped</code>，由 <code>multipoint</code> 向规划器逐点发送任务目标。</li>
+<li><code>/planning/yaw</code>：<code>quadrotor_msgs/PositionCommand</code>，在带 yaw 的多点模式中补充偏航命令。</li>
+<li><code>/setpoints_cmd</code>：<code>quadrotor_msgs/PositionCommand</code>，<code>traj_server</code> 输出给 <code>px4ctrl</code> 的核心控制通道。</li>
+</ul>
+<h3>4.4 ROS 状态观测层</h3>
+<ul>
+<li><code>/mavros/state</code>：飞控连接、模式、解锁状态的第一入口。</li>
+<li><code>/mavros/battery</code>：电压、电流、电量百分比的常用入口。</li>
+<li><code>/mavros/rc/in</code>：遥控器原始通道输入，既是安全门又是动作映射源。</li>
+<li><code>/mavros/imu/data</code>：飞控 IMU 输入，<code>px4ctrl</code> 明确依赖该 topic。</li>
+<li><code>/mavros/local_position/pose</code>：PX4 本地位姿输出。</li>
+<li><code>/ekf/ekf_odom</code>：LIO 主链下的融合定位输出。</li>
+<li><code>/laserMapping/odometry</code>：<code>faster_lio</code> 原始里程计输出。</li>
+<li><code>/laserMapping/cloud_registered</code>：规划器和 rviz 常看的配准点云。</li>
+<li><code>/vins/imu_propagate</code>：VIO 主链下的惯导融合定位输出。</li>
+<li><code>/drone_0_planning/trajectory</code>：规划器发布的轨迹结果。</li>
+</ul>
+<h3>4.5 配置入口层</h3>
+<ul>
+<li><code>points.yaml</code>：定义 <code>test1</code>、<code>test2</code>、<code>test3</code>、<code>test4</code> 和 <code>test_back</code>，决定多点任务的格式和返程点。</li>
+<li><code>ctrl_param_fpv.yaml</code>：定义低压阈值、自动起飞高度、自动起降速度、手动接管速度上限等飞控侧关键参数。</li>
+<li><code>multipointplan_exp_lio.launch</code>：定义 <code>fligt_type</code>、<code>next_distance</code>、<code>start_plan</code>、<code>back_plan</code>。</li>
+<li><code>run_exp_single_lio.launch</code>：定义 LIO 规划链的速度、加速度、jerk、地图分辨率、膨胀半径等参数。</li>
+<li><code>run_exp_single_vio.launch</code>：定义 VIO 规划链的视觉输入、相机内参和规划参数。</li>
+</ul>
+<h3>4.6 扩展接入层</h3>
+<ul>
+<li>桥接型接入：外部系统订阅状态 topic，发布动作 topic，不直接碰控制器内部状态机。</li>
+<li>任务层接入：替换 <code>points.yaml</code> 或 <code>multipoint</code> 的任务来源，把上层任务转成航点或动作原语。</li>
+<li>深改型接入：修改 <code>diff_planner</code>、<code>traj_server</code>、<code>px4ctrl</code>，适合算法级改造，不适合作为第一接入点。</li>
+</ul>
+<h2>5. 关键参数入口</h2>
+<h3>5.1 <code>points.yaml</code></h3>
+<ul>
+<li>负责定义 <code>test1</code>、<code>test2</code>、<code>test3</code>、<code>test4</code> 和 <code>test_back</code>。</li>
+<li><code>fligt_type=1</code> 时每个点必须是 <code>[x, y, z]</code>。</li>
+<li><code>fligt_type=2</code> 时每个点必须是 <code>[x, y, z, time]</code>。</li>
+<li><code>fligt_type=3</code> 时每个点必须是 <code>[x, y, z, yaw]</code>。</li>
+<li><code>fligt_type=4</code> 时每个点必须是 <code>[x, y, z, yaw, time]</code>。</li>
+<li><code>test_back</code> 固定为三元组 <code>[x, y, z]</code>，格式不对会被 <code>multipoint</code> 直接判错。</li>
+</ul>
+<h3>5.2 <code>ctrl_param_fpv.yaml</code></h3>
+<ul>
+<li><code>low_voltage</code>：低压阈值，当前为 21.0V。</li>
+<li><code>auto_takeoff_land.takeoff_height</code>：自动起飞高度，当前为 0.8m。</li>
+<li><code>auto_takeoff_land.takeoff_land_speed</code>：自动起降速度，当前为 0.2m/s。</li>
+<li><code>max_manual_vel</code>：手动接管速度上限，当前为 1.0m/s。</li>
+<li><code>msg_timeout.odom/rc/cmd/imu/bat</code>：各类输入超时门槛，超时会直接影响控制器接管和执行。</li>
+</ul>
+<h3>5.3 <code>multipointplan_exp_lio.launch</code></h3>
+<ul>
+<li><code>fligt_type</code>：多点模式选择，源码中保留该拼写，不要擅自更名。</li>
+<li><code>next_distance</code>：判定到达当前点并切下一个点的阈值。</li>
+<li><code>start_plan</code>：是否启用开始任务逻辑。</li>
+<li><code>back_plan</code>：是否启用返程逻辑。</li>
+</ul>
+<h3>5.4 <code>run_exp_single_lio.launch</code></h3>
+<ul>
+<li><code>max_vel</code></li>
+<li><code>max_acc</code></li>
+<li><code>max_jer</code></li>
+<li><code>planning_horizon</code></li>
+<li><code>map_resolution</code></li>
+<li><code>inflation_size</code></li>
+<li><code>virtual_ceil</code></li>
+<li><code>virtual_ground</code></li>
+</ul>
+<h3>5.5 <code>run_exp_single_vio.launch</code></h3>
+<ul>
+<li>视觉模式下的规划参数入口与 LIO 基本一致。</li>
+<li>相机内参通过 <code>cx</code>、<code>cy</code>、<code>fx</code>、<code>fy</code> 提供，错误内参会直接破坏 VIO 规划效果。</li>
+<li>深度输入来自 <code>/camera/depth/image_rect_raw</code>，odom 输入来自 <code>/vins/imu_propagate</code>。</li>
+</ul>
+<h2>6. 状态观测与排障路径</h2>
+<h3>6.1 日常观测最短路径</h3>
+<ul>
+<li>看电量：<code>/mavros/battery</code></li>
+<li>看飞控连接和模式：<code>/mavros/state</code></li>
+<li>看 RC 输入：<code>/mavros/rc/in</code></li>
+<li>看 PX4 本地位姿：<code>/mavros/local_position/pose</code></li>
+<li>看 LIO 融合定位：<code>/ekf/ekf_odom</code></li>
+<li>看 VIO 定位：<code>/vins/imu_propagate</code></li>
+<li>看点云质量：<code>/laserMapping/cloud_registered</code></li>
+<li>看规划轨迹：<code>/drone_0_planning/trajectory</code></li>
+</ul>
+<h3>6.2 排障顺序</h3>
+<ol>
+<li>先确认入口脚本是否完整拉起，不要只看到 <code>px4ctrl</code> 在就误判全链在线。</li>
+<li>再确认 <code>mavros</code> 是否在线，优先看 <code>/mavros/state</code>、<code>/mavros/battery</code>、<code>/mavros/rc/in</code>。</li>
+<li>再确认定位链是否正常输出，LIO 看 <code>/ekf/ekf_odom</code> 和点云，VIO 看 <code>/vins/imu_propagate</code> 和相机链。</li>
+<li>再确认动作 topic 是否被正确触发，尤其是 <code>/px4ctrl/takeoff_land</code>、<code>/move_base_simple/goal</code>、<code>/back_trigger</code>。</li>
+<li>最后确认 RC 档位、安全门和超时参数，避免把人为状态门限问题误判成算法问题。</li>
+</ol>
+<h3>6.3 常见误判</h3>
+<ul>
+<li><code>run_ctrl_lio.launch</code> 不是全栈入口，它只起 <code>px4ctrl</code>。</li>
+<li>wiki 上出现的功能不等于当前机器已经可直接启动。</li>
+<li>有规划轨迹不等于 <code>px4ctrl</code> 一定在执行，还要看飞控模式、RC 档位和控制器状态。</li>
+</ul>
+<h2>7. 二开建议与扩展边界</h2>
+<h3>7.1 推荐接入顺序</h3>
+<ol>
+<li>先做桥接型接入，不碰底层控制。</li>
+<li>再做任务层改造，把上层任务映射成航点或动作原语。</li>
+<li>最后才考虑深改规划器或控制器。</li>
+</ol>
+<h3>7.2 最小上层系统接入方案</h3>
+<ul>
+<li>订阅：<code>/mavros/state</code>、<code>/mavros/battery</code>、<code>/mavros/rc/in</code>、<code>/ekf/ekf_odom</code>、<code>/vins/imu_propagate</code></li>
+<li>发布：<code>/px4ctrl/takeoff_land</code>、<code>/move_base_simple/goal</code>、<code>/back_trigger</code></li>
+<li>如果要保留现有任务逻辑，就不要直接绕过 <code>multipoint</code> 写 <code>/goal</code> 或 <code>/setpoints_cmd</code>。</li>
+</ul>
+<h3>7.3 不推荐的第一刀</h3>
+<ul>
+<li>不要第一步就直接从 <code>/setpoints_cmd</code> 控制器注入高频命令。</li>
+<li>不要第一步就改 <code>px4ctrl</code> 状态机。</li>
+<li>不要把 Elastic / 集群 / YOLO 写进当前实机默认能力。</li>
+<li>不要把产品线文档里的能力边界和当前机上边界混在一起。</li>
+</ul></article>
+          <article class="doc-card"><h1>状态与截图对照附录</h1>
+<h2>使用原则</h2>
+<ul>
+<li>这一附录服务于开发者日常排查，不替代完整说明书。</li>
+<li>当前仓库中的原始图片多数是算法 README 图、仿真 gif 或模块演示图，不能直接当作实机日常操作截图。</li>
+<li>因此这里分成两部分：一部分写当前已经能引用的证据，一部分明确需要补采的实机画面。</li>
+</ul>
+<h2>起飞前</h2>
+<ul>
+<li>应同时展示遥控器 5/6/7/8 通档位，至少能一眼看出当前是否满足 onboard + 轨迹模式 + 已解锁的自动起飞前置条件。</li>
+<li>应展示起飞前终端或 rviz 的关键状态，重点是 <code>/mavros/state</code>、<code>/mavros/battery</code>、<code>/mavros/rc/in</code> 三项联合观测。</li>
+<li>应提示开发者在起飞前先确认定位链已经稳定输出，LIO 看 <code>/ekf/ekf_odom</code>，VIO 看 <code>/vins/imu_propagate</code>。</li>
+<li>当前可引用的原始证据主要来自本地知识库中的遥控器通道说明和状态观测命令，不存在一张已经整理好的“起飞前状态总图”。</li>
+</ul>
+<h2>手动悬停与接管</h2>
+<ul>
+<li>应展示 5 通和 6 通切换后的状态语义，至少覆盖 onboard、姿态、光流和悬停兜底四种判断。</li>
+<li>应提示出现异常时优先上拨 6 通回悬停，再按需要切 5 通或 7 通。</li>
+<li>应提示开发者观察 <code>/mavros/rc/in</code>，确认当前不是软件逻辑错误，而是 RC 档位没满足安全门。</li>
+<li>当前仓库里只有遥控器通道文字说明，没有成套的“接管前后对照图”。</li>
+</ul>
+<h2>自主执行</h2>
+<ul>
+<li>应展示任务启动后 rviz 中的轨迹、点云和当前位置关系。</li>
+<li>应提示开发者同步检查 <code>/drone_0_planning/trajectory</code>、<code>/setpoints_cmd</code>、<code>/ekf/ekf_odom</code> 或 <code>/vins/imu_propagate</code>。</li>
+<li>当前可引用的素材包括 <code>Diff-planner/images/rviz_test.gif</code> 和 <code>Diff-planner/images/navigation.gif</code>，但这两份更偏算法演示，不应当替代实机日常判断图。</li>
+<li>当前更可靠的文字证据来自本地知识库对 LIO/VIO 主链和规划 topic 的整理。</li>
+</ul>
+<h2>返航与降落</h2>
+<ul>
+<li>应展示返航触发和降落触发的两种方式：脚本触发与 RC 8 通触发。</li>
+<li>应提示开发者检查 <code>/back_trigger</code>、<code>/px4ctrl/takeoff_land</code>、<code>/mavros/state</code>，确认系统是否真正进入返航或降落动作。</li>
+<li>应展示落地后如何判断任务真正结束，例如轨迹停止刷新、状态稳定、动力系统已安全退出。</li>
+<li>当前没有一套现成的“返航前后”和“降落完成后”对照截图，需要补采。</li>
+</ul></article>
+          <article class="doc-card"><h1>开发导航页</h1>
+<h2>我想改什么，应该看哪里</h2>
+<ul>
+<li>想改起飞高度 -&gt; <code>01-developer-guide.md</code> 的参数入口章节 + <code>ctrl_param_fpv.yaml</code></li>
+<li>想改低压阈值 -&gt; <code>01-developer-guide.md</code> 的参数入口章节 + <code>ctrl_param_fpv.yaml</code></li>
+<li>想改航点格式 -&gt; <code>points.yaml</code> + <code>multipointplan_exp_lio.launch</code></li>
+<li>想改 LIO 规划参数 -&gt; <code>run_exp_single_lio.launch</code></li>
+<li>想改 VIO 规划参数或相机内参 -&gt; <code>run_exp_single_vio.launch</code></li>
+<li>想接上层 Agent / MQTT / HTTP 桥接 -&gt; <code>02-interface-table.csv</code> 的状态接口和动作接口 + <code>01-developer-guide.md</code> 的“二开建议与扩展边界”</li>
+<li>想知道任务是怎么开始的 -&gt; <code>run_single_lio.sh</code> / <code>run_single_vio.sh</code> + <code>/move_base_simple/goal</code></li>
+<li>想看返航和降落怎么触发 -&gt; <code>/back_trigger</code> + <code>/px4ctrl/takeoff_land</code> + <code>RC Channel 8</code></li>
+<li>想看电量、位置、姿态 -&gt; <code>/mavros/battery</code>、<code>/mavros/local_position/pose</code>、<code>/ekf/ekf_odom</code>、<code>/vins/imu_propagate</code></li>
+<li>想判断问题在脚本、定位、规划还是控制 -&gt; <code>01-developer-guide.md</code> 的“状态观测与排障路径”</li>
+<li>想判断 Elastic / FUEL / 集群是否当前能直接用 -&gt; <code>03-feature-deployment-matrix.csv</code></li>
+<li>想决定新功能应该插在哪一层 -&gt; <code>01-developer-guide.md</code> 的“接口说明”与“二开建议与扩展边界”</li>
+</ul></article>
+        </div>
+      </section>
+
+      <section class="section" id="gaps">
+        <div class="section-header">
+          <div>
+            <h2>素材缺口</h2>
+            <p>这部分服务于后续补日常使用截图、补培训材料和做更强速查版。P0 先补，P1 次之。</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>状态场景</th>
+                <th>需要补什么</th>
+                <th>为什么缺</th>
+                <th>补采指令</th>
+                <th>优先级</th>
+              </tr>
+            </thead>
+            <tbody>
+        <tr>
+          <td>起飞前</td>
+          <td>遥控器全景+5/6/7/8 通档位</td>
+          <td>现有资料只有文字说明且未集中标注档位</td>
+          <td>补拍遥控器正视图并在图上标明 5/6/7/8 通位置和含义</td>
+          <td>P0</td>
+        </tr>
+        
+        <tr>
+          <td>起飞前</td>
+          <td>终端中 /mavros/state + /mavros/battery + /mavros/rc/in 三联观测</td>
+          <td>只有命令没有统一截图</td>
+          <td>补拍三个终端或 tmux 分屏画面并保留时间戳</td>
+          <td>P0</td>
+        </tr>
+        
+        <tr>
+          <td>手动悬停与接管</td>
+          <td>6 通上拨后的安全兜底状态</td>
+          <td>缺少接管前后对照图</td>
+          <td>补拍悬停状态下的 RC 档位和 rviz/终端画面</td>
+          <td>P0</td>
+        </tr>
+        
+        <tr>
+          <td>自主执行</td>
+          <td>LIO 任务执行中的轨迹和点云画面</td>
+          <td>现有 gif 更偏算法展示没有开发判断点标注</td>
+          <td>补加标注或重截更清晰的实机 rviz 画面</td>
+          <td>P1</td>
+        </tr>
+        
+        <tr>
+          <td>自主执行</td>
+          <td>VIO 任务执行中的相机/VINS/轨迹联合画面</td>
+          <td>只有文字和零散图没有联合视图</td>
+          <td>补拍相机图像 + odom + rviz 联合画面</td>
+          <td>P1</td>
+        </tr>
+        
+        <tr>
+          <td>返航与降落</td>
+          <td>返航触发前后对照</td>
+          <td>缺少返航触发前后状态画面</td>
+          <td>补拍返航触发瞬间和返航中状态</td>
+          <td>P1</td>
+        </tr>
+        
+        <tr>
+          <td>返航与降落</td>
+          <td>自动降落完成后落地判定画面</td>
+          <td>缺少动作结束示例</td>
+          <td>补拍落地后状态与终端提示并标注结束判据</td>
+          <td>P1</td>
+        </tr>
+        </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="evidence">
+        <div class="section-header">
+          <div>
+            <h2>证据索引</h2>
+            <p>你如果要追源码、追知识库、追某条结论的出处，这里是最短入口。</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>证据 ID</th>
+                <th>结论</th>
+                <th>来源路径</th>
+              </tr>
+            </thead>
+            <tbody>
+        <tr>
+          <td>E001_machine_orin_nx</td>
+          <td>机载电脑为 Jetson Orin NX 16GB</td>
+          <td>uav/10-knowledge-base/00-总览.md</td>
+        </tr>
+        
+        <tr>
+          <td>E002_ros_noetic</td>
+          <td>ROS 版本为 Noetic</td>
+          <td>uav/10-knowledge-base/00-总览.md</td>
+        </tr>
+        
+        <tr>
+          <td>E003_diff_planner_only_workspace</td>
+          <td>当前唯一主工作空间为 Diff-planner</td>
+          <td>uav/10-knowledge-base/00-总览.md</td>
+        </tr>
+        
+        <tr>
+          <td>E004_d435_present</td>
+          <td>当前机上存在 Intel RealSense D435</td>
+          <td>uav/10-knowledge-base/01-硬件与系统.md</td>
+        </tr>
+        
+        <tr>
+          <td>E005_livox_present</td>
+          <td>当前机上存在 Livox MID360</td>
+          <td>uav/10-knowledge-base/01-硬件与系统.md</td>
+        </tr>
+        
+        <tr>
+          <td>E006_run_single_lio_script</td>
+          <td>LIO 全栈入口脚本存在且会拉起 mavros/faster_lio/ekf/planner/px4ctrl/multipoint</td>
+          <td>uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/run_single_lio.sh</td>
+        </tr>
+        
+        <tr>
+          <td>E007_run_single_vio_script</td>
+          <td>VIO 全栈入口脚本存在且会拉起 mavros/realsense/vins/planner/px4ctrl/multipoint</td>
+          <td>uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/run_single_vio.sh</td>
+        </tr>
+        
+        <tr>
+          <td>E008_takeoff_topic</td>
+          <td>自动起飞和降落通过 /px4ctrl/takeoff_land 触发</td>
+          <td>uav/03-drone-code/snapshot_20260421_174511/Diff-planner/sh_files/takeoff.sh</td>
+        </tr>
+        
+        <tr>
+          <td>E009_rc_mapping</td>
+          <td>multipoint 会订阅 /mavros/rc/in 并把 8 通变化映射为起飞/开始/返航/降落</td>
+          <td>uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/src/multipointplan.cpp</td>
+        </tr>
+        
+        <tr>
+          <td>E010_elastic_not_onboard</td>
+          <td>Elastic-Tracker 当前不在机上主工作空间中</td>
+          <td>uav/10-knowledge-base/00-总览.md</td>
+        </tr>
+        
+        <tr>
+          <td>E011_vins_output</td>
+          <td>VIO 主输出为 /vins/imu_propagate</td>
+          <td>uav/10-knowledge-base/05-传感器与状态回传.md</td>
+        </tr>
+        
+        <tr>
+          <td>E012_ekf_output</td>
+          <td>LIO 融合主输出为 /ekf/ekf_odom</td>
+          <td>uav/10-knowledge-base/05-传感器与状态回传.md</td>
+        </tr>
+        
+        <tr>
+          <td>E013_battery_topic</td>
+          <td>电量通过 /mavros/battery 读取</td>
+          <td>uav/10-knowledge-base/05-传感器与状态回传.md</td>
+        </tr>
+        
+        <tr>
+          <td>E014_ctrl_params</td>
+          <td>起飞高度与低压阈值位于 ctrl_param_fpv.yaml</td>
+          <td>uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/realflight_modules/px4ctrl/config/ctrl_param_fpv.yaml</td>
+        </tr>
+        
+        <tr>
+          <td>E015_points_yaml</td>
+          <td>航点和返程点定义位于 points.yaml</td>
+          <td>uav/03-drone-code/snapshot_20260421_174511/Diff-planner/src/user_command/multipoint/config/points.yaml</td>
+        </tr>
+        </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="downloads">
+        <div class="section-header">
+          <div>
+            <h2>导出件</h2>
+            <p>HTML 负责读起来舒服；Word 和 Excel 继续保留给归档、转发和二次加工。</p>
+          </div>
+        </div>
+        
+    <div class="download-row">
+      <a class="download-link" href="./非凸α-开发者文档包.docx">开发文档包.docx</a>
+      <a class="download-link" href="./非凸α-接口总表.xlsx">接口总表.xlsx</a>
+      <a class="download-link" href="./非凸α-功能部署矩阵.xlsx">功能部署矩阵.xlsx</a>
+      <a class="download-link" href="./非凸α-素材缺口表.xlsx">素材缺口表.xlsx</a>
+    </div>
+    
+        <p class="footer-note">如果你更习惯线性阅读，直接看 <code>开发文档包.docx</code>；如果要快速接机器，看 <code>接口总表.xlsx</code> 的 <code>场景速查</code> 和 <code>推荐接入</code>。</p>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const searchInput = document.getElementById('interface-search');
+    const buttons = Array.from(document.querySelectorAll('#filter-buttons button'));
+    const cards = Array.from(document.querySelectorAll('.interface-row'));
+    const sceneCards = Array.from(document.querySelectorAll('.scene-jump'));
+    const traceTriggers = Array.from(document.querySelectorAll('.trace-trigger'));
+    const sceneStatusTitle = document.getElementById('scene-status-title');
+    const sceneStatusDesc = document.getElementById('scene-status-desc');
+    const sceneStatusCount = document.getElementById('scene-status-count');
+    const traceKind = document.getElementById('trace-kind');
+    const traceTitle = document.getElementById('trace-title');
+    const tracePurpose = document.getElementById('trace-purpose');
+    const traceLayer = document.getElementById('trace-layer');
+    const traceEvidence = document.getElementById('trace-evidence');
+    const traceStatus = document.getElementById('trace-status');
+    const tracePreconditions = document.getElementById('trace-preconditions');
+    const traceSource = document.getElementById('trace-source');
+    const traceClaim = document.getElementById('trace-claim');
+    const traceUpdown = document.getElementById('trace-updown');
+    const traceExample = document.getElementById('trace-example');
+    const traceRisk = document.getElementById('trace-risk');
+    const traceNotes = document.getElementById('trace-notes');
+    let activeFilter = 'all';
+
+    function setActiveFilter(filter) {
+      activeFilter = filter;
+      buttons.forEach((item) => item.classList.toggle('active', item.dataset.filter === filter));
+    }
+
+    function applyFilters() {
+      const tokens = searchInput.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      let visibleCount = 0;
+      cards.forEach((card) => {
+        const category = card.dataset.category;
+        const haystack = card.dataset.search.toLowerCase();
+        const matchesFilter = activeFilter === 'all' || category === activeFilter;
+        const matchesKeyword = !tokens.length || tokens.every((token) => haystack.includes(token));
+        const visible = matchesFilter && matchesKeyword;
+        card.style.display = visible ? '' : 'none';
+        if (visible) {
+          visibleCount += 1;
+        }
+      });
+      sceneStatusCount.textContent = '当前显示 ' + visibleCount + ' 条接口';
+    }
+
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        setActiveFilter(button.dataset.filter);
+        sceneCards.forEach((card) => card.classList.remove('active-scene'));
+        sceneStatusTitle.textContent = '当前未锁定场景';
+        sceneStatusDesc.textContent = '你可以手动搜索，也可以点上面的场景卡，把接口区切到你当前真正关心的入口。';
+        applyFilters();
+      });
+    });
+
+    sceneCards.forEach((card) => {
+      function jumpToScene() {
+        const query = card.dataset.sceneQuery || '';
+        const filter = card.dataset.sceneFilter || 'all';
+        const title = card.dataset.sceneTitle || '场景入口';
+        const summary = card.dataset.sceneSummary || '';
+
+        sceneCards.forEach((item) => item.classList.toggle('active-scene', item === card));
+        searchInput.value = query;
+        setActiveFilter(filter);
+        sceneStatusTitle.textContent = '当前场景：' + title;
+        sceneStatusDesc.textContent = summary;
+        applyFilters();
+        document.getElementById('explorer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      card.addEventListener('click', jumpToScene);
+      card.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          jumpToScene();
+        }
+      });
+    });
+
+    function updateTrace(trigger, shouldScroll) {
+      traceTriggers.forEach((item) => item.classList.toggle('active-trace', item === trigger));
+      traceKind.textContent = trigger.dataset.traceKind || '';
+      traceTitle.textContent = trigger.dataset.traceTitle || '';
+      tracePurpose.textContent = trigger.dataset.tracePurpose || '';
+      traceLayer.textContent = trigger.dataset.traceLayer || '';
+      traceEvidence.textContent = trigger.dataset.traceEvidence || '';
+      traceStatus.textContent = trigger.dataset.traceStatus || '';
+      tracePreconditions.textContent = trigger.dataset.tracePreconditions || '';
+      traceSource.textContent = trigger.dataset.traceSource || '';
+      traceClaim.textContent = trigger.dataset.traceClaim || '';
+      traceUpdown.textContent = (trigger.dataset.traceUpstream || '') + ' → ' + (trigger.dataset.traceDownstream || '');
+      traceExample.textContent = trigger.dataset.traceExample || '';
+      traceRisk.textContent = trigger.dataset.traceRisk || '';
+      traceNotes.textContent = trigger.dataset.traceNotes || '';
+
+      if (shouldScroll) {
+        document.getElementById('trace').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    traceTriggers.forEach((trigger) => {
+      function activateTrace() {
+        const shouldScroll = !trigger.closest('#explorer');
+        updateTrace(trigger, shouldScroll);
+      }
+
+      trigger.addEventListener('click', activateTrace);
+      trigger.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          activateTrace();
+        }
+      });
+    });
+
+    searchInput.addEventListener('input', applyFilters);
+    applyFilters();
+    const defaultTrace = traceTriggers.find((item) => item.dataset.traceDefault === 'true') || traceTriggers[0];
+    if (defaultTrace) {
+      updateTrace(defaultTrace, false);
+    }
+  </script>
+</body>
+</html>
