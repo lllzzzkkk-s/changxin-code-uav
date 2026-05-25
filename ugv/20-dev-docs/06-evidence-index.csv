@@ -2,3 +2,7 @@ evidence_id,kind,title,status,source_path,notes
 UGV-E001,pdf,OS-mate robot platform user manual V1.0.2,manual-ingested,ugv/02-pdf-source/OS-mate-机器人开发平台-用户使用手册-v1.0.2.pdf,Initial manual-only analysis; requires vehicle code and runtime graph validation.
 UGV-E002,script,UGV read-only probe script,created,ugv/01-scripts/probe_ugv_readonly.sh,Run on the vehicle after NoMachine/SSH access to collect code and ROS graph evidence.
 UGV-E003,pdf,OS-mate network bridge configuration,manual-ingested,ugv/02-pdf-source/OS-mate-网络配置.pdf,Router bridge plus IPC/lidar IP setup; use one main Wi-Fi subnet with unique IPs per vehicle.
+UGV-E004,vehicle-code,UGV-1 filtered catkin source snapshot,operator-collected,external:/home/yhs/ugv-probe-20260525_110004/ugv_source_filtered_20260525_110004.tar.gz,Mirrored to WSL2 for analysis; keep tarball outside Git.
+UGV-E005,vehicle-runtime,UGV-1 C0 runtime graph and TF evidence,operator-collected,external:/home/yhs/ugv-real-evidence/c0-runtime-20260525_111227,Confirms move_base, velocity smoother, yhs_can_control, map-to-base_link TF, odom topic, chassis feedback, IMU.
+UGV-E006,vehicle-runtime,UGV-1 C1 cancel/status safety evidence,operator-collected,external:/home/yhs/ugv-real-evidence/c1-cancel-20260525_111955,Confirms move_base cancel topic is live and no unintended velocity after cancel check.
+UGV-E007,script,UGV runtime read-only probe script,created,ugv/01-scripts/probe_ugv_runtime_readonly.sh,Run on the vehicle after yhs_nav launch is already up; does not publish or call services.
