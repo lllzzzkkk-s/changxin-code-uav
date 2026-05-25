@@ -22,3 +22,8 @@ The Mac-side first state adapter is implemented in `ugv/llm_control/state_adapte
 It converts read-only runtime snapshots into `PlatformState.v1` and keeps the
 phase-1 motion gate conservative: the gateway reports lock state but never
 unlocks the chassis.
+
+The first dry-run task command adapter is implemented in
+`ugv/llm_control/command_adapter.py`. It maps `report_state`,
+`cancel_navigation`, and gated `navigate_to_pose` requests into structured
+reports and ROS instruction descriptions without publishing.
