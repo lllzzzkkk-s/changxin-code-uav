@@ -6,3 +6,4 @@ UGV-E004,vehicle-code,UGV-1 filtered catkin source snapshot,operator-collected,e
 UGV-E005,vehicle-runtime,UGV-1 C0 runtime graph and TF evidence,operator-collected,external:/home/yhs/ugv-real-evidence/c0-runtime-20260525_111227,Confirms move_base, velocity smoother, yhs_can_control, map-to-base_link TF, odom topic, chassis feedback, IMU.
 UGV-E006,vehicle-runtime,UGV-1 C1 cancel/status safety evidence,operator-collected,external:/home/yhs/ugv-real-evidence/c1-cancel-20260525_111955,Confirms move_base cancel topic is live and no unintended velocity after cancel check.
 UGV-E007,script,UGV runtime read-only probe script,created,ugv/01-scripts/probe_ugv_runtime_readonly.sh,Run on the vehicle after yhs_nav launch is already up; does not publish or call services.
+UGV-E008,code,UGV PlatformState adapter,created,ugv/llm_control/state_adapter.py,Converts read-only runtime snapshots into PlatformState.v1 with conservative motion gate and no ROS publishing.
