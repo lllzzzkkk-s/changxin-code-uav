@@ -1,0 +1,4 @@
+evidence_id,kind,title,status,source_path,notes
+UGV-E001,pdf,OS-mate robot platform user manual V1.0.2,manual-ingested,ugv/02-pdf-source/OS-mate-机器人开发平台-用户使用手册-v1.0.2.pdf,Initial manual-only analysis; requires vehicle code and runtime graph validation.
+UGV-E002,script,UGV read-only probe script,created,ugv/01-scripts/probe_ugv_readonly.sh,Run on the vehicle after NoMachine/SSH access to collect code and ROS graph evidence.
+UGV-E003,pdf,OS-mate network bridge configuration,manual-ingested,ugv/02-pdf-source/OS-mate-网络配置.pdf,Router bridge plus IPC/lidar IP setup; use one main Wi-Fi subnet with unique IPs per vehicle.
