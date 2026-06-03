@@ -83,6 +83,15 @@ Mac-side implementation result:
 - New artifacts include `execution_events.json` and `_ledger/<run_id>.ledger.json`.
 - Verification stayed no-hardware and mock-only on the Mac side; it did not verify the unit archive, connect ROS, or perform real gateway/hardware dispatch.
 
+4060 no-dispatch receipt:
+
+- Received on `2026-06-03` from the unit RTX 4060 Codex session.
+- The 4060 side synchronized GitHub branch `codex/phase2a-no-hardware-ops` and confirmed head `1f55373`.
+- The 4060 side reported `296` task-planning tests passed.
+- The 4060 side reported `work_hardware` readiness `ok=True`, site acceptance `ok=True`, `acceptance_level='work_hardware_pre_dispatch_ready'`, and `platform_backend='mock'`.
+- The 4060 side reported no non-convex alpha document work, no repo architecture rewrite, no dispatch, no real ROS connection, and no ROS read-only stage.
+- Evidence receipt: `docs/superpowers/evidence/2026-06-03-ugv-phase-2a-4060-no-dispatch-receipt.md`.
+
 ### Phase 2B: Reports And Operator-Facing Operations
 
 Scope:
@@ -213,20 +222,20 @@ Exit gate:
 
 ## Immediate Next Task
 
-Start only Phase 2A. Do not implement all phases at once.
+Start Phase 2B only. Do not implement all remaining phases at once.
 
-Required Phase 2A planning artifact:
+Required Phase 2B planning artifact:
 
-- `docs/superpowers/plans/2026-06-02-phase-2a-no-hardware-operations-hardening.md`
+- `docs/superpowers/plans/2026-06-03-phase-2b-no-hardware-operations-reporting.md`
 
-Phase 2A must produce a file-by-file implementation plan before code edits.
-The plan must keep Phase 2A limited to no-hardware operations hardening:
+Phase 2B must keep the work limited to no-hardware operations reporting:
 
-- `BehaviorTreeRuntime`
-- mission run ledger
-- ack, progress, failure, heartbeat, and platform-state ingestion
-- operator approval state
-- no-motion acceptance tests
+- dedicated no-motion acceptance report command
+- replay diagnostics for operator-facing summaries
+- Phase 1 archive identity and Phase 2 no-hardware run identity separation
+- operator approval and stale-approval visibility in machine-readable output
+- operator-view signal requirements without Qt UI code or raw ROS controls
 
-Do not dispatch subagents, do not connect to ROS, and do not run hardware or
-gateway dispatch while preparing this roadmap and plan.
+Do not connect to ROS, do not run gateway `dry_run`, do not dispatch, and do not
+start Phase 3 until the user explicitly asks for ROS1 gateway lifecycle or
+read-only service signature work.

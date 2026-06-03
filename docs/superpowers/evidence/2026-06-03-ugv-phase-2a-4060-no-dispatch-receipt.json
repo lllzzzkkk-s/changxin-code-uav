@@ -1,0 +1,66 @@
+{
+  "schema": "UgvPhase2ANoDispatchVerificationReceipt.v1",
+  "date": "2026-06-03",
+  "source": "user_pasted_4060_codex_reply",
+  "evidence_classification": "reported_by_unit_4060_codex_not_reverified_by_mac",
+  "machine": {
+    "role": "unit_rtx_4060_windows_wsl2",
+    "repo_path": "/mnt/d/changxin/changxin-code",
+    "repo_path_preexisted": false,
+    "synced_via": "github",
+    "remote": "https://github.com/lllzzzkkk-s/changxin-code-uav"
+  },
+  "git": {
+    "branch": "codex/phase2a-no-hardware-ops",
+    "head_short": "1f55373",
+    "head_subject": "docs: add ugv phase2a handoff",
+    "parent_short": "9a062b2",
+    "parent_subject": "feat: add distributed fleet task planning ops stack",
+    "worktree_status": "clean"
+  },
+  "commands_reported": [
+    "git fetch origin codex/phase2a-no-hardware-ops",
+    "git checkout -B codex/phase2a-no-hardware-ops origin/codex/phase2a-no-hardware-ops",
+    "git log -2 --oneline",
+    "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover tests/task_planning",
+    "PYTHONDONTWRITEBYTECODE=1 python3 tools/check_task_planning_readiness.py --profile profiles/work_hardware.env > /tmp/changxin-distributed-fleet-evidence/reports/ugv_phase2a_work_hardware_readiness.json",
+    "PYTHONDONTWRITEBYTECODE=1 python3 tools/check_task_planning_site_acceptance.py --profile profiles/work_hardware.env > /tmp/changxin-distributed-fleet-evidence/reports/ugv_phase2a_work_hardware_site_acceptance_no_dispatch.json"
+  ],
+  "reported_results": {
+    "unit_tests": {
+      "ok": true,
+      "tests_run": 296,
+      "duration_seconds": 916.526
+    },
+    "readiness": {
+      "path": "/tmp/changxin-distributed-fleet-evidence/reports/ugv_phase2a_work_hardware_readiness.json",
+      "ok": true,
+      "failures": []
+    },
+    "site_acceptance": {
+      "path": "/tmp/changxin-distributed-fleet-evidence/reports/ugv_phase2a_work_hardware_site_acceptance_no_dispatch.json",
+      "ok": true,
+      "acceptance_level": "work_hardware_pre_dispatch_ready",
+      "platform_backend": "mock",
+      "rosservice_audit": null,
+      "validation_errors": []
+    }
+  },
+  "boundary_confirmed_by_4060": {
+    "non_convex_alpha_docs_touched": false,
+    "repo_architecture_rewritten": false,
+    "dispatch_performed": false,
+    "real_ros_connected": false,
+    "ros_read_only_enabled": false
+  },
+  "known_environment_note": "WSL emitted localhost/NAT warnings on startup, but the 4060 report says they did not affect git or Python command completion.",
+  "not_proven_by_this_receipt": [
+    "Mac-side access to D:\\changxin",
+    "unit final archive SHA256 re-verification by this Mac session",
+    "live ROS1 service signature audit",
+    "gateway dry_run",
+    "gateway dispatch",
+    "hardware proof",
+    "controlled motion"
+  ]
+}

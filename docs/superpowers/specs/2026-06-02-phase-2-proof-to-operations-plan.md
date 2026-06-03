@@ -354,3 +354,43 @@ Remaining Phase 2B work:
 - Improve replay diagnostics for operator-facing summaries.
 - Define Qt/operator-view signals without adding raw ROS controls.
 - Leave ROS1 gateway lifecycle hardening for Phase 3 on the unit 4060 side.
+
+## Phase 2A 4060 No-Dispatch Verification Receipt
+
+Status: user-reported 4060 no-dispatch verification received on 2026-06-03.
+
+Evidence files:
+
+- `docs/superpowers/evidence/2026-06-03-ugv-phase-2a-4060-no-dispatch-receipt.md`
+- `docs/superpowers/evidence/2026-06-03-ugv-phase-2a-4060-no-dispatch-receipt.json`
+
+The unit 4060 Codex reported that it synchronized the GitHub branch
+`codex/phase2a-no-hardware-ops` and confirmed:
+
+```text
+1f55373 docs: add ugv phase2a handoff
+9a062b2 feat: add distributed fleet task planning ops stack
+```
+
+Reported 4060 no-dispatch acceptance:
+
+- `python3 -m unittest discover tests/task_planning`: `296` tests passed in `916.526s`.
+- Readiness report path:
+  `/tmp/changxin-distributed-fleet-evidence/reports/ugv_phase2a_work_hardware_readiness.json`.
+- Site acceptance report path:
+  `/tmp/changxin-distributed-fleet-evidence/reports/ugv_phase2a_work_hardware_site_acceptance_no_dispatch.json`.
+- Readiness reported `ok=True` and `failures=[]`.
+- Site acceptance reported `ok=True`,
+  `acceptance_level='work_hardware_pre_dispatch_ready'`,
+  `platform_backend='mock'`, `rosservice_audit=None`, and
+  `validation_errors=[]`.
+
+Boundary statement:
+
+- This Mac-side repo note records the pasted 4060 receipt; it did not re-run
+  the 4060 checks.
+- The 4060 run reported no non-convex alpha document work, no repo architecture
+  rewrite, no dispatch, no real ROS connection, and no ROS read-only stage.
+- This receipt proves GitHub synchronization and no-dispatch work-hardware
+  readiness on the 4060 lane. It is not a live ROS1 signature audit, gateway
+  `dry_run`, gateway `dispatch`, hardware proof, or controlled-motion proof.
