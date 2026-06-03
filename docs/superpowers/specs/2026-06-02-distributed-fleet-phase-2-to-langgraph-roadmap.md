@@ -107,6 +107,29 @@ Exit gate:
 - The report states Phase 1 archive identity and Phase 2 no-hardware run identity separately.
 - Operator approval prompts and stale-approval rejection are visible in machine-readable output.
 
+Mac-side implementation result on 2026-06-03:
+
+- Implemented `Phase2NoMotionAcceptanceReport.v1` and
+  `tools/check_phase2_no_motion_acceptance.py`.
+- Implemented `ArtifactReplayDiagnosticSummary.v1` and
+  `tools/replay_task_planning_artifact.py --summary`.
+- Added read-only operator-view signal requirements in
+  `docs/superpowers/specs/2026-06-03-phase-2b-operator-view-signals.md`.
+- Added Phase 2 roadmap, Phase 2B plan/spec, and the Phase 2B acceptance CLI to
+  the task-planning migration bundle.
+- Verified on Mac with `302` task-planning tests, a fresh `dev_mock`
+  `single_ugv_inspection` artifact, `Phase2NoMotionAcceptanceReport.v1`
+  `ok=true`, and `ArtifactReplayDiagnosticSummary.v1` `ok=true`.
+
+Boundary:
+
+- Mac-side Phase 2B did not access `D:\changxin`.
+- Mac-side Phase 2B did not verify the unit archive.
+- Mac-side Phase 2B did not connect to ROS or run `rosservice`, `rostopic`, or
+  `rosnode`.
+- Mac-side Phase 2B did not run gateway `dry_run`, gateway `dispatch`, hardware
+  proof, or controlled motion.
+
 ## Phase 3: Controlled ROS1 Gateway Execution Hardening
 
 Objective: make ROS1 gateway lifecycle repeatable without uncontrolled motion.
@@ -222,20 +245,27 @@ Exit gate:
 
 ## Immediate Next Task
 
-Start Phase 2B only. Do not implement all remaining phases at once.
+Finish the Phase 2B receiving-lane gate. Do not implement all remaining phases
+at once.
 
-Required Phase 2B planning artifact:
+Required 4060 action after the Mac Phase 2B branch is pushed:
 
-- `docs/superpowers/plans/2026-06-03-phase-2b-no-hardware-operations-reporting.md`
+- synchronize the Phase 2B GitHub branch in WSL2
+- run the Phase 2B no-dispatch tests
+- generate a 4060-side `Phase2NoMotionAcceptanceReport.v1`
+- generate a 4060-side `ArtifactReplayDiagnosticSummary.v1`
+- report the output paths and key fields back to the Mac Codex session
 
-Phase 2B must keep the work limited to no-hardware operations reporting:
+4060 Phase 2B receiving must keep the work limited to no-hardware operations
+reporting:
 
-- dedicated no-motion acceptance report command
-- replay diagnostics for operator-facing summaries
-- Phase 1 archive identity and Phase 2 no-hardware run identity separation
-- operator approval and stale-approval visibility in machine-readable output
-- operator-view signal requirements without Qt UI code or raw ROS controls
+- no ROS connection
+- no `rosservice`, `rostopic`, or `rosnode`
+- no gateway `dry_run`
+- no gateway `dispatch`
+- no controlled motion
+- no non-convex alpha document work
 
-Do not connect to ROS, do not run gateway `dry_run`, do not dispatch, and do not
-start Phase 3 until the user explicitly asks for ROS1 gateway lifecycle or
-read-only service signature work.
+After the 4060 no-dispatch receipt is recorded, Phase 3 may be planned only if
+the user explicitly asks for ROS1 gateway lifecycle or read-only service
+signature work.

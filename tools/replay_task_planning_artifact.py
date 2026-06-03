@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from task_planning.mission_ops.replay import compare_artifact_bundles, load_artifact_bundle
+from task_planning.mission_ops.replay import compare_artifact_bundles, load_artifact_bundle, summarize_artifact_bundle
 
 
 def main() -> int:
@@ -19,7 +19,13 @@ def main() -> int:
     parser.add_argument("artifact_root", type=Path, help="Artifact bundle directory created under MISSION_ARTIFACT_ROOT/<run_id>.")
     parser.add_argument("--compare-to", type=Path, help="Optional second artifact bundle directory for structured comparison.")
     parser.add_argument("--allow-differences", action="store_true", help="Return success even if structured comparison finds diffs.")
+    parser.add_argument("--summary", action="store_true", help="Print operator-facing replay diagnostics.")
     args = parser.parse_args()
+
+    if args.summary:
+        summary = summarize_artifact_bundle(args.artifact_root)
+        print(json.dumps(summary.as_dict(), indent=2, sort_keys=True))
+        return 0 if summary.ok else 1
 
     if args.compare_to:
         comparison = compare_artifact_bundles(args.artifact_root, args.compare_to)

@@ -1,4 +1,7 @@
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,7 +11,7 @@ from task_planning.config import EnvironmentProfile
 from task_planning.hardware import build_hardware_gate_plan
 from task_planning.mission_ops.golden_cases import golden_case_by_id
 from task_planning.mission_ops.mock_llm_client import MockLLMClient
-from task_planning.mission_ops.replay import compare_artifact_bundles, load_artifact_bundle
+from task_planning.mission_ops.replay import compare_artifact_bundles, load_artifact_bundle, summarize_artifact_bundle
 from task_planning.mission_ops.runner import MissionManagerRunner
 from task_planning.mission_ops.state_store import JsonMissionOpsStateStore
 
@@ -119,6 +122,71 @@ class ReplayAndHardwareGateTest(unittest.TestCase):
 
             self.assertFalse(bundle.ok)
             self.assertIn("command_acks.json must be CommandAckSet.v1", bundle.validation_errors)
+
+    def test_replay_summary_explains_event_and_approval_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            artifact_root = Path(tmp) / "runs"
+            profile = EnvironmentProfile.from_mapping({
+                "MISSION_PROFILE": "dev_mock",
+                "MODEL_PROVIDER": "mock",
+                "PLANNER_BACKEND": "mock",
+                "PLATFORM_BACKEND": "mock",
+                "MISSION_STATE_STORE": "json",
+                "MISSION_ARTIFACT_ROOT": str(artifact_root),
+            })
+            runner = MissionManagerRunner(
+                state_store=JsonMissionOpsStateStore(Path(tmp) / "state"),
+                model_client=MockLLMClient(),
+                gateway=MockPlatformGateway(),
+            )
+            result = runner.run(golden_case_by_id("uav_ugv_coordination").run_input(), profile.as_env_dict())
+
+            summary = summarize_artifact_bundle(result.artifact_bundle_path)
+
+        self.assertTrue(summary.ok, summary.as_dict())
+        self.assertEqual("ArtifactReplayDiagnosticSummary.v1", summary.schema)
+        self.assertGreaterEqual(summary.event_counts["bt_runtime_completed"], 1)
+        self.assertGreaterEqual(summary.accepted_commands, 1)
+        self.assertFalse(summary.approval_required)
+        self.assertEqual([], summary.validation_errors)
+
+    def test_replay_summary_cli_outputs_operator_friendly_json(self):
+        repo_root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as tmp:
+            artifact_root = Path(tmp) / "runs"
+            profile = EnvironmentProfile.from_mapping({
+                "MISSION_PROFILE": "dev_mock",
+                "MODEL_PROVIDER": "mock",
+                "PLANNER_BACKEND": "mock",
+                "PLATFORM_BACKEND": "mock",
+                "MISSION_STATE_STORE": "json",
+                "MISSION_ARTIFACT_ROOT": str(artifact_root),
+            })
+            runner = MissionManagerRunner(
+                state_store=JsonMissionOpsStateStore(Path(tmp) / "state"),
+                model_client=MockLLMClient(),
+                gateway=MockPlatformGateway(),
+            )
+            result = runner.run(golden_case_by_id("uav_ugv_coordination").run_input(), profile.as_env_dict())
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(repo_root / "tools" / "replay_task_planning_artifact.py"),
+                    str(result.artifact_bundle_path),
+                    "--summary",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+            )
+            summary = json.loads(completed.stdout)
+
+        self.assertEqual("ArtifactReplayDiagnosticSummary.v1", summary["schema"])
+        self.assertIn("event_counts", summary)
+        self.assertIn("accepted_commands", summary)
+        self.assertIn("approval_required", summary)
 
     def test_work_hardware_gate_plan_preserves_no_model_no_raw_ros_boundary(self):
         profile = EnvironmentProfile.from_mapping({

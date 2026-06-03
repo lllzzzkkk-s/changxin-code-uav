@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Sequence, Union
@@ -98,6 +99,30 @@ class ArtifactComparison:
         }
 
 
+@dataclass(frozen=True)
+class ArtifactReplayDiagnosticSummary:
+    artifact_root: str
+    current_state: str
+    event_counts: Dict[str, int]
+    accepted_commands: int
+    rejected_commands: int
+    progress_count: int
+    failure_report: Dict[str, Any]
+    replan_requested: bool
+    approval_required: bool
+    validation_errors: List[str]
+    schema: str = "ArtifactReplayDiagnosticSummary.v1"
+
+    @property
+    def ok(self) -> bool:
+        return not self.validation_errors
+
+    def as_dict(self) -> Dict[str, Any]:
+        data = asdict(self)
+        data["ok"] = self.ok
+        return data
+
+
 def load_artifact_bundle(root: Union[str, Path]) -> ArtifactBundleRead:
     bundle_root = Path(root)
     errors: List[str] = []
@@ -159,6 +184,39 @@ def compare_artifact_bundles(left_root: Union[str, Path], right_root: Union[str,
     return ArtifactComparison(left_root=left.root, right_root=right.root, diffs=diffs, validation_errors=[])
 
 
+def summarize_artifact_bundle(root: Union[str, Path]) -> ArtifactReplayDiagnosticSummary:
+    bundle = load_artifact_bundle(root)
+    data = bundle.data
+    events = _items(data, "execution_events.json")
+    event_counts = Counter(
+        str(event.get("event_type"))
+        for event in events
+        if isinstance(event, Mapping) and event.get("event_type")
+    )
+    acks = _items(data, "command_acks.json")
+    progress = _items(data, "task_progress.json")
+    failure_report = dict(data.get("failure_report.json") or {})
+    replan = data.get("replan_decision.json") or {}
+    validation = data.get("validation_report.json") or {}
+    current_state = str(validation.get("current_state") or "")
+    approval_required = bool(
+        event_counts.get("operator_approval_required", 0)
+        or current_state == "OPERATOR_APPROVAL"
+    )
+    return ArtifactReplayDiagnosticSummary(
+        artifact_root=str(bundle.root),
+        current_state=current_state,
+        event_counts=dict(sorted(event_counts.items())),
+        accepted_commands=len([ack for ack in acks if ack.get("accepted") is True]),
+        rejected_commands=len([ack for ack in acks if ack.get("accepted") is False]),
+        progress_count=len(progress),
+        failure_report=failure_report,
+        replan_requested=bool(replan and replan.get("status") != "not_requested"),
+        approval_required=approval_required,
+        validation_errors=list(bundle.validation_errors),
+    )
+
+
 def _validate_bundle_semantics(data: Mapping[str, Any]) -> List[str]:
     errors: List[str] = []
     documents: Dict[str, Mapping[str, Any]] = {}
@@ -180,6 +238,11 @@ def _validate_bundle_semantics(data: Mapping[str, Any]) -> List[str]:
         if record.get("publish_attempted") is not False:
             errors.append(f"gateway_trace record {index} must have publish_attempted=false")
     return errors
+
+
+def _items(data: Mapping[str, Any], filename: str) -> List[Mapping[str, Any]]:
+    value = _path_value(data, [filename, "items"], [])
+    return [item for item in value if isinstance(item, Mapping)] if isinstance(value, list) else []
 
 
 def _path_value(data: Mapping[str, Any], path: Sequence[str], default: Any = None) -> Any:

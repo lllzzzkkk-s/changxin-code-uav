@@ -394,3 +394,88 @@ Boundary statement:
 - This receipt proves GitHub synchronization and no-dispatch work-hardware
   readiness on the 4060 lane. It is not a live ROS1 signature audit, gateway
   `dry_run`, gateway `dispatch`, hardware proof, or controlled-motion proof.
+
+## Phase 2B Mac-Side Implementation Result
+
+Status: implemented and verified on the Mac Codex side only.
+
+Changed scope:
+
+- Added `Phase2NoMotionAcceptanceReport.v1` generation from one or more Phase
+  2A artifact roots.
+- Added `tools/check_phase2_no_motion_acceptance.py` to emit JSON and Markdown
+  no-motion acceptance reports.
+- Added `ArtifactReplayDiagnosticSummary.v1` and
+  `tools/replay_task_planning_artifact.py --summary` for operator-facing replay
+  diagnostics.
+- Added `docs/superpowers/specs/2026-06-03-phase-2b-operator-view-signals.md`
+  for read-only operator-view fields and forbidden controls.
+- Added the Phase 2B CLI, roadmap docs, plan doc, and operator-view spec to the
+  task-planning migration bundle so a receiving agent can run the same checks.
+
+Verification run on this Mac:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest \
+  tests.task_planning.test_migration_bundle \
+  tests.task_planning.test_migration_bundle_verifier -v
+
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover tests/task_planning
+
+PYTHONDONTWRITEBYTECODE=1 python3 tools/run_task_planning_golden.py \
+  --profile profiles/dev_mock.env \
+  --case single_ugv_inspection \
+  --artifact-root /tmp/changxin-phase2b-dev-mock-single
+
+PYTHONDONTWRITEBYTECODE=1 python3 tools/check_phase2_no_motion_acceptance.py \
+  --artifact-root /tmp/changxin-phase2b-dev-mock-single/d7f883d8-13de-4857-8d50-894b6e775258 \
+  --phase1-archive-path 'D:\changxin\final-archives\changxin-distributed-fleet-final-proof-20260602.tar.gz' \
+  --phase1-archive-sha256 66465e2a1377e9f2dd11dc4136db9b92fa5d6e369f9f1c06c4a8a4c0ca850366 \
+  --output-dir /tmp/changxin-phase2b-no-motion-acceptance
+
+PYTHONDONTWRITEBYTECODE=1 python3 tools/replay_task_planning_artifact.py \
+  /tmp/changxin-phase2b-dev-mock-single/d7f883d8-13de-4857-8d50-894b6e775258 \
+  --summary
+```
+
+Observed results:
+
+- Migration bundle and verifier focused tests: `10` tests passed.
+- Full task-planning suite: `302` tests passed.
+- Generated artifact:
+  `/tmp/changxin-phase2b-dev-mock-single/d7f883d8-13de-4857-8d50-894b6e775258`.
+- `Phase2NoMotionAcceptanceReport.v1`: `ok=true`,
+  `platform_backend='mock'`, `ros_connected=false`,
+  `dispatch_performed=false`, `hardware_proof=false`,
+  `controlled_motion_authorized=false`, `accepted_commands=3`,
+  `rejected_commands=0`, and `progress_count=3`.
+- Report outputs:
+  `/tmp/changxin-phase2b-no-motion-acceptance/phase2_no_motion_acceptance.json`
+  and
+  `/tmp/changxin-phase2b-no-motion-acceptance/phase2_no_motion_acceptance.md`.
+- `ArtifactReplayDiagnosticSummary.v1`: `ok=true`,
+  `current_state='DISPATCH_OR_HOLD'`, `accepted_commands=3`,
+  `rejected_commands=0`, `progress_count=3`,
+  `replan_requested=false`, and `approval_required=false`.
+
+Boundary statement:
+
+- This verification did not access `D:\changxin`.
+- This verification did not verify the unit final archive SHA256.
+- This verification did not connect to ROS.
+- This verification did not run `rosservice`, `rostopic`, `rosnode`, or a ROS
+  workspace.
+- This verification did not run gateway `dry_run`, gateway `dispatch`, or
+  controlled motion.
+- The Phase 1 archive path and SHA256 are recorded as baseline identity only;
+  `Phase2NoMotionAcceptanceReport.v1.phase1_baseline.verified_by_this_report`
+  remains `false`.
+
+Next Phase 2B gate:
+
+- Push the Phase 2B branch to GitHub.
+- Have the unit 4060 Codex synchronize the branch and run the same no-dispatch
+  tests and report commands from WSL2.
+- Treat 4060 no-dispatch acceptance as a receiving-lane confirmation only. It
+  must not be upgraded to ROS1 service signature proof, gateway dry-run proof,
+  gateway dispatch proof, hardware proof, or controlled-motion authorization.
