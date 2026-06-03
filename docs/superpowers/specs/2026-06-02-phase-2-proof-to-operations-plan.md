@@ -479,3 +479,74 @@ Next Phase 2B gate:
 - Treat 4060 no-dispatch acceptance as a receiving-lane confirmation only. It
   must not be upgraded to ROS1 service signature proof, gateway dry-run proof,
   gateway dispatch proof, hardware proof, or controlled-motion authorization.
+
+## Phase 2B 4060 No-Dispatch Verification Receipt
+
+Status: user-reported 4060 no-dispatch verification received on 2026-06-03.
+
+Evidence files:
+
+- `docs/superpowers/evidence/2026-06-03-ugv-phase-2b-4060-no-dispatch-receipt.md`
+- `docs/superpowers/evidence/2026-06-03-ugv-phase-2b-4060-no-dispatch-receipt.json`
+
+The unit 4060 Codex reported that it synchronized the GitHub branch
+`codex/phase2b-no-hardware-reporting` and confirmed:
+
+```text
+f506515 feat: add phase2b no-motion reporting
+5652c93 docs: record ugv phase2a 4060 receipt
+```
+
+Reported 4060 no-dispatch acceptance:
+
+- `py_compile`: passed with no error output.
+- Focused Phase 2B tests: `12` tests passed in `3.214s`.
+- Full task-planning suite: `302` tests passed in `914.215s`.
+- Phase 2B artifact path:
+  `/tmp/changxin-phase2b-dev-mock-single/8d783b73-f8f2-488c-9d53-6b3881806784`.
+- Artifact status reported `dry_run_complete` and current state
+  `DISPATCH_OR_HOLD`.
+- Acceptance report path:
+  `/tmp/changxin-phase2b-no-motion-acceptance/phase2_no_motion_acceptance.json`.
+- Acceptance report reported `schema='Phase2NoMotionAcceptanceReport.v1'`,
+  `ok=True`, `platform_backend='mock'`, `ros_connected=False`,
+  `dispatch_performed=False`, `hardware_proof=False`,
+  `controlled_motion_authorized=False`, and `validation_errors=[]`.
+- Replay summary path:
+  `/tmp/changxin-phase2b-no-motion-acceptance/replay_summary.json`.
+- Replay summary reported `schema='ArtifactReplayDiagnosticSummary.v1'`,
+  `ok=True`, `current_state='DISPATCH_OR_HOLD'`, `accepted_commands=3`,
+  `rejected_commands=0`, `progress_count=3`, `replan_requested=False`,
+  `approval_required=False`, and `validation_errors=[]`.
+- The 4060 side reported the unit archive existed at
+  `/mnt/d/changxin/final-archives/changxin-distributed-fleet-final-proof-20260602.tar.gz`
+  with SHA256
+  `66465e2a1377e9f2dd11dc4136db9b92fa5d6e369f9f1c06c4a8a4c0ca850366`.
+
+Boundary statement:
+
+- This Mac-side repo note records the pasted 4060 receipt; it did not re-run
+  the 4060 checks.
+- The 4060 run reported no non-convex alpha document work, no `rosservice`,
+  `rostopic`, or `rosnode`, no real ROS connection, no ROS gateway `dry_run`,
+  no ROS gateway `dispatch`, and no hardware proof.
+- The 4060 run reported `gateway_trace publish_attempted=false` for all `3`
+  records.
+- Generated artifacts contain internal mock runtime labels such as
+  `dry_run_complete` and `task_dispatch_requested`, plus profile templates for
+  `/fleet/{platform_id}/gateway/dry_run` and
+  `/fleet/{platform_id}/gateway/dispatch`. These labels and templates are not
+  evidence of live ROS service calls.
+- This receipt proves GitHub synchronization and no-dispatch Phase 2B receiving
+  acceptance on the 4060 lane. It is not a live ROS1 signature audit, gateway
+  `dry_run`, gateway `dispatch`, hardware proof, or controlled-motion proof.
+
+Phase 2B status after this receipt:
+
+- Phase 2B no-hardware reporting is accepted on both the Mac implementation
+  lane and the unit 4060 receiving lane.
+- Phase 3 ROS1 read-only service signature work remains separate and requires
+  explicit user authorization before the 4060 side connects to ROS or runs
+  ROS graph/service commands.
+- Phase 3A planning artifact:
+  `docs/superpowers/plans/2026-06-03-phase-3a-read-only-ros1-signature-gate.md`.

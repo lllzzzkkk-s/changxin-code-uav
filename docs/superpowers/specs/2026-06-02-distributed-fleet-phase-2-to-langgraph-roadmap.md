@@ -130,6 +130,42 @@ Boundary:
 - Mac-side Phase 2B did not run gateway `dry_run`, gateway `dispatch`, hardware
   proof, or controlled motion.
 
+4060 no-dispatch receipt:
+
+- Received on `2026-06-03` from the unit RTX 4060 Codex session.
+- The 4060 side synchronized GitHub branch
+  `codex/phase2b-no-hardware-reporting` and confirmed head `f506515`.
+- The 4060 side reported `12` focused Phase 2B tests passed and `302` full
+  task-planning tests passed.
+- The 4060 side generated
+  `/tmp/changxin-phase2b-no-motion-acceptance/phase2_no_motion_acceptance.json`
+  with `schema='Phase2NoMotionAcceptanceReport.v1'`, `ok=True`,
+  `platform_backend='mock'`, `ros_connected=False`,
+  `dispatch_performed=False`, `hardware_proof=False`,
+  `controlled_motion_authorized=False`, and `validation_errors=[]`.
+- The 4060 side generated
+  `/tmp/changxin-phase2b-no-motion-acceptance/replay_summary.json` with
+  `schema='ArtifactReplayDiagnosticSummary.v1'`, `ok=True`,
+  `current_state='DISPATCH_OR_HOLD'`, `accepted_commands=3`,
+  `rejected_commands=0`, `progress_count=3`, `replan_requested=False`,
+  `approval_required=False`, and `validation_errors=[]`.
+- The 4060 side reported the Phase 1 archive existed on the unit machine and
+  matched SHA256
+  `66465e2a1377e9f2dd11dc4136db9b92fa5d6e369f9f1c06c4a8a4c0ca850366`.
+- The 4060 side reported no non-convex alpha document work, no
+  `rosservice`/`rostopic`/`rosnode`, no real ROS connection, no ROS gateway
+  `dry_run`, no ROS gateway `dispatch`, and `gateway_trace publish_attempted=false`
+  for all `3` records.
+- Evidence receipt:
+  `docs/superpowers/evidence/2026-06-03-ugv-phase-2b-4060-no-dispatch-receipt.md`.
+
+Phase 2B exit status:
+
+- Phase 2B no-hardware reporting is accepted on the Mac implementation lane and
+  on the unit 4060 receiving lane.
+- This is still not ROS1 signature proof, gateway `dry_run` proof, gateway
+  `dispatch` proof, hardware proof, or controlled-motion authorization.
+
 ## Phase 3: Controlled ROS1 Gateway Execution Hardening
 
 Objective: make ROS1 gateway lifecycle repeatable without uncontrolled motion.
@@ -245,27 +281,30 @@ Exit gate:
 
 ## Immediate Next Task
 
-Finish the Phase 2B receiving-lane gate. Do not implement all remaining phases
-at once.
+Prepare Phase 3 as an explicit-authorization gate. Do not implement all
+remaining phases at once.
 
-Required 4060 action after the Mac Phase 2B branch is pushed:
+Mac-side next task:
 
-- synchronize the Phase 2B GitHub branch in WSL2
-- run the Phase 2B no-dispatch tests
-- generate a 4060-side `Phase2NoMotionAcceptanceReport.v1`
-- generate a 4060-side `ArtifactReplayDiagnosticSummary.v1`
-- report the output paths and key fields back to the Mac Codex session
+- draft the Phase 3 read-only ROS1 service signature plan and file-by-file
+  implementation plan
+- plan file:
+  `docs/superpowers/plans/2026-06-03-phase-3a-read-only-ros1-signature-gate.md`
+- keep the plan limited to service discovery, service type/args capture,
+  service-signature validation, and evidence recording
+- do not write gateway lifecycle code until the plan is accepted
+- do not connect to ROS from the Mac side
 
-4060 Phase 2B receiving must keep the work limited to no-hardware operations
-reporting:
+4060-side next task after explicit user authorization:
 
-- no ROS connection
-- no `rosservice`, `rostopic`, or `rosnode`
-- no gateway `dry_run`
-- no gateway `dispatch`
-- no controlled motion
-- no non-convex alpha document work
+- source the local ROS1 environment on the unit/workplace machine
+- run read-only service discovery only
+- capture `rosservice list`, service type, and service args evidence
+- run the existing site-acceptance/audit tooling against captured or live
+  read-only service-signature evidence
+- do not call gateway `dry_run`
+- do not call gateway `dispatch`
+- do not authorize controlled motion
 
-After the 4060 no-dispatch receipt is recorded, Phase 3 may be planned only if
-the user explicitly asks for ROS1 gateway lifecycle or read-only service
-signature work.
+Phase 3 must not start as a live 4060 ROS step until the user explicitly asks
+for ROS1 gateway lifecycle or read-only service signature work.

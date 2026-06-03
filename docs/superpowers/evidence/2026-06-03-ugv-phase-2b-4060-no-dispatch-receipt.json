@@ -1,0 +1,110 @@
+{
+  "schema": "UgvPhase2BNoDispatchVerificationReceipt.v1",
+  "date": "2026-06-03",
+  "source": "user_pasted_4060_codex_reply",
+  "evidence_classification": "reported_by_unit_4060_codex_not_reverified_by_mac",
+  "machine": {
+    "role": "unit_rtx_4060_windows_wsl2",
+    "repo_path": "/mnt/d/changxin/changxin-code"
+  },
+  "git": {
+    "branch": "codex/phase2b-no-hardware-reporting",
+    "head_short": "f506515",
+    "head_subject": "feat: add phase2b no-motion reporting",
+    "parent_short": "5652c93",
+    "parent_subject": "docs: record ugv phase2a 4060 receipt",
+    "worktree_status": "clean"
+  },
+  "commands_reported": [
+    "git log -2 --oneline",
+    "git status --short",
+    "PYTHONDONTWRITEBYTECODE=1 python3 -m py_compile task_planning/mission_ops/*.py task_planning/migration/*.py tools/check_phase2_no_motion_acceptance.py tools/replay_task_planning_artifact.py",
+    "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.task_planning.test_phase2_acceptance_report tests.task_planning.test_replay_and_hardware_gates -v",
+    "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover tests/task_planning",
+    "PYTHONDONTWRITEBYTECODE=1 python3 tools/run_task_planning_golden.py --profile profiles/dev_mock.env --case single_ugv_inspection --artifact-root /tmp/changxin-phase2b-dev-mock-single",
+    "PYTHONDONTWRITEBYTECODE=1 python3 tools/check_phase2_no_motion_acceptance.py --artifact-root <artifact_root> --phase1-archive-path D:\\changxin\\final-archives\\changxin-distributed-fleet-final-proof-20260602.tar.gz --phase1-archive-sha256 66465e2a1377e9f2dd11dc4136db9b92fa5d6e369f9f1c06c4a8a4c0ca850366 --output-dir /tmp/changxin-phase2b-no-motion-acceptance",
+    "PYTHONDONTWRITEBYTECODE=1 python3 tools/replay_task_planning_artifact.py <artifact_root> --summary"
+  ],
+  "reported_results": {
+    "py_compile": {
+      "ok": true,
+      "error_output": ""
+    },
+    "focused_tests": {
+      "ok": true,
+      "tests_run": 12,
+      "duration_seconds": 3.214
+    },
+    "unit_tests": {
+      "ok": true,
+      "tests_run": 302,
+      "duration_seconds": 914.215
+    },
+    "phase2b_artifact": {
+      "path": "/tmp/changxin-phase2b-dev-mock-single/8d783b73-f8f2-488c-9d53-6b3881806784",
+      "status": "dry_run_complete",
+      "current_state": "DISPATCH_OR_HOLD"
+    },
+    "acceptance_report": {
+      "path": "/tmp/changxin-phase2b-no-motion-acceptance/phase2_no_motion_acceptance.json",
+      "schema": "Phase2NoMotionAcceptanceReport.v1",
+      "ok": true,
+      "platform_backend": "mock",
+      "ros_connected": false,
+      "dispatch_performed": false,
+      "hardware_proof": false,
+      "controlled_motion_authorized": false,
+      "validation_errors": []
+    },
+    "unit_archive": {
+      "path": "/mnt/d/changxin/final-archives/changxin-distributed-fleet-final-proof-20260602.tar.gz",
+      "sha256": "66465e2a1377e9f2dd11dc4136db9b92fa5d6e369f9f1c06c4a8a4c0ca850366",
+      "reported_exists": true,
+      "reported_hash_matches": true
+    },
+    "replay_summary": {
+      "path": "/tmp/changxin-phase2b-no-motion-acceptance/replay_summary.json",
+      "schema": "ArtifactReplayDiagnosticSummary.v1",
+      "ok": true,
+      "current_state": "DISPATCH_OR_HOLD",
+      "accepted_commands": 3,
+      "rejected_commands": 0,
+      "progress_count": 3,
+      "replan_requested": false,
+      "approval_required": false,
+      "validation_errors": [],
+      "event_counts": {
+        "bt_runtime_completed": 1,
+        "bt_runtime_started": 1,
+        "command_ack_accepted": 3,
+        "task_dispatch_requested": 3,
+        "task_progress_observed": 3
+      }
+    }
+  },
+  "boundary_confirmed_by_4060": {
+    "ros_connected": false,
+    "dispatch_performed": false,
+    "hardware_proof": false,
+    "platform_backend": "mock",
+    "rosservice_rostopic_rosnode_tokens_in_generated_tree": false,
+    "gateway_trace_publish_attempted_all_false": true,
+    "gateway_trace_record_count": 3,
+    "repo_worktree_clean": true,
+    "non_convex_alpha_docs_touched": false,
+    "real_ros_connected": false,
+    "ros_dry_run_service_called": false,
+    "ros_dispatch_service_called": false
+  },
+  "reported_nuance": "Generated artifacts contain internal mock runtime names such as dry_run_complete and task_dispatch_requested plus profile templates /fleet/{platform_id}/gateway/dry_run and /fleet/{platform_id}/gateway/dispatch; the 4060 Codex reported that it did not call ROS dry_run or dispatch services and did not run rosservice, rostopic, or rosnode.",
+  "known_environment_note": "WSL emitted localhost/NAT warnings on command startup, but the 4060 report says they did not affect git, Python, or report command completion.",
+  "not_proven_by_this_receipt": [
+    "Mac-side access to D:\\changxin",
+    "unit final archive SHA256 re-verification by this Mac session",
+    "live ROS1 service signature audit",
+    "gateway dry_run",
+    "gateway dispatch",
+    "hardware proof",
+    "controlled motion"
+  ]
+}
