@@ -68,6 +68,7 @@ class MigrationBundleTest(unittest.TestCase):
             self.assertIn("profiles/work_hardware_ros1_gateway.env.template", paths)
             self.assertIn("docs/superpowers/specs/2026-05-26-unit-execution-agent-runbook.md", paths)
             self.assertIn("docs/superpowers/specs/2026-05-29-windows-safe-unit-receiving-kit.md", paths)
+            self.assertIn("docs/superpowers/specs/2026-06-03-ugv-phase-2a-mac-to-4060-handoff.md", paths)
             self.assertIn("task_planning/mission_ops/golden_cases.py", paths)
             self.assertIn("task_planning/mission_ops/replay.py", paths)
             self.assertIn("task_planning/hardware/gates.py", paths)

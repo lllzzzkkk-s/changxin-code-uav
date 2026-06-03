@@ -20,6 +20,7 @@ MIGRATION_FILE_PATTERNS = (
     "docs/superpowers/specs/2026-05-26-distributed-fleet-testing-migration-architecture.md",
     "docs/superpowers/specs/2026-05-26-unit-execution-agent-runbook.md",
     "docs/superpowers/specs/2026-05-29-windows-safe-unit-receiving-kit.md",
+    "docs/superpowers/specs/2026-06-03-ugv-phase-2a-mac-to-4060-handoff.md",
     "profiles/*.env",
     "profiles/*.env.template",
     "task_planning/**/*.py",
