@@ -1,0 +1,58 @@
+{
+  "schema": "UgvPhase3ALocalOperatorRosMasterStartedNote.v1",
+  "recorded_at": "2026-06-04",
+  "source": "user_message_to_mac_codex",
+  "evidence_classification": "operator_reported_status_not_reverified_by_mac",
+  "phase": "Phase 3A",
+  "platform_scope": "UGV",
+  "reported_operator_status": {
+    "ros_master_reported_started": true,
+    "reported_port": 11311,
+    "exact_ros_master_uri_provided": false,
+    "master_host_or_ip_provided": false,
+    "summary": "The user reported that the UGV-side ROS master on port 11311 has been started."
+  },
+  "verification_state": {
+    "mac_verified_ros_master": false,
+    "unit_4060_verified_ros_master": false,
+    "gateway_wrapper_verified": false,
+    "gateway_services_verified": false,
+    "phase3a_exit_gate_passed": false
+  },
+  "allowed_next_4060_action": {
+    "read_only_reachability_retry": true,
+    "service_signature_capture_only_if_master_reachable": true,
+    "stop_if_ros_master_uri_is_unknown_or_wrong": true,
+    "rosservice_list_allowed_after_tcp_success": true,
+    "rosservice_type_args_allowed_for_discovered_gateway_services": true
+  },
+  "boundary": {
+    "mac_ros_connected": false,
+    "mac_rosservice_run": false,
+    "gateway_dry_run_called": false,
+    "gateway_dispatch_called": false,
+    "controlled_motion_authorized": false,
+    "unit_archive_verified_by_mac": false,
+    "non_convex_alpha_docs_touched": false,
+    "runtime_code_changed": false
+  },
+  "not_proof_of": [
+    "Mac-side ROS reachability",
+    "4060-side ROS reachability",
+    "gateway wrapper running",
+    "gateway service signatures",
+    "Phase 3A exit gate acceptance",
+    "gateway dry-run readiness",
+    "hardware dispatch readiness"
+  ],
+  "next_expected_4060_outputs": [
+    "git log and clean worktree status",
+    "ROS environment summary",
+    "parsed ROS master host and port",
+    "bounded TCP reachability result",
+    "captured rosservice list path if reachable",
+    "captured gateway rosservice type and args paths if gateway services are discovered",
+    "Phase 3A site-acceptance verifier JSON path",
+    "boundary confirmation"
+  ]
+}

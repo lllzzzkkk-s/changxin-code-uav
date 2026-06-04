@@ -776,3 +776,48 @@ Interpretation:
   workspace/startup path, authorize preparing a ROS1 gateway catkin workspace,
   or authorize starting a local ROS master and gateway wrapper for read-only
   service-signature capture.
+
+## Phase 3A Local Operator Master Started Note
+
+Status: user-reported operator status received on 2026-06-04; Phase 3A still
+remains open.
+
+Evidence files:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-local-operator-master-started-note.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-local-operator-master-started-note.json`
+
+The user reported that the UGV-side ROS master on port `11311` has been
+started.
+
+Boundary statement:
+
+- This Mac-side note records the user report only.
+- The Mac side did not connect to ROS, did not run `rosservice`, did not call
+  gateway `dry_run`, did not call gateway `dispatch`, and did not authorize
+  controlled motion.
+- This note does not verify the unit `D:\changxin` archive and does not touch
+  non-convex alpha documents.
+
+Interpretation:
+
+- The previous blocker was no reachable ROS master from the 4060 WSL2 session.
+- The operator report permits a narrowed 4060 read-only reachability retry.
+- The exact reachable `ROS_MASTER_URI` is still not recorded in the repo. If
+  the 4060 environment still points at `http://localhost:11311` but the running
+  master is on a vehicle or IPC address, the 4060 side must stop and ask for
+  the correct URI instead of guessing.
+- Phase 3A remains unaccepted until the 4060 returns read-only reachability and
+  service-signature evidence.
+
+Next 4060 step:
+
+- sync `codex/phase2b-no-hardware-reporting`
+- source ROS Noetic
+- print and parse the active `ROS_MASTER_URI`
+- run a bounded TCP reachability check only
+- if reachable, capture `rosservice list` read-only
+- if gateway services are discovered, capture only their `rosservice type` and
+  `rosservice args`
+- run the existing Phase 3A site-acceptance verifier against captured files
+- do not call gateway `dry_run` or `dispatch`

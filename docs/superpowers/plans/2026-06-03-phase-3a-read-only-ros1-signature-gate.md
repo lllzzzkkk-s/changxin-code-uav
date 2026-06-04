@@ -491,6 +491,143 @@ workspace. The next step needs one of these operator decisions:
 
 Without one of those decisions, do not retry service-signature capture.
 
+### Local Operator Master Started Note
+
+On 2026-06-04, the user reported that the UGV-side ROS master on port `11311`
+has been started.
+
+Evidence note:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-local-operator-master-started-note.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-local-operator-master-started-note.json`
+
+This satisfies only the operator status update that a master has been started.
+It does not prove Mac reachability, 4060 reachability, gateway wrapper
+availability, gateway service names, gateway service signatures, or Phase 3A
+acceptance.
+
+The next 4060 action is a read-only reachability retry. Do not start gateway
+services, do not call gateway `dry_run`, do not call gateway `dispatch`, and do
+not authorize controlled motion.
+
+Use this prompt for the 4060 Codex:
+
+```text
+We are continuing UGV Phase 3A. The local operator reports that the UGV-side
+ROS master on port 11311 has been started.
+
+Stay read-only. Do not call gateway dry_run. Do not call gateway dispatch. Do
+not authorize controlled motion. Do not run rostopic publish. Do not edit repo
+architecture. Do not touch non-convex alpha docs.
+
+Work in /mnt/d/changxin/changxin-code on branch
+codex/phase2b-no-hardware-reporting.
+
+1. Sync and report:
+   git fetch origin
+   git checkout codex/phase2b-no-hardware-reporting
+   git pull --ff-only origin codex/phase2b-no-hardware-reporting
+   git log -2 --oneline
+   git status --short
+
+2. Source ROS Noetic only:
+   source /opt/ros/noetic/setup.bash
+   echo "ROS_MASTER_URI=${ROS_MASTER_URI:-}"
+   echo "ROS_IP=${ROS_IP:-}"
+   echo "ROS_HOSTNAME=${ROS_HOSTNAME:-}"
+   command -v roscore || true
+   command -v rosmaster || true
+   command -v rosservice || true
+
+3. Parse the active ROS master URI and run only a bounded TCP reachability
+   check. If ROS_MASTER_URI is empty, wrong, or still points to localhost while
+   the running master is on a vehicle/IPC IP, stop and ask the operator for the
+   exact ROS_MASTER_URI. Do not guess.
+
+   python3 - <<'PY'
+import os, socket, urllib.parse
+uri = os.environ.get("ROS_MASTER_URI", "")
+print(f"active_ros_master_uri={uri}")
+parsed = urllib.parse.urlparse(uri)
+host = parsed.hostname
+port = parsed.port or 11311
+print(f"parsed_ros_master_host={host}")
+print(f"parsed_ros_master_port={port}")
+if not host:
+    raise SystemExit("NO_ACTIVE_ROS_MASTER_URI")
+sock = socket.socket()
+sock.settimeout(3)
+try:
+    sock.connect((host, port))
+except OSError as exc:
+    print(f"tcp_connect={host}:{port}:FAIL:{exc}")
+    raise SystemExit(20)
+else:
+    print(f"tcp_connect={host}:{port}:OK")
+finally:
+    sock.close()
+PY
+
+4. If the TCP check fails, stop. Report the failure and do not run
+   rosservice list/type/args.
+
+5. If the TCP check succeeds, capture read-only service evidence:
+   set -o pipefail
+   timeout 8s rosservice list | tee /tmp/changxin-rosservice-list.txt
+   echo "rosservice_list_rc=${PIPESTATUS[0]}"
+   grep -E '^/fleet/.*/gateway/(dry_run|dispatch)$' \
+     /tmp/changxin-rosservice-list.txt | sort -u \
+     > /tmp/changxin-gateway-services.txt || true
+   cat /tmp/changxin-gateway-services.txt
+
+6. If no gateway dry_run/dispatch services are found, stop and report the
+   captured list path and service count. Do not call any service.
+
+7. If gateway services are found, capture only type and args:
+   : > /tmp/changxin-rosservice-types.txt
+   : > /tmp/changxin-rosservice-args.txt
+   while IFS= read -r s; do
+     printf "%s " "$s" >> /tmp/changxin-rosservice-types.txt
+     rosservice type "$s" >> /tmp/changxin-rosservice-types.txt
+     printf "%s " "$s" >> /tmp/changxin-rosservice-args.txt
+     rosservice args "$s" >> /tmp/changxin-rosservice-args.txt
+   done < /tmp/changxin-gateway-services.txt
+
+8. Run the existing file-based verifier only. Use the existing 4060 profile if
+   present:
+   PROFILE=/tmp/changxin-work-hardware-ros1-gateway.env
+   if [ ! -f "$PROFILE" ]; then
+     echo "missing_profile=$PROFILE"
+     echo "Stop and report. Do not invent ROS addresses."
+     exit 0
+   fi
+   PYTHONDONTWRITEBYTECODE=1 python3 tools/check_task_planning_site_acceptance.py \
+     --profile "$PROFILE" \
+     --platform-id ugv_0 \
+     --rosservice-list-file /tmp/changxin-rosservice-list.txt \
+     --service-type-file /tmp/changxin-rosservice-types.txt \
+     --service-args-file /tmp/changxin-rosservice-args.txt \
+     --require-rosservice-audit \
+     --require-service-signatures \
+     > /tmp/changxin-phase3a-read-only-ros1-signature-retry.json
+
+9. Report:
+   - git log -2
+   - git status --short
+   - ROS env summary
+   - parsed host/port and TCP result
+   - rosservice list rc and captured file path if run
+   - gateway services found
+   - verifier JSON path and key fields if run
+   - boundary confirmation:
+     dry_run_called=false
+     dispatch_called=false
+     controlled_motion_authorized=false
+     rostopic_publish=false
+     repo_architecture_changed=false
+     non_convex_alpha_docs_touched=false
+```
+
 ## Task 3: Mac-Side Receipt Recording After 4060 Sends Output
 
 **Files:**

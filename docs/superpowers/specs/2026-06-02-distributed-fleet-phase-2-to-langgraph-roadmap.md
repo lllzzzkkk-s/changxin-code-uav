@@ -439,3 +439,36 @@ Decision gate before further 4060 action:
 
 Until that decision is made, do not retry service-signature capture and do not
 start ROS processes.
+
+## Phase 3A Update: Local Operator Reports Master Started
+
+Status as of 2026-06-04: the user reports that the UGV-side ROS master on port
+`11311` has been started. This is recorded as operator-reported status, not as
+Mac-verified or 4060-verified ROS reachability.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-local-operator-master-started-note.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-local-operator-master-started-note.json`
+
+Updated interpretation:
+
+- Phase 3A remains open.
+- The next action is no longer another broad workspace scan.
+- The 4060 side should retry only read-only ROS master reachability against the
+  active `ROS_MASTER_URI`.
+- If the active URI is empty, wrong, or points to `localhost` while the master
+  is actually on a vehicle/IPC IP, the 4060 side should stop and ask the
+  operator for the exact URI.
+- Only after TCP reachability succeeds should the 4060 side run
+  `rosservice list` and then type/args capture for discovered gateway services.
+- Gateway `dry_run`, gateway `dispatch`, controlled motion, and `rostopic`
+  publish remain out of scope.
+
+Current next gate:
+
+1. 4060 read-only ROS master reachability retry.
+2. Conditional read-only service-name capture.
+3. Conditional read-only service type/args capture for gateway services.
+4. File-based Phase 3A site-acceptance verifier.
+5. Mac-side receipt recording after the 4060 returns output.
