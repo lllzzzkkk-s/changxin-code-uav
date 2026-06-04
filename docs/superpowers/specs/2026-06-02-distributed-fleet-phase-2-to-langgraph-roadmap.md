@@ -607,6 +607,69 @@ Still out of scope:
 - model calls on the unit execution lane
 - committed machine-specific ROS profiles
 
+## Phase 3C Result: No-Motion Gateway Dry-Run Passed
+
+Status as of 2026-06-04: the 4060 side completed Phase 3C no-motion gateway
+`dry_run`.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3c-4060-no-motion-dry-run-success.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3c-4060-no-motion-dry-run-success.json`
+
+4060 reported:
+
+- artifact root:
+  `/tmp/changxin-phase2b-dev-mock-single/8d783b73-f8f2-488c-9d53-6b3881806784`
+- TCP preflight to `192.168.0.201:11311` succeeded
+- wrapper started and was stopped after capture
+- one `/fleet/ugv_0/gateway/dry_run` call was made
+- `dry_run_rc=0`
+- `GatewayServiceResponse.v1`
+- `mode=dry_run`
+- `platform_id=ugv_0`
+- `CommandAck.v1 accepted=true`
+- `ack_reason=unit_ugv_dry_run_ok`
+- `motion_attempted=false`
+- `raw_ros_publish_attempted=false`
+- `progress_file_exists=false`
+
+Updated interpretation:
+
+- Phase 3C is complete for no-motion gateway `dry_run`.
+- This proves a validated UGV `confirm_target(target_01)` command can pass
+  through the ROS1 gateway dry-run path with an operator-confirmed
+  `manual_confirm` target map.
+- This does not prove gateway `dispatch`, dispatch rejection before approval,
+  operator-approved dispatch, controlled motion, task progress, or final
+  hardware execution.
+- The next planned gate is Phase 3D pre-approval dispatch rejection, documented
+  in
+  `docs/superpowers/plans/2026-06-04-phase-3d-pre-approval-dispatch-rejection.md`.
+
+Current next gate:
+
+1. User/operator explicitly authorizes Phase 3D pre-approval dispatch
+   rejection.
+2. 4060 re-verifies or regenerates the Phase 3C validated no-motion inputs.
+3. 4060 starts the wrapper with `--unit-ugv-target-map` only.
+4. 4060 does not pass `--unit-ugv-operator-approved` or
+   `--unit-ugv-enable-move-base`.
+5. 4060 calls `/fleet/ugv_0/gateway/dispatch` once.
+6. Expected response is `CommandAck.v1 accepted=false` with
+   `reason=operator approval required for unit UGV dispatch`.
+7. 4060 confirms `motion_attempted=false`, no raw ROS publish, no task progress,
+   stops the wrapper, and reports evidence.
+
+Still out of scope:
+
+- operator-approved dispatch
+- `move_base_goal` target maps
+- controlled motion
+- `rostopic pub`
+- model calls on the unit execution lane
+- committed machine-specific ROS profiles
+
 ## Phase 3B Stage 4/5 Result: Signatures Observed
 
 Status as of 2026-06-04: the 4060 side completed Phase 3B wrapper service

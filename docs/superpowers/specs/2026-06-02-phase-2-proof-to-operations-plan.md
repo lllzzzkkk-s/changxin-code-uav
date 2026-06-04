@@ -1093,6 +1093,75 @@ Boundary statement:
   non-convex alpha document edits, and no committed machine-specific ROS
   IP/env.
 
+## Phase 3C 4060 No-Motion Dry-Run Success
+
+Status: user-reported 4060 Phase 3C success received on 2026-06-04; Phase 3C
+no-motion gateway `dry_run` objective is complete.
+
+Evidence files:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3c-4060-no-motion-dry-run-success.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3c-4060-no-motion-dry-run-success.json`
+
+4060 reported:
+
+```text
+git log -2 --oneline
+0db3a39 docs: record phase3b signature success
+e2b3e1c docs: record phase3b master preflight block
+git status --short: <empty>
+artifact_root=/tmp/changxin-phase2b-dev-mock-single/8d783b73-f8f2-488c-9d53-6b3881806784
+ROS_MASTER_URI=http://192.168.0.201:11311
+ROS_IP=172.20.26.179
+tcp_connect=OK
+gateway_wrapper_pid=2502
+dry_run_rc=0
+progress_file_exists=false
+wrapper_stopped_after_capture=true
+```
+
+Parsed dry-run response:
+
+```text
+schema=GatewayServiceResponse.v1
+mode=dry_run
+platform_id=ugv_0
+ack_schema=CommandAck.v1
+ack_accepted=true
+ack_reason=unit_ugv_dry_run_ok
+motion_attempted=false
+raw_ros_publish_attempted=false
+local_check_target_mapped=true
+local_check_mapping_operator_confirmed=true
+local_check_motion_attempted=false
+local_check_raw_ros_publish_attempted=false
+```
+
+Interpretation:
+
+- Phase 3C no-motion gateway `dry_run` passed.
+- A validated `TaskCommand.v1` for `ugv_0 confirm_target(target_01)` was accepted
+  by the real ROS1 gateway dry-run path.
+- The target mapping was operator-confirmed and `manual_confirm`.
+- No motion or raw ROS publish was attempted.
+- No progress file was created.
+- The wrapper was stopped after evidence capture.
+- This is not gateway `dispatch`, dispatch rejection, controlled-motion,
+  task-progress, or final hardware execution proof.
+- The next gate is Phase 3D pre-approval dispatch rejection:
+  `docs/superpowers/plans/2026-06-04-phase-3d-pre-approval-dispatch-rejection.md`.
+
+Boundary statement:
+
+- This Mac-side note records the pasted 4060 receipt; it did not re-run the
+  4060 checks.
+- The 4060 side reported one gateway `dry_run`, no gateway `dispatch`, no
+  `--unit-ugv-operator-approved`, no `--unit-ugv-enable-move-base`, no
+  `move_base` target map, no progress-output, no controlled motion, no
+  `rostopic pub`, no hand-written `TaskCommand` JSON, no repo architecture
+  change, no non-convex alpha document edits, and no committed
+  machine-specific ROS IP/env.
+
 ## Phase 3B 4060 Wrapper Preflight Master Refused
 
 Status: user-reported 4060 Phase 3B Stage 4 preflight received on 2026-06-04;

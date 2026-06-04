@@ -354,3 +354,67 @@ Report:
   repo_architecture_changed=false
   non_convex_alpha_docs_touched=false
 ```
+
+## Phase 3C Result: No-Motion Dry-Run Passed
+
+On 2026-06-04, the 4060 side completed Phase 3C. The wrapper started, one
+`/fleet/ugv_0/gateway/dry_run` call was made, the gateway returned an accepted
+`GatewayServiceResponse.v1` / `CommandAck.v1`, and the wrapper was stopped
+after capture.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3c-4060-no-motion-dry-run-success.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3c-4060-no-motion-dry-run-success.json`
+
+Reported result:
+
+```text
+artifact_root=/tmp/changxin-phase2b-dev-mock-single/8d783b73-f8f2-488c-9d53-6b3881806784
+ROS_MASTER_URI=http://192.168.0.201:11311
+ROS_IP=172.20.26.179
+tcp_connect=OK
+gateway_wrapper_pid=2502
+dry_run_rc=0
+progress_file_exists=false
+wrapper_stopped_after_capture=true
+```
+
+Parsed response:
+
+```text
+schema=GatewayServiceResponse.v1
+mode=dry_run
+platform_id=ugv_0
+ack_schema=CommandAck.v1
+ack_accepted=true
+ack_reason=unit_ugv_dry_run_ok
+motion_attempted=false
+raw_ros_publish_attempted=false
+local_check_target_mapped=true
+local_check_mapping_operator_confirmed=true
+local_check_motion_attempted=false
+local_check_raw_ros_publish_attempted=false
+```
+
+Boundary preserved:
+
+- only one `/fleet/ugv_0/gateway/dry_run` call
+- no `/fleet/ugv_0/gateway/dispatch` call
+- wrapper command did not include `--unit-ugv-operator-approved`
+- wrapper command did not include `--unit-ugv-enable-move-base`
+- no `move_base` target map
+- no progress-output
+- no controlled motion
+- no `rostopic pub`
+- no hand-written `TaskCommand` JSON
+- repo architecture not changed
+- non-convex alpha documents not touched
+
+Interpretation:
+
+- Phase 3C no-motion gateway `dry_run` objective is complete.
+- This is not dispatch proof, dispatch rejection proof, controlled-motion
+  proof, task-progress proof, or final hardware execution proof.
+- The next gate is Phase 3D pre-approval dispatch rejection:
+  `docs/superpowers/plans/2026-06-04-phase-3d-pre-approval-dispatch-rejection.md`.
