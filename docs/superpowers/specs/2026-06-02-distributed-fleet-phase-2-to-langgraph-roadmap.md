@@ -361,3 +361,38 @@ Next 4060 task:
   and TCP reachability
 - do not retry service-signature capture until the correct ROS master and
   workspace are confirmed
+
+Reachability diagnosis received on 2026-06-04:
+
+- Evidence:
+  `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-ros-master-reachability-diagnosis.md`
+- branch head `81b88ad`
+- clean repo worktree
+- `ROS_MASTER_URI=http://localhost:11311`
+- `ROS_IP=` and `ROS_HOSTNAME=` empty
+- `roscore`, `rosmaster`, and `rosservice` binaries exist under
+  `/opt/ros/noetic/bin`
+- `/home/uavdev/catkin_ws`, `/home/uavdev/catkin_ws/devel`, and
+  `/home/uavdev/catkin_ws/devel/setup.bash` are missing
+- no `devel/setup.bash` was found under `/home/uavdev` with max depth `4`
+- no listener/process evidence for `roscore`, `rosmaster`, `roslaunch`,
+  `platform_gateway`, or `run_ros1_platform_gateway_node`
+- TCP connect to `localhost:11311` failed with connection refused
+
+Updated interpretation:
+
+- Phase 3A remains open.
+- The current blocker is not service-signature validation; it is missing live
+  ROS master/gateway environment on this WSL2 session.
+- Before any retry, identify the correct unit ROS workspace, launch files, or
+  gateway startup scripts with read-only file inventory.
+
+Updated next 4060 task:
+
+- run only the read-only workspace/startup inventory in
+  `docs/superpowers/plans/2026-06-03-phase-3a-read-only-ros1-signature-gate.md`
+  under `4060 Read-Only Workspace And Startup Inventory`
+- do not start `roscore`
+- do not start a gateway process
+- do not retry `rosservice list/type/args`
+- do not call gateway `dry_run` or `dispatch`

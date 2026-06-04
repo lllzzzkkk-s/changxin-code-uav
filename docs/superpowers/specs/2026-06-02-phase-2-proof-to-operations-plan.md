@@ -632,3 +632,74 @@ Interpretation:
   signature mismatch.
 - The next 4060 step is read-only ROS master reachability diagnosis before
   retrying service-signature capture.
+
+## Phase 3A 4060 ROS Master Reachability Diagnosis
+
+Status: user-reported 4060 read-only reachability diagnosis received on
+2026-06-04; Phase 3A still remains open.
+
+Evidence files:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-ros-master-reachability-diagnosis.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-ros-master-reachability-diagnosis.json`
+
+The unit 4060 Codex reported:
+
+```text
+81b88ad docs: record ugv phase3a ros master failure
+a9951f8 docs: record ugv phase2b 4060 receipt
+git status --short: <empty>
+```
+
+Reported ROS environment:
+
+```text
+ROS_MASTER_URI=http://localhost:11311
+ROS_IP=
+ROS_HOSTNAME=
+roscore=/opt/ros/noetic/bin/roscore
+rosmaster=/opt/ros/noetic/bin/rosmaster
+rosservice=/opt/ros/noetic/bin/rosservice
+```
+
+Reported catkin workspace evidence:
+
+```text
+/home/uavdev/catkin_ws: missing
+/home/uavdev/catkin_ws/devel: missing
+/home/uavdev/catkin_ws/devel/setup.bash: missing
+find ~ -maxdepth 4 -path '*/devel/setup.bash': no results
+```
+
+Reported reachability:
+
+```text
+parsed_ros_master_scheme=http
+parsed_ros_master_host=localhost
+parsed_ros_master_port=11311
+ss :11311 / rosmaster / roscore listener: no output
+tcp_connect=localhost:11311:FAIL:[Errno 111] Connection refused
+proc_pattern_match_count=0
+```
+
+Boundary statement:
+
+- This Mac-side repo note records the pasted 4060 receipt; it did not re-run
+  the 4060 checks.
+- The 4060 side reported `service_signature_capture_retried=false`,
+  `rosservice_list_type_args_run=false`, `gateway_dry_run_called=false`,
+  `gateway_dispatch_called=false`, `controlled_motion_authorized=false`,
+  `rostopic_list_echo_pub_run=false`, `repo_architecture_changed=false`, and
+  `non_convex_alpha_docs_touched=false`.
+
+Interpretation:
+
+- No ROS master is currently reachable at `http://localhost:11311`.
+- No `roscore`, `rosmaster`, `roslaunch`, `platform_gateway`, or
+  `run_ros1_platform_gateway_node` process was detected.
+- No local catkin workspace setup file was found under `/home/uavdev/catkin_ws`
+  or under `/home/uavdev` at depth `4`.
+- This is still not a gateway service-signature mismatch.
+- The next 4060 step is read-only workspace/startup inventory to identify where
+  the unit ROS workspace, launch files, or gateway startup scripts actually
+  live.

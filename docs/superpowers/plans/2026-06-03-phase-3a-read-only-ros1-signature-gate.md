@@ -317,6 +317,118 @@ boundary confirmation:
 Do not retry Phase 3A service-signature capture until the user confirms which
 ROS master URI and catkin workspace are correct for the unit UGV gateway lane.
 
+### Reachability Diagnosis Result
+
+The 4060 read-only reachability diagnosis on 2026-06-04 confirmed:
+
+```text
+ROS_MASTER_URI=http://localhost:11311
+ROS_IP=
+ROS_HOSTNAME=
+roscore=/opt/ros/noetic/bin/roscore
+rosmaster=/opt/ros/noetic/bin/rosmaster
+rosservice=/opt/ros/noetic/bin/rosservice
+/home/uavdev/catkin_ws: missing
+/home/uavdev/catkin_ws/devel: missing
+/home/uavdev/catkin_ws/devel/setup.bash: missing
+find ~ -maxdepth 4 -path '*/devel/setup.bash': no results
+parsed_ros_master_host=localhost
+parsed_ros_master_port=11311
+ss :11311 / rosmaster / roscore listener: no output
+tcp_connect=localhost:11311:FAIL:[Errno 111] Connection refused
+proc_pattern_match_count=0
+```
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-ros-master-reachability-diagnosis.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-ros-master-reachability-diagnosis.json`
+
+Interpretation:
+
+- No ROS master is currently reachable at `http://localhost:11311`.
+- No `roscore`, `rosmaster`, `roslaunch`, `platform_gateway`, or
+  `run_ros1_platform_gateway_node` process was detected.
+- No catkin workspace setup file was found under `/home/uavdev` at depth `4`.
+- This is still not a gateway service-signature mismatch.
+- Phase 3A remains open.
+
+### 4060 Read-Only Workspace And Startup Inventory
+
+Run these on the 4060 side before starting any ROS process or retrying
+service-signature capture. These commands only inspect paths and text files;
+they do not start `roscore`, run `rosservice list/type/args`, call gateway
+`dry_run`, call gateway `dispatch`, or publish ROS topics.
+
+```bash
+cd /mnt/d/changxin/changxin-code
+git fetch origin codex/phase2b-no-hardware-reporting
+git checkout -B codex/phase2b-no-hardware-reporting origin/codex/phase2b-no-hardware-reporting
+git log -2 --oneline
+git status --short
+
+echo "HOME=$HOME"
+echo "USER=$USER"
+pwd
+
+find /mnt/d/changxin -maxdepth 5 \( \
+  -path '*/devel/setup.bash' -o \
+  -name 'setup.bash' -o \
+  -name 'CMakeLists.txt' -o \
+  -name 'package.xml' -o \
+  -name '*.launch' -o \
+  -name '*.service' -o \
+  -name '*.sh' \
+\) -print 2>/dev/null | sort | tee /tmp/changxin-phase3a-workspace-inventory.txt
+
+find /home/uavdev -maxdepth 6 \( \
+  -path '*/devel/setup.bash' -o \
+  -name 'setup.bash' -o \
+  -name 'CMakeLists.txt' -o \
+  -name 'package.xml' -o \
+  -name '*.launch' -o \
+  -name '*.service' -o \
+  -name '*.sh' \
+\) -print 2>/dev/null | sort | tee -a /tmp/changxin-phase3a-workspace-inventory.txt
+
+rg -n "ROS_MASTER_URI|ROS_IP|ROS_HOSTNAME|roscore|roslaunch|rosmaster|run_ros1_platform_gateway_node|platform_gateway|gateway/dry_run|gateway/dispatch" \
+  /mnt/d/changxin /home/uavdev \
+  --glob '!**/.git/**' \
+  --glob '!**/__pycache__/**' \
+  --glob '!**/*.pyc' \
+  --glob '!**/*.tar.gz' \
+  --glob '!**/*.zip' \
+  --glob '!**/*.bag' \
+  2>/dev/null | tee /tmp/changxin-phase3a-ros-startup-references.txt
+
+wc -l /tmp/changxin-phase3a-workspace-inventory.txt /tmp/changxin-phase3a-ros-startup-references.txt
+```
+
+Report back:
+
+```text
+git log -2 --oneline
+git status --short
+workspace inventory path and first 80 lines
+startup references path and first 120 matching lines
+whether any devel/setup.bash exists
+whether any launch/service/script references roscore or gateway node
+boundary confirmation:
+  ros_process_started=false
+  service_signature_capture_retried=false
+  rosservice_list_type_args_run=false
+  gateway_dry_run_called=false
+  gateway_dispatch_called=false
+  controlled_motion_authorized=false
+  rostopic_list_echo_pub_run=false
+  repo_architecture_changed=false
+  non_convex_alpha_docs_touched=false
+```
+
+After this inventory, a local operator must decide whether starting a ROS
+master/gateway is in scope. Do not start it from this plan without explicit
+operator authorization.
+
 ## Task 3: Mac-Side Receipt Recording After 4060 Sends Output
 
 **Files:**

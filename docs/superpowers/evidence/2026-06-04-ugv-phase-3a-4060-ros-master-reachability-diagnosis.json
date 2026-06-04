@@ -1,0 +1,86 @@
+{
+  "schema": "UgvPhase3ARosMasterReachabilityDiagnosisReceipt.v1",
+  "date": "2026-06-04",
+  "source": "user_pasted_4060_codex_reply",
+  "evidence_classification": "reported_by_unit_4060_codex_not_reverified_by_mac",
+  "phase": "3A",
+  "gate": "read_only_ros1_service_signature",
+  "diagnosis_status": "completed",
+  "phase3a_exit_gate_passed": false,
+  "failure_classification": "ros_master_not_running_or_unreachable",
+  "machine": {
+    "role": "unit_rtx_4060_windows_wsl2",
+    "repo_path": "/mnt/d/changxin/changxin-code"
+  },
+  "git": {
+    "branch": "codex/phase2b-no-hardware-reporting",
+    "head_short": "81b88ad",
+    "head_subject": "docs: record ugv phase3a ros master failure",
+    "parent_short": "a9951f8",
+    "parent_subject": "docs: record ugv phase2b 4060 receipt",
+    "worktree_status": "clean"
+  },
+  "ros_environment_reported": {
+    "ros_master_uri": "http://localhost:11311",
+    "ros_ip": "",
+    "ros_hostname": "",
+    "roscore_path": "/opt/ros/noetic/bin/roscore",
+    "rosmaster_path": "/opt/ros/noetic/bin/rosmaster",
+    "rosservice_path": "/opt/ros/noetic/bin/rosservice"
+  },
+  "catkin_workspace_reported": {
+    "/home/uavdev/catkin_ws": "missing",
+    "/home/uavdev/catkin_ws/devel": "missing",
+    "/home/uavdev/catkin_ws/devel/setup.bash": "missing",
+    "setup_bash_candidates_under_home_maxdepth_4": []
+  },
+  "ros_master_parse": {
+    "scheme": "http",
+    "host": "localhost",
+    "port": 11311
+  },
+  "reachability": {
+    "ss_11311_or_rosmaster_listener_output": "",
+    "tcp_connect": {
+      "target": "localhost:11311",
+      "ok": false,
+      "error": "[Errno 111] Connection refused"
+    }
+  },
+  "process_check": {
+    "patterns": [
+      "roscore",
+      "rosmaster",
+      "roslaunch",
+      "platform_gateway",
+      "run_ros1_platform_gateway_node"
+    ],
+    "proc_pattern_match_count": 0
+  },
+  "boundary_confirmed_by_4060": {
+    "service_signature_capture_retried": false,
+    "rosservice_list_type_args_run": false,
+    "gateway_dry_run_called": false,
+    "gateway_dispatch_called": false,
+    "controlled_motion_authorized": false,
+    "rostopic_list_echo_pub_run": false,
+    "repo_architecture_changed": false,
+    "non_convex_alpha_docs_touched": false
+  },
+  "interpretation": {
+    "current_blocker": "No ROS master is reachable at http://localhost:11311 on this 4060 WSL2 environment; no roscore/rosmaster/gateway process was detected and no local catkin workspace setup file was found under /home/uavdev/catkin_ws.",
+    "not_a_gateway_signature_mismatch_yet": true,
+    "next_action": "Stay read-only and identify the correct unit ROS workspace/master/gateway startup source, or wait for local operator authorization to start the ROS master/gateway."
+  },
+  "not_proven_by_this_receipt": [
+    "successful Phase 3A service-signature gate",
+    "gateway service existence",
+    "gateway service nonexistence on another ROS master",
+    "gateway service type/args contract match",
+    "gateway dry_run",
+    "gateway dispatch",
+    "hardware proof",
+    "controlled motion",
+    "Mac-side access to D:\\changxin or the 4060 ROS master"
+  ]
+}
