@@ -1,41 +1,37 @@
-# Phase 3D Pre-Approval Dispatch Rejection Plan
+# Phase 3E Operator-Approved Manual-Confirm Dispatch Plan
 
 Date: 2026-06-04
 
-Goal: prove the real ROS1 gateway rejects `/fleet/ugv_0/gateway/dispatch`
-before local operator approval is enabled, using the same validated
-`TaskCommand.v1` and no-motion `manual_confirm` target map from Phase 3C.
+Goal: prove one explicitly approved `/fleet/ugv_0/gateway/dispatch` call can
+complete the no-motion `manual_confirm` UGV path and write matching
+`TaskProgressSet.v1` evidence.
 
-This is a negative safety gate. It is not dispatch approval, not controlled
-motion, and not final hardware execution proof.
+This is an approved dispatch/progress gate, but it is still a no-motion gate. It
+must not enable `move_base`, use `move_base_goal`, or authorize controlled
+motion.
 
 Architecture: keep `center PDDL -> task-level BT/state machine -> platform
-gateway -> local ROS1`. The center still emits only capability-level
-`TaskCommand.v1`; platform gateway and local UGV executor enforce the approval
-boundary.
+gateway -> local ROS1`. The center still sends only validated
+`TaskCommand.v1`; the platform gateway and local UGV executor enforce approval,
+target mapping, progress, and no raw ROS publish.
 
 ## Starting Evidence
 
-Phase 3C completed:
+Phase 3D completed:
 
 - evidence:
-  `docs/superpowers/evidence/2026-06-04-ugv-phase-3c-4060-no-motion-dry-run-success.md`
-- `GatewayServiceResponse.v1`
-- `mode=dry_run`
-- `platform_id=ugv_0`
-- `CommandAck.v1 accepted=true`
-- `ack_reason=unit_ugv_dry_run_ok`
+  `docs/superpowers/evidence/2026-06-04-ugv-phase-3d-4060-pre-approval-dispatch-rejection-success.md`
+- `dispatch_called_once=true`
+- `dispatch_accepted=false`
+- `ack_reason=operator approval required for unit UGV dispatch`
 - `motion_attempted=false`
 - `raw_ros_publish_attempted=false`
 - `progress_file_exists=false`
 - wrapper stopped after capture
 
-Phase 3C artifacts to reuse or re-verify:
+Phase 3C validated inputs to reuse or regenerate:
 
 ```text
-/tmp/changxin-phase3c/verified_artifact_gate.json
-sha256=2a6dbef957f622aa0394d2bf535be74a67de60859956c4c01078ad81bea3d063
-
 /tmp/changxin-phase3c/unit_ugv_targets.manual_confirm.json
 sha256=62aac9e2a391793b01ed434eb02b7d52aebcbb4f1eb7e331e74c414a8298740e
 
@@ -48,33 +44,47 @@ sha256=8c04ce46c3d2f5fde6b57d0335b09d64ebd5f3854bb253f9617f128fe6faf3e5
 
 ## Hard Boundary
 
-Phase 3D requires explicit local operator authorization because it calls the
-gateway `dispatch` service, even though the expected response is rejection.
+Phase 3E requires explicit local operator authorization because it calls
+`dispatch` with `--unit-ugv-operator-approved`.
 
-Authorized only for Phase 3D:
+Authorized only for Phase 3E:
 
 - verify or regenerate the Phase 3C no-motion inputs
 - start the gateway wrapper with `--unit-ugv-target-map`
-- do not pass `--unit-ugv-operator-approved`
+- pass `--unit-ugv-operator-approved`
+- pass `--unit-ugv-progress-output`
 - do not pass `--unit-ugv-enable-move-base`
 - call `/fleet/ugv_0/gateway/dispatch` once
-- capture the returned `GatewayServiceResponse.v1` / `CommandAck.v1`
+- capture `GatewayServiceResponse.v1` / `CommandAck.v1`
+- capture `TaskProgressSet.v1`
 - stop the wrapper after evidence capture
 
-Expected response:
+Expected dispatch response:
 
 - `schema=GatewayServiceResponse.v1`
 - `mode=dispatch`
 - `platform_id=ugv_0`
 - `ack.schema=CommandAck.v1`
-- `ack.accepted=false`
-- `ack.reason=operator approval required for unit UGV dispatch`
+- `ack.accepted=true`
+- `ack.reason=manual_confirm_completed`
 - `motion_attempted=false`
 - `raw_ros_publish_attempted=false`
+- `ack.local_check.dispatch_action=manual_confirm`
+
+Expected progress evidence:
+
+- `schema=TaskProgressSet.v1`
+- exactly one `TaskProgress.v1` item for the selected command
+- `status=completed`
+- `progress_ratio=1.0`
+- `message=manual_confirm_completed`
+- `platform_id=ugv_0`
+- `observations.target_id=target_01`
+- `observations.unit_ugv_action=manual_confirm`
+- `observations.motion_attempted=false`
 
 Still prohibited:
 
-- `--unit-ugv-operator-approved`
 - `--unit-ugv-enable-move-base`
 - `move_base_goal` target maps
 - controlled motion
@@ -92,19 +102,19 @@ Owner: Mac Codex.
 
 Files:
 
-- `docs/superpowers/evidence/2026-06-04-ugv-phase-3c-4060-no-motion-dry-run-success.md`
-- `docs/superpowers/evidence/2026-06-04-ugv-phase-3c-4060-no-motion-dry-run-success.json`
-- `docs/superpowers/plans/2026-06-04-phase-3d-pre-approval-dispatch-rejection.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3d-4060-pre-approval-dispatch-rejection-success.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3d-4060-pre-approval-dispatch-rejection-success.json`
+- `docs/superpowers/plans/2026-06-04-phase-3e-operator-approved-manual-confirm-dispatch.md`
 - `docs/superpowers/specs/2026-06-02-phase-2-proof-to-operations-plan.md`
 - `docs/superpowers/specs/2026-06-02-distributed-fleet-phase-2-to-langgraph-roadmap.md`
 
 Exit gate:
 
-- Phase 3C no-motion dry-run success receipt recorded
-- Phase 3D dispatch rejection plan and 4060 prompt written
+- Phase 3D pre-approval dispatch rejection receipt recorded
+- Phase 3E approved manual-confirm dispatch plan and 4060 prompt written
 - no Mac-side ROS access
 
-## Stage 1: Re-Verify Phase 3C Inputs
+## Stage 1: Re-Verify Inputs
 
 Owner: 4060 Codex after explicit authorization.
 
@@ -112,36 +122,32 @@ Use the existing Phase 3C files if present. Do not hand-write a new
 `TaskCommand`.
 
 ```bash
-mkdir -p /tmp/changxin-phase3d
-sha256sum /tmp/changxin-phase3c/verified_artifact_gate.json
+mkdir -p /tmp/changxin-phase3e
 sha256sum /tmp/changxin-phase3c/unit_ugv_targets.manual_confirm.json
 sha256sum /tmp/changxin-phase3c/extracted_task_command.report.json
 sha256sum /tmp/changxin-phase3c/task_command.rosservice.json
 python3 -m json.tool /tmp/changxin-phase3c/unit_ugv_targets.manual_confirm.json \
-  > /tmp/changxin-phase3d/unit_ugv_targets.manual_confirm.pretty.json
+  > /tmp/changxin-phase3e/unit_ugv_targets.manual_confirm.pretty.json
 python3 -m json.tool /tmp/changxin-phase3c/extracted_task_command.report.json \
-  > /tmp/changxin-phase3d/extracted_task_command.report.pretty.json
+  > /tmp/changxin-phase3e/extracted_task_command.report.pretty.json
 ```
 
 Exit gate:
 
 - target map JSON parses
-- target map has `operator_confirmed_mapping=true`
 - target action is `manual_confirm`
+- target map has `operator_confirmed_mapping=true`
 - extracted command report has `ok=true`
 - extracted command has `platform_id=ugv_0`
 - extracted command has `capability=confirm_target`
 - extracted command has `parameters.target_id=target_01`
-- `task_command.rosservice.json` hash matches the Phase 3C receipt or is
-  regenerated by `tools/extract_task_command_from_artifact.py`
 
-## Stage 2: Start Wrapper Without Approval
+## Stage 2: Start Wrapper With Approval But Without Move-Base
 
 Owner: 4060 Codex after explicit authorization.
 
-Start the wrapper with the manual-confirm target map. Do not pass
-`--unit-ugv-operator-approved`, `--unit-ugv-enable-move-base`, or
-`--unit-ugv-progress-output`.
+Start the wrapper with `--unit-ugv-operator-approved` and progress output. Do
+not pass `--unit-ugv-enable-move-base`.
 
 ```bash
 export CATKIN_WS=/home/uavdev/catkin_ws
@@ -186,10 +192,12 @@ PY
       --capability confirm_target \
       --service-symbol platform_gateway_msgs.srv:TaskCommandJson \
       --unit-ugv-target-map /tmp/changxin-phase3c/unit_ugv_targets.manual_confirm.json \
-      --node-name platform_gateway_ugv_0_phase3d
-) > /tmp/changxin-phase3d/gateway-wrapper.log 2>&1 &
+      --unit-ugv-operator-approved \
+      --unit-ugv-progress-output /tmp/changxin-phase3e/task_progress_after_dispatch.json \
+      --node-name platform_gateway_ugv_0_phase3e
+) > /tmp/changxin-phase3e/gateway-wrapper.log 2>&1 &
 GATEWAY_PID=$!
-echo "$GATEWAY_PID" > /tmp/changxin-phase3d/gateway-wrapper.pid
+echo "$GATEWAY_PID" > /tmp/changxin-phase3e/gateway-wrapper.pid
 sleep 5
 ps -p "$GATEWAY_PID" -o pid=,cmd=
 ```
@@ -198,23 +206,24 @@ Exit gate:
 
 - wrapper stays alive
 - `/fleet/ugv_0/gateway/dispatch` exists
-- wrapper command does not contain approval, move-base, or progress-output flags
+- wrapper command includes `--unit-ugv-operator-approved`
+- wrapper command includes `--unit-ugv-progress-output`
+- wrapper command does not include `--unit-ugv-enable-move-base`
+- target map remains `manual_confirm`
 - no service call has happened yet
 
-## Stage 3: Call Dispatch Once And Expect Rejection
+## Stage 3: Call Approved Manual-Confirm Dispatch Once
 
 Owner: 4060 Codex after explicit authorization.
-
-Call only the dispatch service once:
 
 ```bash
 rosservice call /fleet/ugv_0/gateway/dispatch \
   "$(cat /tmp/changxin-phase3c/task_command.rosservice.json)" \
-  | tee /tmp/changxin-phase3d/gateway-dispatch-reject-response.txt
+  | tee /tmp/changxin-phase3e/gateway-dispatch-response.txt
 DISPATCH_RC=${PIPESTATUS[0]}
-echo "$DISPATCH_RC" > /tmp/changxin-phase3d/gateway-dispatch-reject.rc
-sha256sum /tmp/changxin-phase3d/gateway-dispatch-reject-response.txt
-sha256sum /tmp/changxin-phase3d/gateway-dispatch-reject.rc
+echo "$DISPATCH_RC" > /tmp/changxin-phase3e/gateway-dispatch.rc
+sha256sum /tmp/changxin-phase3e/gateway-dispatch-response.txt
+sha256sum /tmp/changxin-phase3e/gateway-dispatch.rc
 ```
 
 Parse the returned `response_json` field:
@@ -224,7 +233,7 @@ python3 - <<'PY'
 import json
 from pathlib import Path
 
-text = Path("/tmp/changxin-phase3d/gateway-dispatch-reject-response.txt").read_text(encoding="utf-8")
+text = Path("/tmp/changxin-phase3e/gateway-dispatch-response.txt").read_text(encoding="utf-8")
 try:
     import yaml  # type: ignore
     outer = yaml.safe_load(text)
@@ -234,7 +243,7 @@ except Exception as exc:
 if not isinstance(outer, dict) or "response_json" not in outer:
     raise SystemExit("rosservice response did not contain response_json")
 response = json.loads(str(outer["response_json"]))
-Path("/tmp/changxin-phase3d/gateway-dispatch-reject-response.parsed.json").write_text(
+Path("/tmp/changxin-phase3e/gateway-dispatch-response.parsed.json").write_text(
     json.dumps(response, indent=2, sort_keys=True),
     encoding="utf-8",
 )
@@ -247,17 +256,18 @@ summary = {
     "ack_reason": response.get("ack", {}).get("reason"),
     "motion_attempted": response.get("motion_attempted"),
     "raw_ros_publish_attempted": response.get("raw_ros_publish_attempted"),
+    "local_check_dispatch_action": response.get("ack", {}).get("local_check", {}).get("dispatch_action"),
     "local_check_motion_attempted": response.get("ack", {}).get("local_check", {}).get("motion_attempted"),
     "local_check_raw_ros_publish_attempted": response.get("ack", {}).get("local_check", {}).get("raw_ros_publish_attempted"),
 }
-Path("/tmp/changxin-phase3d/gateway-dispatch-reject-response.summary.json").write_text(
+Path("/tmp/changxin-phase3e/gateway-dispatch-response.summary.json").write_text(
     json.dumps(summary, indent=2, sort_keys=True),
     encoding="utf-8",
 )
 print(json.dumps(summary, indent=2, sort_keys=True))
 PY
-sha256sum /tmp/changxin-phase3d/gateway-dispatch-reject-response.parsed.json
-sha256sum /tmp/changxin-phase3d/gateway-dispatch-reject-response.summary.json
+sha256sum /tmp/changxin-phase3e/gateway-dispatch-response.parsed.json
+sha256sum /tmp/changxin-phase3e/gateway-dispatch-response.summary.json
 ```
 
 Exit gate:
@@ -267,52 +277,96 @@ Exit gate:
 - `mode=dispatch`
 - `platform_id=ugv_0`
 - `ack.schema=CommandAck.v1`
-- `ack.accepted=false`
-- `ack.reason=operator approval required for unit UGV dispatch`
+- `ack.accepted=true`
+- `ack.reason=manual_confirm_completed`
 - `motion_attempted=false`
 - `raw_ros_publish_attempted=false`
+- `ack.local_check.dispatch_action=manual_confirm`
 
-If dispatch accepts, motion is attempted, or parsing fails, stop immediately
-after evidence capture. Do not retry with altered flags or hand-written command
-JSON.
+If dispatch rejects, motion is attempted, or parsing fails, stop after evidence
+capture. Do not retry with altered flags or hand-written command JSON.
 
-## Stage 4: Stop Wrapper And Report
+## Stage 4: Validate Progress And Stop Wrapper
 
 Owner: 4060 Codex.
 
 ```bash
+python3 -m json.tool /tmp/changxin-phase3e/task_progress_after_dispatch.json \
+  > /tmp/changxin-phase3e/task_progress_after_dispatch.pretty.json
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+progress = json.loads(Path("/tmp/changxin-phase3e/task_progress_after_dispatch.json").read_text(encoding="utf-8"))
+items = progress.get("items", [])
+summary = {
+    "schema": progress.get("schema"),
+    "item_count": len(items),
+}
+if items:
+    item = items[0]
+    summary.update({
+        "item_schema": item.get("schema"),
+        "mission_id": item.get("mission_id"),
+        "task_id": item.get("task_id"),
+        "platform_id": item.get("platform_id"),
+        "status": item.get("status"),
+        "progress_ratio": item.get("progress_ratio"),
+        "message": item.get("message"),
+        "observations_target_id": item.get("observations", {}).get("target_id"),
+        "observations_unit_ugv_action": item.get("observations", {}).get("unit_ugv_action"),
+        "observations_motion_attempted": item.get("observations", {}).get("motion_attempted"),
+    })
+Path("/tmp/changxin-phase3e/task_progress_after_dispatch.summary.json").write_text(
+    json.dumps(summary, indent=2, sort_keys=True),
+    encoding="utf-8",
+)
+print(json.dumps(summary, indent=2, sort_keys=True))
+PY
+sha256sum /tmp/changxin-phase3e/task_progress_after_dispatch.json
+sha256sum /tmp/changxin-phase3e/task_progress_after_dispatch.summary.json
+
 kill "$GATEWAY_PID" || true
 wait "$GATEWAY_PID" || true
-sha256sum /tmp/changxin-phase3d/gateway-wrapper.log
-sha256sum /tmp/changxin-phase3d/gateway-wrapper.pid
-test -f /tmp/changxin-phase3d/task_progress_after_dispatch.json && \
-  sha256sum /tmp/changxin-phase3d/task_progress_after_dispatch.json || true
+sha256sum /tmp/changxin-phase3e/gateway-wrapper.log
+sha256sum /tmp/changxin-phase3e/gateway-wrapper.pid
 ```
 
-There should be no task-progress file in Phase 3D. The dispatch call is
-expected to reject before operator approval and before the executor writes
-progress.
+Exit gate:
+
+- progress file exists
+- progress schema is `TaskProgressSet.v1`
+- exactly one progress item exists
+- item schema is `TaskProgress.v1`
+- item status is `completed`
+- item message is `manual_confirm_completed`
+- item platform is `ugv_0`
+- item target is `target_01`
+- item action is `manual_confirm`
+- item `motion_attempted=false`
+- wrapper is stopped after capture
 
 ## 4060 Prompt
 
-Use this prompt only after the user/operator explicitly authorizes Phase 3D
-pre-approval dispatch rejection.
+Use this prompt only after the user/operator explicitly authorizes Phase 3E
+operator-approved no-motion manual-confirm dispatch.
 
 ```text
-Continue UGV Phase 3D pre-approval dispatch rejection.
+Continue UGV Phase 3E operator-approved manual-confirm dispatch.
 
-You are on the unit 4060 WSL2 side. Phase 3C no-motion gateway dry_run passed:
-/fleet/ugv_0/gateway/dry_run returned GatewayServiceResponse.v1,
-CommandAck.v1 accepted=true, reason=unit_ugv_dry_run_ok, motion_attempted=false,
-raw_ros_publish_attempted=false.
+You are on the unit 4060 WSL2 side. Phase 3D passed: dispatch was called once
+without operator approval and was rejected with reason "operator approval
+required for unit UGV dispatch", motion_attempted=false.
 
 Authorization scope:
-- re-verify or regenerate the Phase 3C validated no-motion inputs
-- start gateway wrapper with --unit-ugv-target-map only
-- do not pass --unit-ugv-operator-approved
+- re-verify or regenerate Phase 3C validated no-motion inputs
+- start gateway wrapper with --unit-ugv-target-map
+- start gateway wrapper with --unit-ugv-operator-approved
+- start gateway wrapper with --unit-ugv-progress-output
 - do not pass --unit-ugv-enable-move-base
 - call /fleet/ugv_0/gateway/dispatch once
 - capture response/logs
+- validate TaskProgressSet.v1
 - stop wrapper after capture
 
 Expected result:
@@ -321,13 +375,16 @@ Expected result:
 - mode=dispatch
 - platform_id=ugv_0
 - ack.schema=CommandAck.v1
-- ack.accepted=false
-- ack.reason=operator approval required for unit UGV dispatch
+- ack.accepted=true
+- ack.reason=manual_confirm_completed
 - motion_attempted=false
 - raw_ros_publish_attempted=false
+- progress schema=TaskProgressSet.v1
+- progress item status=completed
+- progress item observations.unit_ugv_action=manual_confirm
+- progress item observations.motion_attempted=false
 
 Not authorized:
-- do not use --unit-ugv-operator-approved
 - do not use --unit-ugv-enable-move-base
 - do not use move_base_goal target maps
 - do not authorize controlled motion
@@ -345,98 +402,38 @@ git log -2 --oneline
 git status --short
 
 Then follow:
-docs/superpowers/plans/2026-06-04-phase-3d-pre-approval-dispatch-rejection.md
+docs/superpowers/plans/2026-06-04-phase-3e-operator-approved-manual-confirm-dispatch.md
 
 Stop if:
-- Phase 3C validated input hashes cannot be verified or regenerated
+- validated input hashes cannot be verified or regenerated
 - command is not ugv_0 confirm_target target_01
+- target action is not manual_confirm
 - ROS master TCP preflight fails
 - wrapper does not stay alive
-- wrapper command includes operator-approved, enable-move-base, move_base_goal, or progress-output
+- wrapper command includes enable-move-base or move_base_goal
 - dispatch response is not GatewayServiceResponse.v1
-- dispatch accepts
+- dispatch rejects
 - motion_attempted is true
+- progress file is missing or invalid
 
 Report:
 - input artifact paths/sha256
 - wrapper pid/log/sha256
 - dispatch rc and response path/sha256
 - parsed response path/sha256
+- progress path/sha256
 - parsed response key fields
+- progress summary key fields
 - whether wrapper stopped
-- whether any progress file exists
 - boundary confirmation:
   dispatch_called_once=true
-  dispatch_accepted=false
+  dispatch_accepted=true
+  operator_approved=true
+  enable_move_base=false
+  target_action=manual_confirm
   controlled_motion_authorized=false
   motion_attempted=false
   rostopic_pub=false
   repo_architecture_changed=false
   non_convex_alpha_docs_touched=false
 ```
-
-## Phase 3D Result: Pre-Approval Dispatch Rejection Passed
-
-On 2026-06-04, the 4060 side completed Phase 3D. The wrapper started without
-`--unit-ugv-operator-approved`, one `/fleet/ugv_0/gateway/dispatch` call was
-made, and the gateway rejected the command before motion or raw ROS publish.
-
-Evidence:
-
-- `docs/superpowers/evidence/2026-06-04-ugv-phase-3d-4060-pre-approval-dispatch-rejection-success.md`
-- `docs/superpowers/evidence/2026-06-04-ugv-phase-3d-4060-pre-approval-dispatch-rejection-success.json`
-
-Reported result:
-
-```text
-ROS_MASTER_URI=http://192.168.0.201:11311
-ROS_IP=172.20.26.179
-tcp_connect=OK
-gateway_wrapper_pid=2699
-dispatch_rc=0
-dispatch_called_once=true
-dispatch_accepted=false
-progress_file_exists=false
-wrapper_stopped_after_capture=true
-```
-
-Parsed response:
-
-```text
-schema=GatewayServiceResponse.v1
-mode=dispatch
-platform_id=ugv_0
-ack_schema=CommandAck.v1
-ack_accepted=false
-ack_reason=operator approval required for unit UGV dispatch
-motion_attempted=false
-raw_ros_publish_attempted=false
-local_check_target_mapped=true
-local_check_mapping_operator_confirmed=true
-local_check_motion_attempted=false
-local_check_raw_ros_publish_attempted=false
-```
-
-Boundary preserved:
-
-- only one `/fleet/ugv_0/gateway/dispatch` call
-- dispatch was not accepted
-- wrapper command only used `--unit-ugv-target-map`
-- no `--unit-ugv-operator-approved`
-- no `--unit-ugv-enable-move-base`
-- no `--unit-ugv-progress-output`
-- no `move_base_goal`
-- no controlled motion
-- no `rostopic pub`
-- no hand-written `TaskCommand` JSON
-- repo architecture not changed
-- non-convex alpha documents not touched
-
-Interpretation:
-
-- Phase 3D pre-approval dispatch rejection objective is complete.
-- This is not operator-approved dispatch proof, task-progress proof,
-  controlled-motion proof, or final hardware execution proof.
-- The next gate is Phase 3E operator-approved no-motion `manual_confirm`
-  dispatch:
-  `docs/superpowers/plans/2026-06-04-phase-3e-operator-approved-manual-confirm-dispatch.md`.

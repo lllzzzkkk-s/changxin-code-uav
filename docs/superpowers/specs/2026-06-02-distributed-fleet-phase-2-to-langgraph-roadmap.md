@@ -607,6 +607,66 @@ Still out of scope:
 - model calls on the unit execution lane
 - committed machine-specific ROS profiles
 
+## Phase 3D Result: Pre-Approval Dispatch Rejection Passed
+
+Status as of 2026-06-04: the 4060 side completed Phase 3D pre-approval
+dispatch rejection.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3d-4060-pre-approval-dispatch-rejection-success.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3d-4060-pre-approval-dispatch-rejection-success.json`
+
+4060 reported:
+
+- TCP preflight to `192.168.0.201:11311` succeeded
+- wrapper started without `--unit-ugv-operator-approved`
+- one `/fleet/ugv_0/gateway/dispatch` call was made
+- `dispatch_rc=0`
+- `GatewayServiceResponse.v1`
+- `mode=dispatch`
+- `platform_id=ugv_0`
+- `CommandAck.v1 accepted=false`
+- `ack_reason=operator approval required for unit UGV dispatch`
+- `motion_attempted=false`
+- `raw_ros_publish_attempted=false`
+- `progress_file_exists=false`
+- wrapper stopped after capture
+
+Updated interpretation:
+
+- Phase 3D is complete for pre-approval dispatch rejection.
+- This proves the ROS1 gateway dispatch path is reachable and enforces the
+  local operator approval gate before progress or motion.
+- This does not prove operator-approved dispatch, task progress, controlled
+  motion, or final hardware execution.
+- The next planned gate is Phase 3E operator-approved no-motion
+  `manual_confirm` dispatch, documented in
+  `docs/superpowers/plans/2026-06-04-phase-3e-operator-approved-manual-confirm-dispatch.md`.
+
+Current next gate:
+
+1. User/operator explicitly authorizes Phase 3E operator-approved no-motion
+   manual-confirm dispatch.
+2. 4060 re-verifies or regenerates the Phase 3C validated no-motion inputs.
+3. 4060 starts the wrapper with `--unit-ugv-target-map`,
+   `--unit-ugv-operator-approved`, and `--unit-ugv-progress-output`.
+4. 4060 does not pass `--unit-ugv-enable-move-base`.
+5. 4060 calls `/fleet/ugv_0/gateway/dispatch` once.
+6. Expected response is `CommandAck.v1 accepted=true` with
+   `reason=manual_confirm_completed`.
+7. 4060 confirms `motion_attempted=false`, no raw ROS publish, matching
+   `TaskProgressSet.v1`, stops the wrapper, and reports evidence.
+
+Still out of scope:
+
+- `move_base_goal` target maps
+- `--unit-ugv-enable-move-base`
+- controlled motion
+- `rostopic pub`
+- model calls on the unit execution lane
+- committed machine-specific ROS profiles
+
 ## Phase 3C Result: No-Motion Gateway Dry-Run Passed
 
 Status as of 2026-06-04: the 4060 side completed Phase 3C no-motion gateway
