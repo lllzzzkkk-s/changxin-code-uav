@@ -437,3 +437,84 @@ Report:
   repo_architecture_changed=false
   non_convex_alpha_docs_touched=false
 ```
+
+## Phase 3E Result: Approved Manual-Confirm Dispatch Passed
+
+On 2026-06-04, the 4060 side completed Phase 3E. The wrapper started with
+`--unit-ugv-operator-approved` and progress output, one
+`/fleet/ugv_0/gateway/dispatch` call was made, the gateway accepted the
+`manual_confirm` command, and `TaskProgressSet.v1` evidence was written.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3e-4060-approved-manual-confirm-dispatch-success.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3e-4060-approved-manual-confirm-dispatch-success.json`
+
+Reported result:
+
+```text
+ROS_MASTER_URI=http://192.168.0.201:11311
+ROS_IP=172.20.26.179
+tcp_connect=OK
+gateway_wrapper_pid=2932
+dispatch_rc=0
+dispatch_called_once=true
+dispatch_accepted=true
+operator_approved=true
+enable_move_base=false
+target_action=manual_confirm
+progress_file_exists=true
+wrapper_stopped_after_capture=true
+```
+
+Parsed response:
+
+```text
+schema=GatewayServiceResponse.v1
+mode=dispatch
+platform_id=ugv_0
+ack_schema=CommandAck.v1
+ack_accepted=true
+ack_reason=manual_confirm_completed
+motion_attempted=false
+raw_ros_publish_attempted=false
+local_check_dispatch_action=manual_confirm
+```
+
+Progress summary:
+
+```text
+schema=TaskProgressSet.v1
+item_count=1
+item_schema=TaskProgress.v1
+task_id=task_002
+platform_id=ugv_0
+status=completed
+progress_ratio=1.0
+message=manual_confirm_completed
+observations_target_id=target_01
+observations_unit_ugv_action=manual_confirm
+observations_motion_attempted=false
+```
+
+Boundary preserved:
+
+- only one `/fleet/ugv_0/gateway/dispatch` call
+- dispatch was accepted only after explicit local approval
+- `--unit-ugv-enable-move-base` was not used
+- `move_base_goal` was not used
+- no controlled motion
+- no `rostopic pub`
+- no hand-written `TaskCommand` JSON
+- repo architecture not changed
+- non-convex alpha documents not touched
+
+Interpretation:
+
+- Phase 3E operator-approved no-motion `manual_confirm` dispatch objective is
+  complete.
+- This is a real ROS1 gateway dispatch/progress proof for the no-motion manual
+  confirmation path.
+- This is not `move_base_goal`, controlled-motion, or physical-navigation proof.
+- The next gate is Phase 3F no-motion hardware evidence closure:
+  `docs/superpowers/plans/2026-06-04-phase-3f-no-motion-hardware-evidence-closure.md`.

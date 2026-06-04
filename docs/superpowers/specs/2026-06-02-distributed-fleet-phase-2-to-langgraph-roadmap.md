@@ -607,6 +607,68 @@ Still out of scope:
 - model calls on the unit execution lane
 - committed machine-specific ROS profiles
 
+## Phase 3E Result: Approved Manual-Confirm Dispatch Passed
+
+Status as of 2026-06-04: the 4060 side completed Phase 3E operator-approved
+no-motion `manual_confirm` dispatch.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3e-4060-approved-manual-confirm-dispatch-success.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3e-4060-approved-manual-confirm-dispatch-success.json`
+
+4060 reported:
+
+- TCP preflight to `192.168.0.201:11311` succeeded
+- wrapper started with local operator approval
+- `--unit-ugv-enable-move-base` was not used
+- one `/fleet/ugv_0/gateway/dispatch` call was made
+- `dispatch_rc=0`
+- `GatewayServiceResponse.v1`
+- `mode=dispatch`
+- `platform_id=ugv_0`
+- `CommandAck.v1 accepted=true`
+- `ack_reason=manual_confirm_completed`
+- `motion_attempted=false`
+- `raw_ros_publish_attempted=false`
+- `TaskProgressSet.v1` was written
+- progress item: `task_002`, `ugv_0`, `target_01`,
+  `unit_ugv_action=manual_confirm`, `motion_attempted=false`
+- wrapper stopped after capture
+
+Updated interpretation:
+
+- Phase 3E is complete for operator-approved no-motion dispatch and progress.
+- This proves the real ROS1 gateway can accept an approved UGV
+  `confirm_target(target_01)` command through the `manual_confirm` path and
+  produce matching task progress.
+- This does not prove `move_base_goal`, controlled motion, or physical
+  navigation.
+- The next planned gate is Phase 3F no-motion hardware evidence closure,
+  documented in
+  `docs/superpowers/plans/2026-06-04-phase-3f-no-motion-hardware-evidence-closure.md`.
+
+Current next gate:
+
+1. 4060 makes no new ROS service calls.
+2. 4060 verifies existing Phase 3E response/progress captures.
+3. 4060 runs `tools/record_unit_hardware_dispatch_artifact.py` with the captured
+   accepted ack and `TaskProgressSet.v1`.
+4. 4060 runs `tools/check_distributed_fleet_goal_evidence.py` with the generated
+   hardware artifact.
+5. 4060 reports generated artifact root, hashes,
+   `unit_hardware_execution_artifact_verified` status, and remaining gaps.
+
+Still out of scope:
+
+- additional gateway service calls
+- `move_base_goal` target maps
+- `--unit-ugv-enable-move-base`
+- controlled motion
+- `rostopic pub`
+- model calls on the unit execution lane
+- committed machine-specific ROS profiles
+
 ## Phase 3D Result: Pre-Approval Dispatch Rejection Passed
 
 Status as of 2026-06-04: the 4060 side completed Phase 3D pre-approval

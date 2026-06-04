@@ -1233,6 +1233,93 @@ Boundary statement:
   change, no non-convex alpha document edits, and no committed
   machine-specific ROS IP/env.
 
+## Phase 3E 4060 Approved Manual-Confirm Dispatch Success
+
+Status: user-reported 4060 Phase 3E success received on 2026-06-04; Phase 3E
+operator-approved no-motion dispatch/progress objective is complete.
+
+Evidence files:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3e-4060-approved-manual-confirm-dispatch-success.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3e-4060-approved-manual-confirm-dispatch-success.json`
+
+4060 reported:
+
+```text
+git log -2 --oneline
+56e354a docs: record phase3d dispatch rejection
+3a712da docs: record phase3c dry run success
+git status --short: <empty>
+ROS_MASTER_URI=http://192.168.0.201:11311
+ROS_IP=172.20.26.179
+tcp_connect=OK
+gateway_wrapper_pid=2932
+dispatch_rc=0
+dispatch_called_once=true
+dispatch_accepted=true
+operator_approved=true
+enable_move_base=false
+target_action=manual_confirm
+progress_file_exists=true
+wrapper_stopped_after_capture=true
+```
+
+Parsed dispatch response:
+
+```text
+schema=GatewayServiceResponse.v1
+mode=dispatch
+platform_id=ugv_0
+ack_schema=CommandAck.v1
+ack_accepted=true
+ack_reason=manual_confirm_completed
+motion_attempted=false
+raw_ros_publish_attempted=false
+local_check_dispatch_action=manual_confirm
+```
+
+Progress summary:
+
+```text
+schema=TaskProgressSet.v1
+item_count=1
+item_schema=TaskProgress.v1
+task_id=task_002
+platform_id=ugv_0
+status=completed
+progress_ratio=1.0
+message=manual_confirm_completed
+observations_target_id=target_01
+observations_unit_ugv_action=manual_confirm
+observations_motion_attempted=false
+```
+
+Interpretation:
+
+- Phase 3E operator-approved no-motion dispatch/progress passed.
+- A validated `TaskCommand.v1` for `ugv_0 confirm_target(target_01)` was
+  accepted by the real ROS1 gateway dispatch path after local operator
+  approval.
+- The action remained `manual_confirm`.
+- No motion or raw ROS publish was attempted.
+- Matching `TaskProgressSet.v1` evidence was written.
+- The wrapper was stopped after evidence capture.
+- This is not `move_base_goal`, controlled-motion, physical-navigation, or
+  standardized imported goal-evidence proof.
+- The next gate is Phase 3F no-motion hardware evidence closure:
+  `docs/superpowers/plans/2026-06-04-phase-3f-no-motion-hardware-evidence-closure.md`.
+
+Boundary statement:
+
+- This Mac-side note records the pasted 4060 receipt; it did not re-run the
+  4060 checks.
+- The 4060 side reported one gateway `dispatch`, dispatch accepted,
+  `operator_approved=true`, `enable_move_base=false`,
+  `target_action=manual_confirm`, no `move_base_goal`, no controlled motion, no
+  `rostopic pub`, no hand-written `TaskCommand` JSON, no repo architecture
+  change, no non-convex alpha document edits, and no committed
+  machine-specific ROS IP/env.
+
 ## Phase 3B 4060 Wrapper Preflight Master Refused
 
 Status: user-reported 4060 Phase 3B Stage 4 preflight received on 2026-06-04;
