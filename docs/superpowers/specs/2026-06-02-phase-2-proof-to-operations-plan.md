@@ -889,3 +889,59 @@ Boundary statement:
   `controlled_motion_authorized=false`, `rostopic_publish=false`,
   `repo_architecture_changed=false`, and
   `non_convex_alpha_docs_touched=false`.
+
+## Phase 3B 4060 Workspace Dry-Run Authorization Stop
+
+Status: user-reported 4060 Phase 3B Stage 2 result received on 2026-06-04;
+Stage 3 apply/build still requires explicit authorization.
+
+Evidence files:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-workspace-dry-run-auth-stop.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-workspace-dry-run-auth-stop.json`
+
+4060 reported:
+
+```text
+git log -2 --oneline
+afb1712 docs: record phase3a gateway missing retry
+49f5fb2 docs: plan phase3a master retry
+git status --short: <empty>
+CATKIN_WS=/home/uavdev/catkin_ws
+CATKIN_SRC=/home/uavdev/catkin_ws/src
+/home/uavdev/catkin_ws/devel/setup.bash exists
+platform_gateway_msgs installed: no
+```
+
+Dry-run result:
+
+```text
+/tmp/changxin-phase3b-gateway-workspace-dry-run.json
+schema='Ros1GatewayWorkspacePlan.v1'
+ok=True
+dry_run=True
+installed=False
+mode='copy'
+catkin_src='/home/uavdev/catkin_ws/src'
+validation_errors=[]
+warnings=[]
+sha256=948c362139e7b5337d5f16b6d8006c512b395b5969bfe695026156bb111a4f62
+```
+
+Interpretation:
+
+- Phase 3B Stage 2 has passed on the 4060 side.
+- The intended catkin workspace now exists, but the gateway message package has
+  not been applied or built.
+- The next action is Stage 3 apply/build only after explicit authorization.
+- Stage 4 gateway wrapper startup remains a separate authorization point after
+  Stage 3 succeeds.
+
+Boundary statement:
+
+- This Mac-side note records the pasted 4060 receipt; it did not re-run the
+  4060 checks.
+- The 4060 side reported no gateway `dry_run`, no gateway `dispatch`, no
+  controlled motion, no `rostopic pub`, no repo architecture change, no
+  non-convex alpha document edits, no gateway wrapper startup, and no Stage 3
+  apply/build.

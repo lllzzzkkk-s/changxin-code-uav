@@ -520,3 +520,49 @@ Still out of scope:
 - controlled motion
 - `rostopic` publish
 - model calls on the unit execution lane
+
+## Phase 3B Stage 2 Result: Workspace Dry-Run Ready
+
+Status as of 2026-06-04: the 4060 side has completed Phase 3B Stage 2 and is
+stopped at the Stage 3 apply/build authorization point.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-workspace-dry-run-auth-stop.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-workspace-dry-run-auth-stop.json`
+
+4060 reported:
+
+- `CATKIN_WS=/home/uavdev/catkin_ws`
+- `CATKIN_SRC=/home/uavdev/catkin_ws/src`
+- `/home/uavdev/catkin_ws/devel/setup.bash` exists
+- `/home/uavdev/catkin_ws/src` currently contains only the catkin top-level
+  `CMakeLists.txt` symlink
+- `platform_gateway_msgs` has not been installed
+- dry-run report `Ros1GatewayWorkspacePlan.v1 ok=True`
+- `dry_run=True`
+- `installed=False`
+- `validation_errors=[]`
+- `warnings=[]`
+
+Updated next gate:
+
+1. User/operator explicitly authorizes Phase 3B Stage 3 apply/build.
+2. 4060 installs `platform_gateway_msgs` into `/home/uavdev/catkin_ws/src`.
+3. 4060 runs `catkin_make`.
+4. 4060 verifies import of `platform_gateway_msgs.srv.TaskCommandJson`.
+5. 4060 stops and returns logs; gateway wrapper startup is not part of Stage 3.
+
+Stage 4 remains separate:
+
+- start the gateway wrapper for service registration only after a second
+  explicit authorization
+- then rerun read-only service-signature verification
+
+Still out of scope:
+
+- gateway `dry_run` service calls
+- gateway `dispatch` service calls
+- controlled motion
+- `rostopic pub`
+- committed machine-specific ROS profiles

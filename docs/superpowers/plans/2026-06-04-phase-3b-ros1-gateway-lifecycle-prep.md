@@ -120,6 +120,60 @@ Exit gate:
 If the dry-run reports `catkin src path does not exist`, stop and ask the
 operator whether to create the workspace.
 
+### Stage 2 Result: Dry-Run Passed, Stopped For Stage 3 Authorization
+
+On 2026-06-04, the 4060 side reported that it completed Stage 2 and stopped
+before Stage 3 apply/build.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-workspace-dry-run-auth-stop.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-workspace-dry-run-auth-stop.json`
+
+Reported state:
+
+```text
+CATKIN_WS=/home/uavdev/catkin_ws
+CATKIN_SRC=/home/uavdev/catkin_ws/src
+/home/uavdev/catkin_ws/devel/setup.bash exists
+/home/uavdev/catkin_ws/src contains only catkin top-level CMakeLists.txt symlink
+platform_gateway_msgs installed: no
+```
+
+Reported dry-run:
+
+```text
+/tmp/changxin-phase3b-gateway-workspace-dry-run.json
+schema='Ros1GatewayWorkspacePlan.v1'
+ok=True
+dry_run=True
+installed=False
+mode='copy'
+catkin_src='/home/uavdev/catkin_ws/src'
+validation_errors=[]
+warnings=[]
+sha256=948c362139e7b5337d5f16b6d8006c512b395b5969bfe695026156bb111a4f62
+```
+
+Boundary preserved:
+
+- Stage 3 `apply/build` not run
+- gateway wrapper not started
+- gateway `dry_run` not called
+- gateway `dispatch` not called
+- controlled motion not authorized
+- `rostopic pub` not run
+- repo architecture not changed
+- non-convex alpha documents not touched
+
+Next authorization point:
+
+```text
+Authorize Phase 3B Stage 3 apply/build only:
+install platform_gateway_msgs into /home/uavdev/catkin_ws/src and run
+catkin_make. Do not start the gateway wrapper yet.
+```
+
 ## Stage 3: Apply Package And Build
 
 Owner: 4060 Codex, only after explicit operator authorization.
@@ -158,6 +212,10 @@ Stop condition:
 - missing build dependencies
 - wrong workspace
 - generated service import fails
+
+Stage 3 does not start the gateway wrapper. If Stage 3 passes, stop and return
+the apply JSON, build log, import result, and boundary confirmation. Stage 4
+requires separate authorization.
 
 ## Stage 4: Start Gateway Wrapper For Service Registration
 
@@ -353,6 +411,95 @@ Report:
   dispatch_called=false
   controlled_motion_authorized=false
   rostopic_publish=false
+  repo_architecture_changed=false
+  non_convex_alpha_docs_touched=false
+```
+
+## 4060 Prompt: Continue From Stage 3 Authorization Point
+
+Use this prompt only after the user/operator explicitly authorizes Stage 3
+apply/build. It still does not authorize starting the gateway wrapper.
+
+```text
+Continue UGV Phase 3B from the Stage 3 apply/build authorization point.
+
+You are on the unit 4060 WSL2 side. Stage 2 already passed:
+CATKIN_WS=/home/uavdev/catkin_ws
+CATKIN_SRC=/home/uavdev/catkin_ws/src
+dry-run ok=True
+platform_gateway_msgs is not installed yet.
+
+Authorization scope for this prompt:
+- install platform_gateway_msgs into /home/uavdev/catkin_ws/src
+- run catkin_make
+- source devel/setup.bash
+- verify Python can import platform_gateway_msgs.srv.TaskCommandJson
+
+Not authorized in this prompt:
+- do not start gateway wrapper
+- do not call /fleet/ugv_0/gateway/dry_run
+- do not call /fleet/ugv_0/gateway/dispatch
+- do not authorize controlled motion
+- do not run rostopic pub
+- do not edit repo architecture
+- do not touch non-convex alpha docs
+- do not commit machine-specific ROS IP/env
+
+Work in /mnt/d/changxin/changxin-code:
+git fetch origin
+git checkout codex/phase2b-no-hardware-reporting
+git pull --ff-only origin codex/phase2b-no-hardware-reporting
+git log -2 --oneline
+git status --short
+
+export CATKIN_WS=/home/uavdev/catkin_ws
+export CATKIN_SRC=/home/uavdev/catkin_ws/src
+
+Confirm starting state:
+test -d "$CATKIN_WS" && echo "catkin_ws_exists=true"
+test -d "$CATKIN_SRC" && echo "catkin_src_exists=true"
+test -f "$CATKIN_WS/devel/setup.bash" && echo "setup_bash_exists=true"
+find "$CATKIN_SRC" -maxdepth 2 -mindepth 1 -print | sort
+
+Apply the gateway message package:
+PYTHONDONTWRITEBYTECODE=1 python3 tools/prepare_ros1_gateway_workspace.py \
+  --catkin-src "$CATKIN_SRC" \
+  --apply \
+  > /tmp/changxin-phase3b-gateway-workspace-apply.json
+python3 -m json.tool /tmp/changxin-phase3b-gateway-workspace-apply.json \
+  > /tmp/changxin-phase3b-gateway-workspace-apply.pretty.json
+sha256sum /tmp/changxin-phase3b-gateway-workspace-apply.json
+
+Build:
+cd "$CATKIN_WS"
+catkin_make | tee /tmp/changxin-phase3b-catkin-make.log
+echo "catkin_make_rc=${PIPESTATUS[0]}"
+sha256sum /tmp/changxin-phase3b-catkin-make.log
+
+Verify generated service import:
+source "$CATKIN_WS/devel/setup.bash"
+PYTHONPATH=/mnt/d/changxin/changxin-code:$PYTHONPATH python3 - <<'PY' \
+  | tee /tmp/changxin-phase3b-task-command-json-import.txt
+from platform_gateway_msgs.srv import TaskCommandJson
+print(TaskCommandJson)
+PY
+echo "import_rc=${PIPESTATUS[0]}"
+sha256sum /tmp/changxin-phase3b-task-command-json-import.txt
+
+Stop here. Do not start the gateway wrapper.
+
+Report:
+- git log -2 and git status
+- apply JSON key fields and sha256
+- catkin_make rc and log sha256
+- TaskCommandJson import rc and output
+- final CATKIN_WS/CATKIN_SRC tree summary
+- boundary confirmation:
+  gateway_wrapper_started=false
+  dry_run_called=false
+  dispatch_called=false
+  controlled_motion_authorized=false
+  rostopic_pub=false
   repo_architecture_changed=false
   non_convex_alpha_docs_touched=false
 ```
