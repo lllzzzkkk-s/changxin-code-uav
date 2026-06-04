@@ -1,0 +1,105 @@
+{
+  "schema": "UgvPhase3ARosMasterUnreachableReceipt.v1",
+  "date": "2026-06-04",
+  "source": "user_pasted_4060_codex_reply",
+  "evidence_classification": "reported_by_unit_4060_codex_not_reverified_by_mac",
+  "phase": "3A",
+  "gate": "read_only_ros1_service_signature",
+  "gate_status": "failed",
+  "failure_classification": "ros_master_unreachable",
+  "machine": {
+    "role": "unit_rtx_4060_windows_wsl2",
+    "repo_path": "/mnt/d/changxin/changxin-code"
+  },
+  "git": {
+    "branch": "codex/phase2b-no-hardware-reporting",
+    "head_short": "a9951f8",
+    "head_subject": "docs: record ugv phase2b 4060 receipt",
+    "parent_short": "f506515",
+    "parent_subject": "feat: add phase2b no-motion reporting",
+    "worktree_status": "clean"
+  },
+  "ros_environment_reported": {
+    "source_opt_ros_noetic_setup": "ok",
+    "source_catkin_ws_devel_setup": "missing",
+    "ros_master_uri": "http://localhost:11311",
+    "ros_ip": "",
+    "ros_hostname": "",
+    "rosservice_path": "/opt/ros/noetic/bin/rosservice"
+  },
+  "read_only_capture_files": {
+    "/tmp/changxin-rosservice-list.txt": {
+      "bytes": 0
+    },
+    "/tmp/changxin-rosservice-types.txt": {
+      "bytes": 0
+    },
+    "/tmp/changxin-rosservice-args.txt": {
+      "bytes": 0
+    }
+  },
+  "rosservice_list": {
+    "attempted": true,
+    "read_only": true,
+    "return_code": 2,
+    "stdout": "",
+    "stderr_or_output": "ERROR: Unable to communicate with master!",
+    "observed_service_count": 0
+  },
+  "service_signature_capture": {
+    "dry_run_services_discovered": [],
+    "dispatch_services_discovered": [],
+    "type_targets_available": false,
+    "args_targets_available": false,
+    "types_file_empty": true,
+    "args_file_empty": true
+  },
+  "site_acceptance_report": {
+    "path": "/tmp/changxin-phase3a-read-only-ros1-signature.json",
+    "schema": "TaskPlanningSiteAcceptance.v1",
+    "ok": false,
+    "platform_backend": "ros1_gateway",
+    "profile_path": "/tmp/changxin-work-hardware-ros1-gateway.env",
+    "readiness_ok": true,
+    "rosservice_audit": {
+      "ok": false,
+      "command_environment_source": "captured_files",
+      "observed_service_count": 0,
+      "matched_services": []
+    },
+    "validation_errors": [
+      "rosservice service-name evidence is required when service signatures are required",
+      "a captured rosservice list is required for ROS1 gateway acceptance",
+      "valid rosservice type/args evidence is required for ROS1 gateway acceptance"
+    ]
+  },
+  "boundary_confirmed_by_4060": {
+    "dry_run_called": false,
+    "dispatch_called": false,
+    "controlled_motion_authorized": false,
+    "gateway_service_call": false,
+    "rostopic_publish": false,
+    "repo_architecture_changed": false,
+    "non_convex_alpha_docs_touched": false,
+    "rosservice_list_only": true,
+    "rosservice_type_run": false,
+    "rosservice_args_run": false,
+    "rostopic_list_echo_pub_run": false,
+    "worktree_clean": true
+  },
+  "interpretation": {
+    "phase3a_exit_gate_passed": false,
+    "reason": "ROS master was unreachable, so gateway service names and signatures could not be observed.",
+    "next_action": "Run read-only ROS master reachability diagnosis on the 4060 side before retrying service-signature capture."
+  },
+  "not_proven_by_this_receipt": [
+    "successful Phase 3A service-signature gate",
+    "gateway service existence",
+    "gateway service type/args contract match",
+    "gateway dry_run",
+    "gateway dispatch",
+    "hardware proof",
+    "controlled motion",
+    "Mac-side access to D:\\changxin or the 4060 ROS master"
+  ]
+}

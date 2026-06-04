@@ -308,3 +308,56 @@ Mac-side next task:
 
 Phase 3 must not start as a live 4060 ROS step until the user explicitly asks
 for ROS1 gateway lifecycle or read-only service signature work.
+
+## Current Phase 3A Status
+
+Status as of 2026-06-04: attempted on the unit 4060 lane, but not accepted.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-ros-master-unreachable-receipt.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-ros-master-unreachable-receipt.json`
+
+4060 reported:
+
+- branch head `a9951f8`
+- clean repo worktree
+- `source /opt/ros/noetic/setup.bash: ok`
+- `source ~/catkin_ws/devel/setup.bash: missing`
+- `ROS_MASTER_URI=http://localhost:11311`
+- `ROS_IP=` and `ROS_HOSTNAME=` empty
+- `rosservice list` returned `RC=2` with
+  `ERROR: Unable to communicate with master!`
+- captured service list/type/args files were present but `0` bytes
+- `TaskPlanningSiteAcceptance.v1 ok=False`
+- `platform_backend='ros1_gateway'`
+- `rosservice_audit.observed_service_count=0`
+- no matched gateway services
+
+Boundary was preserved:
+
+- no gateway `dry_run`
+- no gateway `dispatch`
+- no controlled motion
+- no gateway service call
+- no `rostopic` publish
+- no repo architecture change
+- no non-convex alpha document changes
+
+Interpretation:
+
+- Phase 3A did not fail because a gateway service signature mismatched.
+- Phase 3A failed earlier: the 4060 WSL2 ROS environment could not communicate
+  with its configured master.
+- Do not proceed to gateway `dry_run` planning until the ROS master URI,
+  catkin workspace source path, and port `11311` reachability are understood.
+
+Next 4060 task:
+
+- run only the read-only ROS master reachability diagnosis in
+  `docs/superpowers/plans/2026-06-03-phase-3a-read-only-ros1-signature-gate.md`
+  under `Failure Branch A: ROS Master Unreachable`
+- report environment, candidate catkin setup paths, process/socket evidence,
+  and TCP reachability
+- do not retry service-signature capture until the correct ROS master and
+  workspace are confirmed

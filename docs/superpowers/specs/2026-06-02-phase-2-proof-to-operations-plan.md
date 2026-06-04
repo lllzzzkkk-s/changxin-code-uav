@@ -550,3 +550,85 @@ Phase 2B status after this receipt:
   ROS graph/service commands.
 - Phase 3A planning artifact:
   `docs/superpowers/plans/2026-06-03-phase-3a-read-only-ros1-signature-gate.md`.
+
+## Phase 3A 4060 ROS Master Unreachable Receipt
+
+Status: user-reported 4060 read-only Phase 3A attempt received on 2026-06-04;
+the gate did not pass.
+
+Evidence files:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-ros-master-unreachable-receipt.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-ros-master-unreachable-receipt.json`
+
+The unit 4060 Codex reported:
+
+```text
+a9951f8 docs: record ugv phase2b 4060 receipt
+f506515 feat: add phase2b no-motion reporting
+git status --short: <empty>
+```
+
+Reported ROS environment:
+
+```text
+source /opt/ros/noetic/setup.bash: ok
+source ~/catkin_ws/devel/setup.bash: missing
+ROS_MASTER_URI=http://localhost:11311
+ROS_IP=
+ROS_HOSTNAME=
+rosservice=/opt/ros/noetic/bin/rosservice
+```
+
+Reported read-only observation:
+
+- `/tmp/changxin-rosservice-list.txt`: `0` bytes.
+- `/tmp/changxin-rosservice-types.txt`: `0` bytes.
+- `/tmp/changxin-rosservice-args.txt`: `0` bytes.
+- `rosservice list` returned `RC=2` with
+  `ERROR: Unable to communicate with master!`.
+- No `/fleet/*/gateway/dry_run` or `/fleet/*/gateway/dispatch` service names
+  were discovered.
+- No `rosservice type` or `rosservice args` target existed.
+
+Reported verifier result:
+
+- Report path: `/tmp/changxin-phase3a-read-only-ros1-signature.json`.
+- `schema='TaskPlanningSiteAcceptance.v1'`.
+- `ok=False`.
+- `platform_backend='ros1_gateway'`.
+- `profile_path='/tmp/changxin-work-hardware-ros1-gateway.env'`.
+- `readiness_ok=True`.
+- `rosservice_audit.ok=False`.
+- `rosservice_audit.command_environment_source='captured_files'`.
+- `rosservice_audit.observed_service_count=0`.
+- `matched_services=[]`.
+
+Reported validation errors:
+
+```text
+rosservice service-name evidence is required when service signatures are required
+a captured rosservice list is required for ROS1 gateway acceptance
+valid rosservice type/args evidence is required for ROS1 gateway acceptance
+```
+
+Boundary statement:
+
+- This Mac-side repo note records the pasted 4060 receipt; it did not re-run
+  the 4060 checks.
+- The 4060 side reported `dry_run_called=false`, `dispatch_called=false`,
+  `controlled_motion_authorized=false`, `gateway service call=false`,
+  `rostopic publish=false`, `repo architecture changed=false`, and
+  `non-convex alpha docs touched=false`.
+- The 4060 side reported only `rosservice list` read-only observation. It did
+  not call gateway `dry_run`, did not call gateway `dispatch`, did not run
+  controlled motion, and did not run `rostopic list`, `rostopic echo`, or
+  `rostopic pub`.
+
+Interpretation:
+
+- Phase 3A remains open.
+- This is a ROS master reachability failure, not yet a gateway service
+  signature mismatch.
+- The next 4060 step is read-only ROS master reachability diagnosis before
+  retrying service-signature capture.

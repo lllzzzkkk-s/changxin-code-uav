@@ -127,8 +127,8 @@ git status --short
 Expected:
 
 ```text
+a9951f8 docs: record ugv phase2b 4060 receipt
 f506515 feat: add phase2b no-motion reporting
-5652c93 docs: record ugv phase2a 4060 receipt
 ```
 
 `git status --short` must be empty.
@@ -209,6 +209,113 @@ Expected:
 If `PLATFORM_BACKEND=ros1_gateway` is required for this exact acceptance level,
 copy `profiles/work_hardware_ros1_gateway.env.template` to a local, uncommitted
 profile and fill real `ROS_MASTER_URI`/`ROS_IP`; do not commit that profile.
+
+## Failure Branch A: ROS Master Unreachable
+
+The 4060 Phase 3A attempt on 2026-06-04 did not pass because the ROS master was
+not reachable:
+
+```text
+ROS_MASTER_URI=http://localhost:11311
+source ~/catkin_ws/devel/setup.bash: missing
+rosservice list RC=2
+ERROR: Unable to communicate with master!
+observed_service_count=0
+```
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-ros-master-unreachable-receipt.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-ros-master-unreachable-receipt.json`
+
+Interpretation:
+
+- This is not a service-signature mismatch yet.
+- This is not a gateway contract failure yet.
+- This does not prove gateway services exist or do not exist.
+- This only proves the current 4060 WSL2 ROS environment could not communicate
+  with its configured ROS master.
+
+### 4060 Read-Only Reachability Diagnosis
+
+Run these on the 4060 side before retrying service-signature capture. These
+commands inspect files, environment, processes, and TCP listeners only; they do
+not call gateway `dry_run`, gateway `dispatch`, or publish ROS topics.
+
+```bash
+cd /mnt/d/changxin/changxin-code
+git fetch origin codex/phase2b-no-hardware-reporting
+git checkout -B codex/phase2b-no-hardware-reporting origin/codex/phase2b-no-hardware-reporting
+git log -2 --oneline
+git status --short
+
+source /opt/ros/noetic/setup.bash
+echo "ROS_MASTER_URI=${ROS_MASTER_URI:-}"
+echo "ROS_IP=${ROS_IP:-}"
+echo "ROS_HOSTNAME=${ROS_HOSTNAME:-}"
+command -v roscore || true
+command -v rosmaster || true
+command -v rosservice || true
+
+ls -ld ~/catkin_ws ~/catkin_ws/devel ~/catkin_ws/devel/setup.bash 2>&1 || true
+find ~ -maxdepth 4 -path '*/devel/setup.bash' -print 2>/dev/null | sort
+
+python3 - <<'PY'
+from urllib.parse import urlparse
+import os
+uri = os.environ.get("ROS_MASTER_URI", "")
+parsed = urlparse(uri)
+print(f"parsed_ros_master_scheme={parsed.scheme}")
+print(f"parsed_ros_master_host={parsed.hostname}")
+print(f"parsed_ros_master_port={parsed.port}")
+PY
+
+ss -ltnp 2>/dev/null | grep -E '(:11311|rosmaster|roscore)' || true
+ps -ef | grep -E '[r]oscore|[r]osmaster|[r]oslaunch|platform_gateway|run_ros1_platform_gateway_node' || true
+
+python3 - <<'PY'
+import os
+import socket
+from urllib.parse import urlparse
+uri = os.environ.get("ROS_MASTER_URI", "http://localhost:11311")
+parsed = urlparse(uri)
+host = parsed.hostname or "localhost"
+port = parsed.port or 11311
+sock = socket.socket()
+sock.settimeout(2)
+try:
+    sock.connect((host, port))
+except OSError as exc:
+    print(f"tcp_connect={host}:{port}:FAIL:{exc}")
+else:
+    print(f"tcp_connect={host}:{port}:OK")
+finally:
+    sock.close()
+PY
+```
+
+Report back:
+
+```text
+git log -2 --oneline
+git status --short
+ROS_MASTER_URI / ROS_IP / ROS_HOSTNAME
+whether ~/catkin_ws/devel/setup.bash exists
+candidate setup.bash paths from find
+whether port 11311 is listening
+whether roscore/rosmaster/roslaunch processes exist
+tcp_connect result
+boundary confirmation:
+  dry_run_called=false
+  dispatch_called=false
+  controlled_motion_authorized=false
+  rostopic_publish=false
+  repo_architecture_changed=false
+  non_convex_alpha_docs_touched=false
+```
+
+Do not retry Phase 3A service-signature capture until the user confirms which
+ROS master URI and catkin workspace are correct for the unit UGV gateway lane.
 
 ## Task 3: Mac-Side Receipt Recording After 4060 Sends Output
 
