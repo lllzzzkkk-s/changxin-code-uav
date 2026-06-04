@@ -703,3 +703,76 @@ Interpretation:
 - The next 4060 step is read-only workspace/startup inventory to identify where
   the unit ROS workspace, launch files, or gateway startup scripts actually
   live.
+
+## Phase 3A 4060 Workspace Startup Inventory
+
+Status: user-reported 4060 read-only workspace/startup inventory received on
+2026-06-04; Phase 3A still remains open.
+
+Evidence files:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-workspace-startup-inventory.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-workspace-startup-inventory.json`
+
+The unit 4060 Codex reported:
+
+```text
+34cdfcb docs: record ugv phase3a reachability diagnosis
+81b88ad docs: record ugv phase3a ros master failure
+git status --short: <empty>
+HOME=/home/uavdev
+USER=uavdev
+pwd=/mnt/d/changxin/changxin-code
+```
+
+Generated inventory files:
+
+```text
+/tmp/changxin-phase3a-workspace-inventory.txt: 101 lines
+/tmp/changxin-phase3a-ros-startup-references.txt: 5962 lines
+```
+
+Reported key findings:
+
+- No `*/devel/setup.bash` was found under `/mnt/d/changxin` or `/home/uavdev`
+  scan roots.
+- No `*.launch` or `*.service` files were found by the max-depth inventory
+  scan.
+- Repo scripts were found under `tools/unit_receiving_wsl2.sh`,
+  `ugv/01-scripts/probe_ugv_readonly.sh`,
+  `ugv/01-scripts/probe_ugv_runtime_readonly.sh`, and `uav/01-scripts/*.sh`.
+- Duplicate/home repo copies were found under `/home/uavdev/changxin-code-sync`
+  and `/home/uavdev/changxin-code`.
+- Dependency-tree CMake files were found under `/home/uavdev/uav-deps`.
+- Repo startup references include
+  `profiles/work_hardware_ros1_gateway.env.template`,
+  `tools/run_ros1_platform_gateway_node.py`,
+  `platform_gateway/ros1_service_gateway.py`,
+  `platform_gateway/ros1_service_node.py`, and
+  `platform_gateway/ros1_service_node_template.py`.
+- Historical evidence references include prior `roscore`/`roslaunch` logs under
+  `/home/uavdev/uav-g3*-evidence`.
+
+Boundary statement:
+
+- This Mac-side repo note records the pasted 4060 receipt; it did not re-run
+  the 4060 checks.
+- The 4060 side reported it did not start `roscore`, did not start a gateway,
+  did not run `rosservice list/type/args`, did not call gateway `dry_run`, did
+  not call gateway `dispatch`, did not authorize controlled motion, did not run
+  `rostopic`, did not change repo architecture, and did not touch non-convex
+  alpha documents.
+
+Interpretation:
+
+- The repo contains gateway wrapper code and read-only probe scripts, but the
+  4060 inventory did not find a ready local catkin workspace setup file,
+  launch file, or service file under the scanned roots.
+- Duplicate repo copies and `/home/uavdev/uav-deps` CMake trees are not proof
+  of a live ROS master/gateway runtime.
+- Historical `uav-g3*` evidence can guide investigation but must not become a
+  live runtime dependency.
+- The next step needs a local operator decision: provide the actual unit ROS
+  workspace/startup path, authorize preparing a ROS1 gateway catkin workspace,
+  or authorize starting a local ROS master and gateway wrapper for read-only
+  service-signature capture.

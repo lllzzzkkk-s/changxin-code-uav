@@ -396,3 +396,46 @@ Updated next 4060 task:
 - do not start a gateway process
 - do not retry `rosservice list/type/args`
 - do not call gateway `dry_run` or `dispatch`
+
+Workspace/startup inventory received on 2026-06-04:
+
+- Evidence:
+  `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-workspace-startup-inventory.md`
+- branch head `34cdfcb`
+- clean repo worktree
+- inventory file:
+  `/tmp/changxin-phase3a-workspace-inventory.txt` with `101` lines
+- startup-reference file:
+  `/tmp/changxin-phase3a-ros-startup-references.txt` with `5962` lines
+- no `*/devel/setup.bash` was found under `/mnt/d/changxin` or `/home/uavdev`
+- no `*.launch` or `*.service` files were found by the max-depth inventory scan
+- repo scripts were found under `tools/`, `ugv/01-scripts/`, and
+  `uav/01-scripts/`
+- duplicate/home repo copies were found under `/home/uavdev/changxin-code-sync`
+  and `/home/uavdev/changxin-code`
+- dependency CMake trees were found under `/home/uavdev/uav-deps`
+- repo references include the gateway profile template, gateway node runner,
+  and ROS1 service gateway wrapper code
+- historical evidence references include prior `uav-g3*` ROS logs, but those
+  are text hits and not running processes
+
+Updated interpretation:
+
+- Phase 3A remains open.
+- The current evidence does not identify a ready unit ROS workspace or startup
+  launch/service file.
+- Repo gateway code exists but is not proof that the unit ROS master/gateway is
+  installed, built, sourced, or running.
+- The next step is no longer another blind scan. A local operator must either
+  provide the actual unit ROS workspace/startup path or explicitly authorize
+  preparing/starting the ROS1 master and gateway environment.
+
+Decision gate before further 4060 action:
+
+- provide actual ROS workspace path and startup command, or
+- authorize preparing a ROS1 gateway catkin workspace from repo sources, or
+- authorize starting a local ROS master and gateway wrapper for read-only
+  service-signature capture
+
+Until that decision is made, do not retry service-signature capture and do not
+start ROS processes.

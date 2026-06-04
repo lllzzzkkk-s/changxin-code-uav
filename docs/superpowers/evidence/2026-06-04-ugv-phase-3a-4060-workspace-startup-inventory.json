@@ -1,0 +1,100 @@
+{
+  "schema": "UgvPhase3AWorkspaceStartupInventoryReceipt.v1",
+  "date": "2026-06-04",
+  "source": "user_pasted_4060_codex_reply",
+  "evidence_classification": "reported_by_unit_4060_codex_not_reverified_by_mac",
+  "phase": "3A",
+  "gate": "read_only_ros1_service_signature",
+  "inventory_status": "completed",
+  "phase3a_exit_gate_passed": false,
+  "failure_classification": "workspace_and_startup_assets_not_resolved",
+  "machine": {
+    "role": "unit_rtx_4060_windows_wsl2",
+    "repo_path": "/mnt/d/changxin/changxin-code"
+  },
+  "git": {
+    "branch": "codex/phase2b-no-hardware-reporting",
+    "head_short": "34cdfcb",
+    "head_subject": "docs: record ugv phase3a reachability diagnosis",
+    "parent_short": "81b88ad",
+    "parent_subject": "docs: record ugv phase3a ros master failure",
+    "worktree_status": "clean"
+  },
+  "environment_reported": {
+    "home": "/home/uavdev",
+    "user": "uavdev",
+    "pwd": "/mnt/d/changxin/changxin-code"
+  },
+  "generated_files": {
+    "/tmp/changxin-phase3a-workspace-inventory.txt": {
+      "lines": 101
+    },
+    "/tmp/changxin-phase3a-ros-startup-references.txt": {
+      "lines": 5962
+    }
+  },
+  "workspace_inventory_findings": {
+    "devel_setup_bash_found_under_scan_roots": false,
+    "launch_files_found_by_maxdepth_inventory": false,
+    "service_files_found_by_maxdepth_inventory": false,
+    "repo_scripts_found": [
+      "/mnt/d/changxin/changxin-code/tools/unit_receiving_wsl2.sh",
+      "/mnt/d/changxin/changxin-code/ugv/01-scripts/probe_ugv_readonly.sh",
+      "/mnt/d/changxin/changxin-code/ugv/01-scripts/probe_ugv_runtime_readonly.sh",
+      "/mnt/d/changxin/changxin-code/uav/01-scripts/*.sh"
+    ],
+    "duplicate_home_copies_found": [
+      "/home/uavdev/changxin-code-sync/...",
+      "/home/uavdev/changxin-code/..."
+    ],
+    "dependency_tree_cmake_roots_found": [
+      "/home/uavdev/uav-deps/..."
+    ]
+  },
+  "startup_reference_findings": {
+    "repo_references_include": [
+      "profiles/work_hardware_ros1_gateway.env.template",
+      "tools/run_ros1_platform_gateway_node.py",
+      "platform_gateway/ros1_service_gateway.py",
+      "platform_gateway/ros1_service_node.py",
+      "platform_gateway/ros1_service_node_template.py"
+    ],
+    "historical_evidence_references_include": [
+      "/home/uavdev/uav-g3*-evidence/..."
+    ],
+    "notes": [
+      "rg references include historical logs and docs; they are text hits only, not running processes.",
+      "Non-convex alpha docs appear as text-search hits in docs/非凸α-二开速查台.html, but were not modified."
+    ]
+  },
+  "boundary_confirmed_by_4060": {
+    "ros_process_started": false,
+    "service_signature_capture_retried": false,
+    "rosservice_list_type_args_run": false,
+    "gateway_dry_run_called": false,
+    "gateway_dispatch_called": false,
+    "controlled_motion_authorized": false,
+    "rostopic_list_echo_pub_run": false,
+    "repo_architecture_changed": false,
+    "non_convex_alpha_docs_touched": false,
+    "worktree_clean_after_inventory": true
+  },
+  "known_environment_note": "WSL emitted the known localhost/NAT startup warning.",
+  "interpretation": {
+    "current_blocker": "The 4060 WSL2 session does not expose a ready catkin workspace setup file under the scanned roots, and the inventory did not find launch or service files at the requested depth.",
+    "repo_code_is_not_live_runtime_proof": true,
+    "historical_evidence_is_not_live_runtime_dependency": true,
+    "next_action": "A local operator must provide the actual unit ROS workspace/startup path or explicitly authorize starting/preparing the ROS1 master and gateway environment on the 4060 side."
+  },
+  "not_proven_by_this_receipt": [
+    "successful Phase 3A service-signature gate",
+    "gateway service existence",
+    "gateway service nonexistence on another ROS master or workspace",
+    "gateway service type/args contract match",
+    "gateway dry_run",
+    "gateway dispatch",
+    "hardware proof",
+    "controlled motion",
+    "Mac-side access to D:\\changxin or the 4060 filesystem"
+  ]
+}

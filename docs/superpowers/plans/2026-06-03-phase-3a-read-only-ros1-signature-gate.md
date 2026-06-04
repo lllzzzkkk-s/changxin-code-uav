@@ -429,6 +429,68 @@ After this inventory, a local operator must decide whether starting a ROS
 master/gateway is in scope. Do not start it from this plan without explicit
 operator authorization.
 
+### Workspace And Startup Inventory Result
+
+The 4060 read-only workspace/startup inventory on 2026-06-04 confirmed:
+
+```text
+HOME=/home/uavdev
+USER=uavdev
+pwd=/mnt/d/changxin/changxin-code
+/tmp/changxin-phase3a-workspace-inventory.txt: 101 lines
+/tmp/changxin-phase3a-ros-startup-references.txt: 5962 lines
+No */devel/setup.bash found under /mnt/d/changxin or /home/uavdev scan roots.
+No *.launch or *.service files found by the maxdepth inventory scan.
+Repo scripts found:
+  /mnt/d/changxin/changxin-code/tools/unit_receiving_wsl2.sh
+  /mnt/d/changxin/changxin-code/ugv/01-scripts/probe_ugv_readonly.sh
+  /mnt/d/changxin/changxin-code/ugv/01-scripts/probe_ugv_runtime_readonly.sh
+  /mnt/d/changxin/changxin-code/uav/01-scripts/*.sh
+Duplicate/home copies found:
+  /home/uavdev/changxin-code-sync/...
+  /home/uavdev/changxin-code/...
+Dependency tree CMake files found under:
+  /home/uavdev/uav-deps/...
+Repo startup references include:
+  profiles/work_hardware_ros1_gateway.env.template
+  tools/run_ros1_platform_gateway_node.py
+  platform_gateway/ros1_service_gateway.py
+  platform_gateway/ros1_service_node.py
+  platform_gateway/ros1_service_node_template.py
+Historical evidence references include:
+  /home/uavdev/uav-g3*-evidence/...
+```
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-workspace-startup-inventory.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-workspace-startup-inventory.json`
+
+Interpretation:
+
+- The repo contains gateway wrapper code and read-only probe scripts, but the
+  4060 inventory did not find a ready local catkin workspace setup file,
+  launch file, or service file under the scanned roots.
+- Duplicate repo copies under `/home/uavdev` and dependency CMake trees under
+  `/home/uavdev/uav-deps` are not proof of a live ROS master/gateway runtime.
+- Historical `uav-g3*` evidence can guide investigation, but it must not be
+  treated as the current runtime.
+- Phase 3A remains open until a real ROS master and gateway services are made
+  reachable under explicit local operator control.
+
+### Operator Decision Gate
+
+Stop before any command that starts ROS processes or prepares/builds a gateway
+workspace. The next step needs one of these operator decisions:
+
+1. Provide the actual unit ROS workspace path and startup command used for the
+   UGV gateway lane.
+2. Authorize preparing a ROS1 gateway catkin workspace from repo sources.
+3. Authorize starting a local ROS master and gateway wrapper for read-only
+   service-signature capture.
+
+Without one of those decisions, do not retry service-signature capture.
+
 ## Task 3: Mac-Side Receipt Recording After 4060 Sends Output
 
 **Files:**
