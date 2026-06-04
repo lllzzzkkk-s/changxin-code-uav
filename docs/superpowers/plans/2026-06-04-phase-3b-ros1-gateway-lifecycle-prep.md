@@ -307,6 +307,56 @@ Exit gate:
 After Stage 5 read-only evidence capture, stop or clean up the wrapper unless
 the local operator explicitly keeps it running for the next authorized stage.
 
+### Stage 4 Preflight Result: ROS Master Refused, Wrapper Not Started
+
+On 2026-06-04, the 4060 side attempted to continue Stage 4 but stopped before
+starting the gateway wrapper because the intended ROS master refused TCP
+connection.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-wrapper-preflight-master-refused.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-wrapper-preflight-master-refused.json`
+
+Reported preflight:
+
+```text
+ROS_MASTER_URI=http://192.168.0.201:11311
+ROS_IP=172.20.26.179
+ROS_HOSTNAME=
+parsed_ros_master_host=192.168.0.201
+parsed_ros_master_port=11311
+tcp_connect=FAIL:[Errno 111] Connection refused
+```
+
+Reported wrapper state:
+
+```text
+gateway_wrapper_started=false
+gateway_wrapper_pid=null
+wrapper_alive_for_capture=false
+verifier_run=false
+reason=ros_master_tcp_unreachable_connection_refused
+```
+
+Interpretation:
+
+- Stage 3 apply/build remains complete.
+- Stage 4 remains pending.
+- The current blocker is ROS master reachability, not gateway signature.
+- Do not start the gateway wrapper until TCP preflight to
+  `192.168.0.201:11311` succeeds.
+
+Boundary preserved:
+
+- gateway wrapper not started
+- gateway `dry_run` not called
+- gateway `dispatch` not called
+- controlled motion not authorized
+- `rostopic pub` not run
+- repo architecture not changed
+- non-convex alpha documents not touched
+
 ## Stage 5: Read-Only Signature Verification
 
 Owner: 4060 Codex.
@@ -614,6 +664,38 @@ echo "ROS_MASTER_URI=$ROS_MASTER_URI"
 echo "ROS_IP=${ROS_IP:-}"
 echo "ROS_HOSTNAME=${ROS_HOSTNAME:-}"
 
+Run TCP preflight before starting the wrapper:
+python3 - <<'PY'
+import os, socket, urllib.parse
+uri = os.environ.get("ROS_MASTER_URI", "")
+parsed = urllib.parse.urlparse(uri)
+host = parsed.hostname
+port = parsed.port or 11311
+print(f"parsed_ros_master_host={host}")
+print(f"parsed_ros_master_port={port}")
+if not host:
+    raise SystemExit("NO_ACTIVE_ROS_MASTER_URI")
+sock = socket.socket()
+sock.settimeout(3)
+try:
+    sock.connect((host, port))
+except OSError as exc:
+    print(f"tcp_connect=FAIL:{exc}")
+    raise SystemExit(20)
+else:
+    print("tcp_connect=OK")
+finally:
+    sock.close()
+PY
+if [ "$?" -ne 0 ]; then
+  cat > /tmp/changxin-phase3b-gateway-wrapper-state.json <<'JSON'
+{"schema":"Phase3BGatewayWrapperState.v1","gateway_wrapper_started":false,"gateway_wrapper_pid":null,"wrapper_alive_for_capture":false,"verifier_run":false,"stopped_after_capture":false,"reason":"ros_master_tcp_unreachable_connection_refused"}
+JSON
+  sha256sum /tmp/changxin-phase3b-gateway-wrapper-state.json
+  echo "Stop before wrapper startup. Do not run verifier."
+  exit 0
+fi
+
 Verify generated service import before starting wrapper:
 PYTHONPATH=/mnt/d/changxin/changxin-code:$PYTHONPATH python3 - <<'PY'
 from platform_gateway_msgs.srv import TaskCommandJson
@@ -692,4 +774,49 @@ Report:
   rostopic_pub=false
   repo_architecture_changed=false
   non_convex_alpha_docs_touched=false
+```
+
+## 4060 Prompt: Retry Stage 4 After ROS Master Restored
+
+Use this prompt after the local operator confirms that the UGV ROS master is
+running again at `http://192.168.0.201:11311`. It reuses the Stage 4 boundary
+and still does not authorize any gateway service call.
+
+```text
+Retry UGV Phase 3B Stage 4 after ROS master restoration.
+
+You are on the unit 4060 WSL2 side. Stage 3 remains complete:
+- platform_gateway_msgs installed=True
+- catkin_make_rc=0
+- TaskCommandJson import rc=0
+
+Authorization scope:
+- check TCP reachability to http://192.168.0.201:11311
+- if TCP succeeds, start gateway wrapper only for service registration
+- run read-only service-signature verifier
+- capture logs and JSON evidence
+- stop wrapper after evidence capture unless the local operator explicitly keeps it running
+
+Not authorized:
+- do not call /fleet/ugv_0/gateway/dry_run
+- do not call /fleet/ugv_0/gateway/dispatch
+- do not authorize controlled motion
+- do not run rostopic pub
+- do not edit repo architecture
+- do not touch non-convex alpha docs
+- do not commit machine-specific ROS IP/env
+
+Work in /mnt/d/changxin/changxin-code:
+git fetch origin
+git checkout codex/phase2b-no-hardware-reporting
+git pull --ff-only origin codex/phase2b-no-hardware-reporting
+git log -2 --oneline
+git status --short
+
+Follow the updated "4060 Prompt: Continue From Stage 4 Authorization Point" in:
+docs/superpowers/plans/2026-06-04-phase-3b-ros1-gateway-lifecycle-prep.md
+
+Critical rule: if the TCP preflight fails, stop before wrapper startup and
+return the state JSON. Do not run the verifier and do not claim service
+registration evidence.
 ```

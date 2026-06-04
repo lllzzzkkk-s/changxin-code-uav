@@ -606,3 +606,48 @@ Still out of scope:
 - `rostopic pub`
 - model calls on the unit execution lane
 - committed machine-specific ROS profiles
+
+## Phase 3B Stage 4 Preflight Result: Master Refused
+
+Status as of 2026-06-04: the 4060 side attempted Phase 3B Stage 4 but stopped
+before wrapper startup because `192.168.0.201:11311` refused TCP connection.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-wrapper-preflight-master-refused.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-wrapper-preflight-master-refused.json`
+
+4060 reported:
+
+- `ROS_MASTER_URI=http://192.168.0.201:11311`
+- `ROS_IP=172.20.26.179`
+- `tcp_connect=FAIL:[Errno 111] Connection refused`
+- `gateway_wrapper_started=false`
+- `verifier_run=false`
+- no valid matched/missing service set
+
+Updated interpretation:
+
+- Phase 3B Stage 3 remains complete.
+- Phase 3B Stage 4 remains pending.
+- The current blocker is ROS master reachability.
+- The gateway wrapper should not start until TCP preflight succeeds.
+
+Updated next gate:
+
+1. Local operator restores or confirms UGV ROS master at
+   `http://192.168.0.201:11311`.
+2. 4060 runs TCP preflight.
+3. If TCP fails, stop before wrapper startup.
+4. If TCP succeeds, start wrapper for service registration only and run
+   read-only service-signature verification.
+5. Mac records the receipt after output returns.
+
+Still out of scope:
+
+- gateway `dry_run` service calls
+- gateway `dispatch` service calls
+- controlled motion
+- `rostopic pub`
+- model calls on the unit execution lane
+- committed machine-specific ROS profiles

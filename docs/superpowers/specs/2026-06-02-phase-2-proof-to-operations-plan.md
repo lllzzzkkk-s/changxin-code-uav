@@ -1013,3 +1013,57 @@ Boundary statement:
   gateway `dispatch`, no controlled motion, no `rostopic pub`, no repo
   architecture change, no non-convex alpha document edits, and no committed
   machine-specific ROS IP/env.
+
+## Phase 3B 4060 Wrapper Preflight Master Refused
+
+Status: user-reported 4060 Phase 3B Stage 4 preflight received on 2026-06-04;
+wrapper startup did not occur and Stage 4 remains pending.
+
+Evidence files:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-wrapper-preflight-master-refused.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-wrapper-preflight-master-refused.json`
+
+4060 reported:
+
+```text
+git log -2 --oneline
+48d9544 docs: record phase3b gateway build
+b0b9aa3 docs: record phase3b workspace dry-run
+git status --short: <empty>
+ROS_MASTER_URI=http://192.168.0.201:11311
+ROS_IP=172.20.26.179
+parsed_ros_master_host=192.168.0.201
+parsed_ros_master_port=11311
+tcp_connect=FAIL:[Errno 111] Connection refused
+```
+
+Wrapper state:
+
+```text
+state=/tmp/changxin-phase3b-gateway-wrapper-state.json
+state_sha256=dea553449376cc7b841a60e706d03fb26b4847993781133e6ff8dad6888fc827
+gateway_wrapper_started=false
+gateway_wrapper_pid=null
+wrapper_alive_for_capture=false
+verifier_run=false
+reason=ros_master_tcp_unreachable_connection_refused
+```
+
+Interpretation:
+
+- Stage 3 apply/build remains complete.
+- Stage 4 was not attempted beyond preflight because the UGV ROS master refused
+  TCP connection.
+- No trusted matched/missing gateway-service set exists from this attempt.
+- The blocker is current ROS master reachability, not gateway signature.
+- The next action is to restore master reachability and retry Stage 4 preflight.
+
+Boundary statement:
+
+- This Mac-side note records the pasted 4060 receipt; it did not re-run the
+  4060 checks.
+- The 4060 side reported no gateway wrapper startup, no gateway `dry_run`, no
+  gateway `dispatch`, no controlled motion, no `rostopic pub`, no repo
+  architecture change, no non-convex alpha document edits, and no committed
+  machine-specific ROS IP/env.
