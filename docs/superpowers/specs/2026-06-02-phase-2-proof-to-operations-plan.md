@@ -945,3 +945,71 @@ Boundary statement:
   controlled motion, no `rostopic pub`, no repo architecture change, no
   non-convex alpha document edits, no gateway wrapper startup, and no Stage 3
   apply/build.
+
+## Phase 3B 4060 Apply Build Authorization Stop
+
+Status: user-reported 4060 Phase 3B Stage 3 result received on 2026-06-04;
+Stage 4 gateway wrapper startup still requires explicit authorization.
+
+Evidence files:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-apply-build-auth-stop.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-apply-build-auth-stop.json`
+
+4060 reported:
+
+```text
+git log -2 --oneline
+b0b9aa3 docs: record phase3b workspace dry-run
+afb1712 docs: record phase3a gateway missing retry
+git status --short: <empty>
+```
+
+Apply result:
+
+```text
+/tmp/changxin-phase3b-gateway-workspace-apply.json
+schema='Ros1GatewayWorkspacePlan.v1'
+ok=True
+dry_run=False
+installed=True
+mode='copy'
+repo_root='/mnt/d/changxin/changxin-code'
+catkin_src='/home/uavdev/catkin_ws/src'
+package_source='/mnt/d/changxin/changxin-code/platform_gateway/ros/catkin_pkg/platform_gateway_msgs'
+package_target='/home/uavdev/catkin_ws/src/platform_gateway_msgs'
+validation_errors=[]
+warnings=[]
+sha256=a5ed766d1100cedbaa99eedd840a6cdd05804ca3b217c0dc9780e76b3297eb56
+```
+
+Build and import:
+
+```text
+catkin_make_rc=0
+catkin_make_log=/tmp/changxin-phase3b-catkin-make.log
+catkin_make_log_sha256=3a02c36a9512710f55651b03c97b6959ca708410f833beec6da6559b8135d0cd
+taskcommandjson_import_rc=0
+output=<class 'platform_gateway_msgs.srv._TaskCommandJson.TaskCommandJson'>
+```
+
+Interpretation:
+
+- Phase 3B Stage 3 has passed on the 4060 side.
+- The gateway message package is installed and built in
+  `/home/uavdev/catkin_ws`.
+- The generated `TaskCommandJson` service type is importable.
+- The gateway wrapper has not been started and the expected services have not
+  yet been re-verified.
+- The next action is Stage 4 wrapper startup for service registration only,
+  followed by read-only service-signature verification, after explicit
+  authorization.
+
+Boundary statement:
+
+- This Mac-side note records the pasted 4060 receipt; it did not re-run the
+  4060 checks.
+- The 4060 side reported no gateway wrapper startup, no gateway `dry_run`, no
+  gateway `dispatch`, no controlled motion, no `rostopic pub`, no repo
+  architecture change, no non-convex alpha document edits, and no committed
+  machine-specific ROS IP/env.

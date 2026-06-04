@@ -217,6 +217,59 @@ Stage 3 does not start the gateway wrapper. If Stage 3 passes, stop and return
 the apply JSON, build log, import result, and boundary confirmation. Stage 4
 requires separate authorization.
 
+### Stage 3 Result: Apply Build Passed, Stopped For Stage 4 Authorization
+
+On 2026-06-04, the 4060 side reported that it completed Stage 3 apply/build
+and stopped before starting the gateway wrapper.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-apply-build-auth-stop.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-apply-build-auth-stop.json`
+
+Reported apply result:
+
+```text
+/tmp/changxin-phase3b-gateway-workspace-apply.json
+schema='Ros1GatewayWorkspacePlan.v1'
+ok=True
+dry_run=False
+installed=True
+mode='copy'
+catkin_src='/home/uavdev/catkin_ws/src'
+package_target='/home/uavdev/catkin_ws/src/platform_gateway_msgs'
+validation_errors=[]
+warnings=[]
+sha256=a5ed766d1100cedbaa99eedd840a6cdd05804ca3b217c0dc9780e76b3297eb56
+```
+
+Reported build and import:
+
+```text
+catkin_make_rc=0
+catkin_make_log=/tmp/changxin-phase3b-catkin-make.log
+catkin_make_log_sha256=3a02c36a9512710f55651b03c97b6959ca708410f833beec6da6559b8135d0cd
+taskcommandjson_import_rc=0
+output=<class 'platform_gateway_msgs.srv._TaskCommandJson.TaskCommandJson'>
+```
+
+Boundary preserved:
+
+- gateway wrapper not started
+- gateway `dry_run` not called
+- gateway `dispatch` not called
+- controlled motion not authorized
+- `rostopic pub` not run
+- repo architecture not changed
+- non-convex alpha documents not touched
+
+Next authorization point:
+
+```text
+Authorize Phase 3B Stage 4 wrapper startup for service registration only, then
+run read-only service-signature verification. Do not call dry_run or dispatch.
+```
+
 ## Stage 4: Start Gateway Wrapper For Service Registration
 
 Owner: 4060 Codex, only after explicit operator authorization.
@@ -250,6 +303,9 @@ Exit gate:
 - node stays running
 - no service call is made
 - no motion is attempted
+
+After Stage 5 read-only evidence capture, stop or clean up the wrapper unless
+the local operator explicitly keeps it running for the next authorized stage.
 
 ## Stage 5: Read-Only Signature Verification
 
@@ -496,6 +552,140 @@ Report:
 - final CATKIN_WS/CATKIN_SRC tree summary
 - boundary confirmation:
   gateway_wrapper_started=false
+  dry_run_called=false
+  dispatch_called=false
+  controlled_motion_authorized=false
+  rostopic_pub=false
+  repo_architecture_changed=false
+  non_convex_alpha_docs_touched=false
+```
+
+## 4060 Prompt: Continue From Stage 4 Authorization Point
+
+Use this prompt only after the user/operator explicitly authorizes Stage 4
+gateway-wrapper startup for service registration and read-only service-signature
+verification. It does not authorize gateway service calls.
+
+```text
+Continue UGV Phase 3B from the Stage 4 wrapper-start authorization point.
+
+You are on the unit 4060 WSL2 side. Stage 3 already passed:
+- platform_gateway_msgs installed=True
+- catkin_make_rc=0
+- TaskCommandJson import rc=0
+
+Authorization scope for this prompt:
+- start the UGV gateway wrapper only to register services
+- run read-only rosservice list/type/args through the verifier
+- capture logs and verifier JSON
+- stop or clean up the wrapper after evidence capture unless the local operator
+  explicitly keeps it running
+
+Not authorized in this prompt:
+- do not call /fleet/ugv_0/gateway/dry_run
+- do not call /fleet/ugv_0/gateway/dispatch
+- do not authorize controlled motion
+- do not run rostopic pub
+- do not edit repo architecture
+- do not touch non-convex alpha docs
+- do not commit machine-specific ROS IP/env
+
+Work in /mnt/d/changxin/changxin-code:
+git fetch origin
+git checkout codex/phase2b-no-hardware-reporting
+git pull --ff-only origin codex/phase2b-no-hardware-reporting
+git log -2 --oneline
+git status --short
+
+export CATKIN_WS=/home/uavdev/catkin_ws
+export PROFILE=/tmp/changxin-work-hardware-ros1-gateway-retry.env
+test -f "$CATKIN_WS/devel/setup.bash" || { echo "missing_catkin_setup=$CATKIN_WS/devel/setup.bash"; exit 1; }
+test -f "$PROFILE" || { echo "missing_profile=$PROFILE"; exit 1; }
+
+Prepare environment:
+source /opt/ros/noetic/setup.bash
+source "$CATKIN_WS/devel/setup.bash"
+export ROS_MASTER_URI=http://192.168.0.201:11311
+if [ -z "${ROS_IP:-}" ] && [ -z "${ROS_HOSTNAME:-}" ]; then
+  ROS_IP="$(ip route get 192.168.0.201 | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')"
+  export ROS_IP
+fi
+echo "ROS_MASTER_URI=$ROS_MASTER_URI"
+echo "ROS_IP=${ROS_IP:-}"
+echo "ROS_HOSTNAME=${ROS_HOSTNAME:-}"
+
+Verify generated service import before starting wrapper:
+PYTHONPATH=/mnt/d/changxin/changxin-code:$PYTHONPATH python3 - <<'PY'
+from platform_gateway_msgs.srv import TaskCommandJson
+print(TaskCommandJson)
+PY
+
+Start gateway wrapper in the background for service registration only:
+mkdir -p /tmp/changxin-phase3b-gateway
+(
+  cd /mnt/d/changxin/changxin-code
+  source /opt/ros/noetic/setup.bash
+  source "$CATKIN_WS/devel/setup.bash"
+  export ROS_MASTER_URI=http://192.168.0.201:11311
+  export ROS_IP="${ROS_IP:-}"
+  export ROS_HOSTNAME="${ROS_HOSTNAME:-}"
+  exec env PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/mnt/d/changxin/changxin-code:$PYTHONPATH \
+    python3 tools/run_ros1_platform_gateway_node.py \
+      --platform-id ugv_0 \
+      --platform-type ugv \
+      --capability confirm_target \
+      --service-symbol platform_gateway_msgs.srv:TaskCommandJson \
+      --node-name platform_gateway_ugv_0
+) > /tmp/changxin-phase3b-gateway-wrapper.log 2>&1 &
+GATEWAY_PID=$!
+echo "$GATEWAY_PID" | tee /tmp/changxin-phase3b-gateway-wrapper.pid
+sleep 5
+ps -p "$GATEWAY_PID" -o pid=,cmd= || { echo "gateway_wrapper_not_running"; cat /tmp/changxin-phase3b-gateway-wrapper.log; exit 1; }
+
+Read-only service-signature verifier:
+PYTHONDONTWRITEBYTECODE=1 python3 tools/check_task_planning_site_acceptance.py \
+  --profile "$PROFILE" \
+  --platform-id ugv_0 \
+  --run-rosservice-list \
+  --run-service-signatures \
+  --require-rosservice-audit \
+  --require-service-signatures \
+  > /tmp/changxin-phase3b-site-acceptance-ros1-gateway.json
+python3 -m json.tool /tmp/changxin-phase3b-site-acceptance-ros1-gateway.json \
+  > /tmp/changxin-phase3b-site-acceptance-ros1-gateway.pretty.json
+sha256sum /tmp/changxin-phase3b-site-acceptance-ros1-gateway.json
+
+Supplemental raw read-only capture:
+rosservice list | tee /tmp/changxin-phase3b-rosservice-list.txt
+for s in /fleet/ugv_0/gateway/dry_run /fleet/ugv_0/gateway/dispatch; do
+  printf "%s " "$s"
+  rosservice type "$s"
+done | tee /tmp/changxin-phase3b-rosservice-types.txt
+for s in /fleet/ugv_0/gateway/dry_run /fleet/ugv_0/gateway/dispatch; do
+  printf "%s " "$s"
+  rosservice args "$s"
+done | tee /tmp/changxin-phase3b-rosservice-args.txt
+
+Stop wrapper after evidence capture unless the local operator explicitly says to keep it running:
+kill "$GATEWAY_PID" || true
+wait "$GATEWAY_PID" || true
+echo "gateway_wrapper_stopped_after_capture=true"
+sha256sum /tmp/changxin-phase3b-gateway-wrapper.log
+sha256sum /tmp/changxin-phase3b-rosservice-list.txt
+sha256sum /tmp/changxin-phase3b-rosservice-types.txt
+sha256sum /tmp/changxin-phase3b-rosservice-args.txt
+
+Report:
+- git log -2 and git status
+- ROS_MASTER_URI/ROS_IP/ROS_HOSTNAME
+- gateway wrapper pid/log path/log sha256
+- whether wrapper stayed alive long enough for capture
+- verifier JSON key fields and sha256
+- matched/missing gateway services
+- raw rosservice list/type/args paths and sha256
+- whether wrapper was stopped after capture
+- boundary confirmation:
   dry_run_called=false
   dispatch_called=false
   controlled_motion_authorized=false

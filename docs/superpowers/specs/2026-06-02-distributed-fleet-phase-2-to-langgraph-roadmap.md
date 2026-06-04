@@ -566,3 +566,43 @@ Still out of scope:
 - controlled motion
 - `rostopic pub`
 - committed machine-specific ROS profiles
+
+## Phase 3B Stage 3 Result: Gateway Message Build Ready
+
+Status as of 2026-06-04: the 4060 side has completed Phase 3B Stage 3 and is
+stopped at the Stage 4 gateway-wrapper authorization point.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-apply-build-auth-stop.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-apply-build-auth-stop.json`
+
+4060 reported:
+
+- `Ros1GatewayWorkspacePlan.v1 ok=True`
+- `dry_run=False`
+- `installed=True`
+- `mode='copy'`
+- `package_target='/home/uavdev/catkin_ws/src/platform_gateway_msgs'`
+- `catkin_make_rc=0`
+- `taskcommandjson_import_rc=0`
+- import output:
+  `<class 'platform_gateway_msgs.srv._TaskCommandJson.TaskCommandJson'>`
+
+Updated next gate:
+
+1. User/operator explicitly authorizes Phase 3B Stage 4 wrapper startup.
+2. 4060 starts the gateway wrapper for service registration only.
+3. 4060 runs read-only service-signature verification.
+4. 4060 stops or cleans up the wrapper after capture unless the local operator
+   explicitly keeps it running.
+5. Mac records the Stage 4/Stage 5 receipt after output returns.
+
+Still out of scope:
+
+- gateway `dry_run` service calls
+- gateway `dispatch` service calls
+- controlled motion
+- `rostopic pub`
+- model calls on the unit execution lane
+- committed machine-specific ROS profiles
