@@ -1,0 +1,102 @@
+{
+  "schema": "UgvPhase3AMasterReachableGatewayMissingRetryReceipt.v1",
+  "date": "2026-06-04",
+  "source": "user_pasted_4060_codex_reply",
+  "evidence_classification": "reported_by_unit_4060_codex_not_reverified_by_mac",
+  "phase": "3A",
+  "gate": "read_only_ros1_service_signature",
+  "retry_status": "completed",
+  "phase3a_exit_gate_passed": false,
+  "failure_classification": "ros_master_reachable_gateway_services_missing",
+  "machine": {
+    "role": "unit_rtx_4060_windows_wsl2",
+    "repo_path": "/mnt/d/changxin/changxin-code"
+  },
+  "git": {
+    "branch": "codex/phase2b-no-hardware-reporting",
+    "head_short": "49f5fb2",
+    "head_subject": "docs: plan phase3a master retry",
+    "parent_short": "d982994",
+    "parent_subject": "docs: record ugv phase3a workspace inventory",
+    "worktree_status": "clean"
+  },
+  "ros_environment_reported": {
+    "ros_master_uri": "http://192.168.0.201:11311",
+    "ros_ip": "",
+    "ros_hostname": ""
+  },
+  "ros_master_parse": {
+    "scheme": "http",
+    "host": "192.168.0.201",
+    "port": 11311
+  },
+  "reachability": {
+    "tcp_connect": {
+      "target": "192.168.0.201:11311",
+      "ok": true
+    }
+  },
+  "read_only_service_capture": {
+    "rosservice_list_file": "/tmp/changxin-rosservice-list.txt",
+    "service_count": 65,
+    "sha256": "0424826f29ae186bad03c11f398dfe26cd946da16cddea6241ae2fc84a747468",
+    "gateway_services_file": "/tmp/changxin-gateway-services.txt",
+    "gateway_services_file_lines": 0,
+    "gateway_dry_run_services_found": [],
+    "gateway_dispatch_services_found": []
+  },
+  "signature_capture": {
+    "service_type_file": "/tmp/changxin-rosservice-types.txt",
+    "service_args_file": "/tmp/changxin-rosservice-args.txt",
+    "service_type_file_lines": 0,
+    "service_args_file_lines": 0,
+    "type_query_count": 0,
+    "args_query_count": 0,
+    "reason": "No gateway services were discovered, so there were no rosservice type or args targets."
+  },
+  "verifier_reported": {
+    "path": "/tmp/changxin-phase3a-read-only-ros1-signature-retry.json",
+    "json_tool_passed": true,
+    "schema": "TaskPlanningSiteAcceptance.v1",
+    "ok": false,
+    "platform_backend": "ros1_gateway",
+    "profile_path": "/tmp/changxin-work-hardware-ros1-gateway-retry.env",
+    "rosservice_audit": {
+      "observed_service_count": 65,
+      "matched_services": [],
+      "missing_services": [
+        "/fleet/ugv_0/gateway/dispatch",
+        "/fleet/ugv_0/gateway/dry_run"
+      ]
+    },
+    "validation_errors": [
+      "rosservice_audit:missing_service:/fleet/ugv_0/gateway/dispatch",
+      "rosservice_audit:missing_service:/fleet/ugv_0/gateway/dry_run",
+      "valid rosservice type/args evidence is required for ROS1 gateway acceptance"
+    ]
+  },
+  "boundary_confirmed_by_4060": {
+    "dry_run_called": false,
+    "dispatch_called": false,
+    "controlled_motion_authorized": false,
+    "rostopic_publish": false,
+    "repo_architecture_changed": false,
+    "non_convex_alpha_docs_touched": false
+  },
+  "interpretation": {
+    "current_blocker": "The UGV ROS master is reachable, but the expected platform gateway services are not registered.",
+    "not_a_ros_master_reachability_failure_anymore": true,
+    "not_a_gateway_signature_mismatch_yet": true,
+    "next_action": "Prepare the ROS1 gateway lifecycle so /fleet/ugv_0/gateway/dry_run and /fleet/ugv_0/gateway/dispatch can be registered, then rerun read-only service-signature capture."
+  },
+  "not_proven_by_this_receipt": [
+    "successful Phase 3A service-signature gate",
+    "gateway service existence",
+    "gateway service type/args contract match",
+    "gateway dry_run",
+    "gateway dispatch",
+    "hardware proof",
+    "controlled motion",
+    "Mac-side access to D:\\changxin or the 4060 ROS master"
+  ]
+}

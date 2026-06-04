@@ -472,3 +472,51 @@ Current next gate:
 3. Conditional read-only service type/args capture for gateway services.
 4. File-based Phase 3A site-acceptance verifier.
 5. Mac-side receipt recording after the 4060 returns output.
+
+## Phase 3A Retry Result: Gateway Services Missing
+
+Status as of 2026-06-04: the 4060 read-only retry reached the UGV ROS master
+but did not find the expected gateway services.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-master-reachable-gateway-missing-retry.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-master-reachable-gateway-missing-retry.json`
+
+4060 reported:
+
+- `ROS_MASTER_URI=http://192.168.0.201:11311`
+- TCP connect to `192.168.0.201:11311` succeeded
+- `rosservice list` observed `65` services
+- `/fleet/ugv_0/gateway/dry_run` was missing
+- `/fleet/ugv_0/gateway/dispatch` was missing
+- `TaskPlanningSiteAcceptance.v1 ok=False`
+- validation errors were the expected missing-service and missing-type/args
+  errors
+
+Updated interpretation:
+
+- Phase 3A remains open.
+- The current blocker is no longer master reachability.
+- The current blocker is gateway wrapper service registration.
+- The next phase of work is Phase 3B gateway lifecycle preparation, documented
+  in
+  `docs/superpowers/plans/2026-06-04-phase-3b-ros1-gateway-lifecycle-prep.md`.
+
+Current next gate:
+
+1. 4060 confirms or creates the intended catkin workspace only with operator
+   authorization.
+2. 4060 installs/builds the `platform_gateway_msgs` package only with operator
+   authorization.
+3. 4060 starts the gateway wrapper only with operator authorization.
+4. 4060 reruns read-only service-signature verification.
+5. Mac records the Phase 3B/Phase 3A signature receipt after output returns.
+
+Still out of scope:
+
+- gateway `dry_run` service calls
+- gateway `dispatch` service calls
+- controlled motion
+- `rostopic` publish
+- model calls on the unit execution lane

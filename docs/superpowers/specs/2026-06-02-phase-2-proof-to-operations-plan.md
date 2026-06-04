@@ -821,3 +821,71 @@ Next 4060 step:
   `rosservice args`
 - run the existing Phase 3A site-acceptance verifier against captured files
 - do not call gateway `dry_run` or `dispatch`
+
+## Phase 3A 4060 Master Reachable Gateway Missing Retry
+
+Status: user-reported 4060 read-only retry received on 2026-06-04; Phase 3A
+still remains open.
+
+Evidence files:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-master-reachable-gateway-missing-retry.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-master-reachable-gateway-missing-retry.json`
+
+4060 reported:
+
+```text
+git log -2 --oneline
+49f5fb2 docs: plan phase3a master retry
+d982994 docs: record ugv phase3a workspace inventory
+git status --short: <empty>
+ROS_MASTER_URI=http://192.168.0.201:11311
+tcp_connect=192.168.0.201:11311:OK
+```
+
+Read-only service capture:
+
+```text
+/tmp/changxin-rosservice-list.txt
+service_count=65
+sha256=0424826f29ae186bad03c11f398dfe26cd946da16cddea6241ae2fc84a747468
+/fleet/*/gateway/dry_run: not found
+/fleet/*/gateway/dispatch: not found
+```
+
+Verifier:
+
+```text
+/tmp/changxin-phase3a-read-only-ros1-signature-retry.json
+schema=TaskPlanningSiteAcceptance.v1
+ok=False
+platform_backend=ros1_gateway
+profile_path=/tmp/changxin-work-hardware-ros1-gateway-retry.env
+rosservice_audit.observed_service_count=65
+rosservice_audit.matched_services=[]
+rosservice_audit.missing_services=[
+  "/fleet/ugv_0/gateway/dispatch",
+  "/fleet/ugv_0/gateway/dry_run"
+]
+```
+
+Interpretation:
+
+- The current blocker is now missing gateway service registration, not ROS
+  master reachability.
+- The verifier correctly fails because both expected UGV gateway services are
+  missing and there is no valid service type/args evidence.
+- The next step is Phase 3B gateway lifecycle preparation:
+  `docs/superpowers/plans/2026-06-04-phase-3b-ros1-gateway-lifecycle-prep.md`.
+- Phase 3B must not call gateway `dry_run` or `dispatch`; it only prepares and
+  starts the wrapper after explicit authorization, then re-runs read-only
+  service-signature verification.
+
+Boundary statement:
+
+- This Mac-side note records the pasted 4060 receipt; it did not re-run the
+  4060 checks.
+- The 4060 side reported `dry_run_called=false`, `dispatch_called=false`,
+  `controlled_motion_authorized=false`, `rostopic_publish=false`,
+  `repo_architecture_changed=false`, and
+  `non_convex_alpha_docs_touched=false`.

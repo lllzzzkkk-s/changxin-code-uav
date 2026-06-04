@@ -711,3 +711,54 @@ Phase 3A is accepted only when the Mac repo records a 4060 receipt proving:
 
 The next phase after Phase 3A is gateway lifecycle/dry-run planning. It still
 requires explicit user authorization and must not dispatch or authorize motion.
+
+## Retry Result: Master Reachable, Gateway Services Missing
+
+On 2026-06-04, the 4060 side completed the Phase 3A read-only retry after the
+local operator started the UGV ROS master.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-master-reachable-gateway-missing-retry.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3a-4060-master-reachable-gateway-missing-retry.json`
+
+Reported result:
+
+```text
+ROS_MASTER_URI=http://192.168.0.201:11311
+tcp_connect=192.168.0.201:11311:OK
+rosservice list service_count=65
+/fleet/*/gateway/dry_run: not found
+/fleet/*/gateway/dispatch: not found
+TaskPlanningSiteAcceptance.v1 ok=False
+missing_services=[
+  "/fleet/ugv_0/gateway/dispatch",
+  "/fleet/ugv_0/gateway/dry_run"
+]
+```
+
+Boundary preserved:
+
+- gateway `dry_run` not called
+- gateway `dispatch` not called
+- controlled motion not authorized
+- `rostopic` publish not run
+- repo architecture not changed
+- non-convex alpha documents not touched
+
+Interpretation:
+
+- The Phase 3A blocker is no longer ROS master reachability.
+- The current blocker is missing gateway service registration on the reachable
+  UGV ROS master.
+- Phase 3A remains open because service-name and service-signature evidence
+  cannot pass until `/fleet/ugv_0/gateway/dry_run` and
+  `/fleet/ugv_0/gateway/dispatch` exist.
+
+Next plan:
+
+- `docs/superpowers/plans/2026-06-04-phase-3b-ros1-gateway-lifecycle-prep.md`
+
+Do not proceed to gateway service calls. Phase 3B is limited to workspace
+preparation, gateway wrapper service registration after explicit authorization,
+and read-only service-signature verification.
