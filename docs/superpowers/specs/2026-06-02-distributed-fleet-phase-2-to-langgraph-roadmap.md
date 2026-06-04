@@ -607,6 +607,63 @@ Still out of scope:
 - model calls on the unit execution lane
 - committed machine-specific ROS profiles
 
+## Phase 3B Stage 4/5 Result: Signatures Observed
+
+Status as of 2026-06-04: the 4060 side completed Phase 3B wrapper service
+registration and read-only service-signature verification.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-signatures-observed-success.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-signatures-observed-success.json`
+
+4060 reported:
+
+- TCP preflight to `192.168.0.201:11311` succeeded
+- wrapper stayed alive for capture
+- wrapper stopped after capture
+- `TaskPlanningSiteAcceptance.v1 ok=true`
+- `acceptance_level=work_hardware_ros1_signatures_observed`
+- `platform_backend=ros1_gateway`
+- `observed_service_count=69`
+- matched services:
+  - `/fleet/ugv_0/gateway/dispatch`
+  - `/fleet/ugv_0/gateway/dry_run`
+- `missing_services=[]`
+- `validation_errors=[]`
+- raw type/args evidence confirms `platform_gateway_msgs/TaskCommandJson` and
+  `task_command_json` for both services
+
+Updated interpretation:
+
+- Phase 3B is complete for read-only service registration and signature proof.
+- This does not prove gateway `dry_run`, gateway `dispatch`, controlled motion,
+  task progress, or final hardware execution.
+- The next planned gate is Phase 3C no-motion gateway `dry_run`, documented in
+  `docs/superpowers/plans/2026-06-04-phase-3c-no-motion-gateway-dry-run.md`.
+
+Current next gate:
+
+1. User/operator explicitly authorizes Phase 3C no-motion dry-run.
+2. 4060 creates or validates a local `UnitUgvTargetMap.v1` with
+   `action=manual_confirm`.
+3. 4060 extracts a validated `TaskCommand.v1` from an existing verified
+   artifact; no hand-written command JSON.
+4. 4060 starts the wrapper with `--unit-ugv-target-map` and without
+   `--unit-ugv-operator-approved` or `--unit-ugv-enable-move-base`.
+5. 4060 calls `/fleet/ugv_0/gateway/dry_run` once and records the returned
+   `GatewayServiceResponse.v1` / `CommandAck.v1`.
+6. 4060 stops the wrapper and reports evidence.
+
+Still out of scope:
+
+- gateway `dispatch` service calls
+- controlled motion
+- `move_base_goal` target maps
+- `rostopic pub`
+- model calls on the unit execution lane
+- committed machine-specific ROS profiles
+
 ## Phase 3B Stage 4 Preflight Result: Master Refused
 
 Status as of 2026-06-04: the 4060 side attempted Phase 3B Stage 4 but stopped

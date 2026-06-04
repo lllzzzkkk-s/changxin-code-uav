@@ -820,3 +820,60 @@ Critical rule: if the TCP preflight fails, stop before wrapper startup and
 return the state JSON. Do not run the verifier and do not claim service
 registration evidence.
 ```
+
+### Stage 4 Retry Result: Wrapper Registered Services And Signatures Passed
+
+On 2026-06-04, the 4060 side retried Stage 4 after the ROS master was restored.
+The wrapper started, read-only service-signature verification passed, and the
+wrapper was stopped after capture.
+
+Evidence:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-signatures-observed-success.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-signatures-observed-success.json`
+
+Reported result:
+
+```text
+ROS_MASTER_URI=http://192.168.0.201:11311
+ROS_IP=172.20.26.179
+tcp_connect=OK
+wrapper_alive_for_capture=true
+stopped_after_capture=true
+TaskPlanningSiteAcceptance.v1 ok=true
+acceptance_level=work_hardware_ros1_signatures_observed
+platform_backend=ros1_gateway
+observed_service_count=69
+matched_services=[
+  /fleet/ugv_0/gateway/dispatch,
+  /fleet/ugv_0/gateway/dry_run
+]
+missing_services=[]
+validation_errors=[]
+```
+
+Observed signatures:
+
+```text
+/fleet/ugv_0/gateway/dry_run platform_gateway_msgs/TaskCommandJson
+/fleet/ugv_0/gateway/dispatch platform_gateway_msgs/TaskCommandJson
+/fleet/ugv_0/gateway/dry_run task_command_json
+/fleet/ugv_0/gateway/dispatch task_command_json
+```
+
+Boundary preserved:
+
+- gateway `dry_run` not called
+- gateway `dispatch` not called
+- controlled motion not authorized
+- `rostopic pub` not run
+- repo architecture not changed
+- non-convex alpha documents not touched
+
+Interpretation:
+
+- Phase 3B read-only signature objective is complete.
+- This is not dry-run proof, dispatch proof, task-progress proof, or final
+  hardware execution proof.
+- The next gate is Phase 3C no-motion gateway dry-run:
+  `docs/superpowers/plans/2026-06-04-phase-3c-no-motion-gateway-dry-run.md`.

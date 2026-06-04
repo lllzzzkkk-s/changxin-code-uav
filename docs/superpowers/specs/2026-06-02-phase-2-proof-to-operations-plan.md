@@ -1014,6 +1014,85 @@ Boundary statement:
   architecture change, no non-convex alpha document edits, and no committed
   machine-specific ROS IP/env.
 
+## Phase 3B 4060 Signatures Observed Success
+
+Status: user-reported 4060 Phase 3B Stage 4/5 success received on 2026-06-04;
+Phase 3B read-only signature objective is complete.
+
+Evidence files:
+
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-signatures-observed-success.md`
+- `docs/superpowers/evidence/2026-06-04-ugv-phase-3b-4060-signatures-observed-success.json`
+
+4060 reported:
+
+```text
+git log -2 --oneline
+e2b3e1c docs: record phase3b master preflight block
+48d9544 docs: record phase3b gateway build
+git status --short: <empty>
+ROS_MASTER_URI=http://192.168.0.201:11311
+ROS_IP=172.20.26.179
+tcp_connect=OK
+```
+
+Wrapper state:
+
+```text
+pid=2151
+wrapper_alive_for_capture=true
+stopped_after_capture=true
+final_wrapper_returncode=0
+state_sha256=4ed3138ba8b0cd1a0a3620c3a849b99c5c9663fc5b8ebfeec1b501220ac96f90
+```
+
+Verifier:
+
+```text
+/tmp/changxin-phase3b-site-acceptance-ros1-gateway.json
+sha256=f3b2e5e621cc719707c266fe2da3419257b95576944fd22e401ec01ab20cb967
+schema=TaskPlanningSiteAcceptance.v1
+ok=true
+acceptance_level=work_hardware_ros1_signatures_observed
+platform_backend=ros1_gateway
+observed_service_count=69
+matched_services=[
+  /fleet/ugv_0/gateway/dispatch,
+  /fleet/ugv_0/gateway/dry_run
+]
+missing_services=[]
+validation_errors=[]
+```
+
+Observed service signatures:
+
+```text
+/fleet/ugv_0/gateway/dry_run platform_gateway_msgs/TaskCommandJson
+/fleet/ugv_0/gateway/dispatch platform_gateway_msgs/TaskCommandJson
+/fleet/ugv_0/gateway/dry_run task_command_json
+/fleet/ugv_0/gateway/dispatch task_command_json
+```
+
+Interpretation:
+
+- Phase 3B read-only service-registration and signature verification passed.
+- The expected UGV gateway `dry_run` and `dispatch` service signatures are now
+  observed on the unit ROS master.
+- The wrapper was stopped after evidence capture.
+- This is not gateway `dry_run`, gateway `dispatch`, controlled-motion, or
+  final hardware execution proof.
+- The next gate is Phase 3C no-motion gateway `dry_run`:
+  `docs/superpowers/plans/2026-06-04-phase-3c-no-motion-gateway-dry-run.md`.
+
+Boundary statement:
+
+- This Mac-side note records the pasted 4060 receipt; it did not re-run the
+  4060 checks.
+- The 4060 side reported no gateway `dry_run`, no gateway `dispatch`, no
+  controlled motion, no `rostopic pub`, no repo architecture change, no
+  non-convex alpha document edits, and no committed machine-specific ROS
+  IP/env.
+
 ## Phase 3B 4060 Wrapper Preflight Master Refused
 
 Status: user-reported 4060 Phase 3B Stage 4 preflight received on 2026-06-04;
