@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from task_planning.migration.unit_ugv_ros_gateway_dry_run import (
+    parse_unit_ugv_ros_gateway_dry_run_response_stdout,
     run_unit_ugv_ros_gateway_dry_run,
 )
 
@@ -118,6 +119,69 @@ class UnitUgvRosGatewayDryRunTest(unittest.TestCase):
             )
 
         self.assertTrue(report.ok, report.validation_errors)
+        self.assertEqual("GatewayServiceResponse.v1", report.response_schema)
+        self.assertTrue(report.ack_accepted)
+
+    def test_response_stdout_parser_handles_yaml_folded_response_json_without_ros_call(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            stdout_path = tmp_path / "dry_run_response.txt"
+            stdout_path.write_text("""response_json: >-
+  {"schema": "GatewayServiceResponse.v1",
+   "mode": "dry_run",
+   "platform_id": "ugv_0",
+   "motion_attempted": false,
+   "raw_ros_publish_attempted": false,
+   "ack": {"schema": "CommandAck.v1", "accepted": true, "reason": "unit_ugv_dry_run_ok"}}
+""", encoding="utf-8")
+
+            report = parse_unit_ugv_ros_gateway_dry_run_response_stdout(
+                response_stdout_path=stdout_path,
+                output_dir=tmp_path / "parsed",
+                expected_platform_id="ugv_0",
+            )
+
+        self.assertTrue(report.ok, report.validation_errors)
+        self.assertFalse(report.dry_run_called)
+        self.assertEqual([], report.command)
+        self.assertEqual("GatewayServiceResponse.v1", report.response_schema)
+        self.assertEqual("dry_run", report.response_mode)
+        self.assertTrue(report.ack_accepted)
+        self.assertEqual("unit_ugv_dry_run_ok", report.ack_reason)
+        self.assertFalse(report.motion_attempted)
+        self.assertFalse(report.raw_ros_publish_attempted)
+
+    def test_response_stdout_parser_handles_wrapped_escaped_response_json_without_ros_call(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            response = {
+                "schema": "GatewayServiceResponse.v1",
+                "mode": "dry_run",
+                "platform_id": "ugv_0",
+                "motion_attempted": False,
+                "raw_ros_publish_attempted": False,
+                "ack": {
+                    "schema": "CommandAck.v1",
+                    "accepted": True,
+                    "reason": "unit_ugv_dry_run_ok",
+                },
+            }
+            encoded = json.dumps(json.dumps(response), ensure_ascii=False)
+            midpoint = len(encoded) // 2
+            stdout_path = tmp_path / "dry_run_response.txt"
+            stdout_path.write_text(
+                "response_json: " + encoded[:midpoint] + "\n  " + encoded[midpoint:] + "\n",
+                encoding="utf-8",
+            )
+
+            report = parse_unit_ugv_ros_gateway_dry_run_response_stdout(
+                response_stdout_path=stdout_path,
+                output_dir=tmp_path / "parsed",
+                expected_platform_id="ugv_0",
+            )
+
+        self.assertTrue(report.ok, report.validation_errors)
+        self.assertFalse(report.dry_run_called)
         self.assertEqual("GatewayServiceResponse.v1", report.response_schema)
         self.assertTrue(report.ack_accepted)
 

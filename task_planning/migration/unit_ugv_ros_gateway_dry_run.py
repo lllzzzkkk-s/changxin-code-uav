@@ -171,6 +171,60 @@ def run_unit_ugv_ros_gateway_dry_run(
     return report
 
 
+def parse_unit_ugv_ros_gateway_dry_run_response_stdout(
+    *,
+    response_stdout_path: Path,
+    output_dir: Path,
+    expected_platform_id: str = "ugv_0",
+    service_name: str = "/fleet/ugv_0/gateway/dry_run",
+) -> UnitUgvRosGatewayDryRunReport:
+    expanded_stdout_path = response_stdout_path.expanduser().resolve()
+    expanded_output_dir = output_dir.expanduser().resolve()
+    expanded_output_dir.mkdir(parents=True, exist_ok=True)
+    files: Dict[str, str] = {
+        "dry_run_response_stdout": str(expanded_stdout_path),
+    }
+    validation_errors: List[str] = []
+    try:
+        stdout = expanded_stdout_path.read_text(encoding="utf-8")
+    except Exception as exc:
+        stdout = ""
+        validation_errors.append(f"dry_run response stdout read failed: {exc}")
+    response_data = _parse_gateway_response(stdout, validation_errors) if not validation_errors else {}
+    if response_data:
+        files["dry_run_response_parsed"] = str(_write_json(
+            expanded_output_dir / "dry_run_response.parsed.json",
+            response_data,
+        ))
+        validation_errors.extend(_response_errors(response_data, expected_platform_id=expected_platform_id))
+    ack = _ack(response_data)
+    report_path = expanded_output_dir / "dry_run_report.from_stdout.json"
+    files["dry_run_report"] = str(report_path)
+    report = UnitUgvRosGatewayDryRunReport(
+        ok=not validation_errors,
+        handoff_report_path="",
+        output_dir=str(expanded_output_dir),
+        handoff_schema="",
+        service_name=service_name,
+        payload_file="",
+        profile_path="",
+        platform_id=expected_platform_id,
+        command=[],
+        returncode=None,
+        response_schema=str(response_data.get("schema") or ""),
+        response_mode=str(response_data.get("mode") or ""),
+        ack_accepted=_ack_accepted(ack),
+        ack_reason=str(ack.get("reason") or ""),
+        motion_attempted=_optional_bool(response_data.get("motion_attempted")),
+        raw_ros_publish_attempted=_optional_bool(response_data.get("raw_ros_publish_attempted")),
+        files=files,
+        validation_errors=_dedupe(validation_errors),
+        dry_run_called=False,
+    )
+    _write_json(report_path, report.as_dict())
+    return report
+
+
 def _default_command_runner(args: Sequence[str]) -> subprocess.CompletedProcess:
     return subprocess.run(
         list(args),
@@ -227,19 +281,50 @@ def _parse_gateway_response(stdout: str, errors: List[str]) -> Dict[str, Any]:
     direct = _json_object(stripped)
     if direct is not None:
         return direct
-    for line in stripped.splitlines():
-        line = line.strip()
-        if not line.startswith("response_json:"):
-            continue
-        value = line.partition(":")[2].strip()
+    for value in _response_json_values(stripped):
         decoded = _decode_response_json_value(value)
         if decoded is not None:
             return decoded
+    decoded = _decode_embedded_gateway_json(stripped)
+    if decoded is not None:
+        return decoded
     errors.append("rosservice dry_run stdout did not contain GatewayServiceResponse.v1 JSON")
     return {}
 
 
+def _response_json_values(stdout: str) -> List[str]:
+    lines = stdout.splitlines()
+    values: List[str] = []
+    for index, line in enumerate(lines):
+        if "response_json:" not in line:
+            continue
+        raw_value = line.split("response_json:", 1)[1].strip()
+        continuation: List[str] = []
+        for next_line in lines[index + 1:]:
+            if next_line.strip() and not next_line[:1].isspace():
+                break
+            continuation.append(next_line.strip())
+        block_markers = {">", "|", ">-", "|-", ">+", "|+"}
+        if raw_value in block_markers:
+            values.extend(_value_variants(continuation))
+        else:
+            values.extend(_value_variants([raw_value] + continuation))
+    return [value for value in values if value.strip()]
+
+
+def _value_variants(parts: List[str]) -> List[str]:
+    compact_parts = [part for part in parts if part != ""]
+    return _dedupe([
+        "\n".join(compact_parts).strip(),
+        "".join(compact_parts).strip(),
+        " ".join(compact_parts).strip(),
+    ])
+
+
 def _decode_response_json_value(value: str) -> Optional[Dict[str, Any]]:
+    value = value.strip()
+    if not value:
+        return None
     parsed = _json_object(value)
     if parsed is not None:
         return parsed
@@ -250,6 +335,25 @@ def _decode_response_json_value(value: str) -> Optional[Dict[str, Any]]:
     if isinstance(literal, str):
         return _json_object(literal)
     return None
+
+
+def _decode_embedded_gateway_json(text: str) -> Optional[Dict[str, Any]]:
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(text):
+        if char != "{":
+            continue
+        for candidate in (text[index:], _unescaped_candidate(text[index:])):
+            try:
+                data, _ = decoder.raw_decode(candidate)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(data, dict) and data.get("schema") == "GatewayServiceResponse.v1":
+                return data
+    return None
+
+
+def _unescaped_candidate(text: str) -> str:
+    return text.replace('\\"', '"').replace("\\n", "")
 
 
 def _json_object(text: str) -> Optional[Dict[str, Any]]:
