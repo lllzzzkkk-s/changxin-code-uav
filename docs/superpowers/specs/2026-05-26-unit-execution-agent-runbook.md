@@ -261,8 +261,27 @@ the target map is not copied to the path the vehicle wrapper will read.
 The SSH lifecycle wrapper defaults to non-interactive mode with `BatchMode=yes`
 and short connection timeouts so Codex does not hang at a password prompt. If
 `auth-check` returns `Permission denied (publickey,password)`, stop the vehicle
-gateway flow and fix credentials first. A human can either log in manually from a
-terminal with `ssh yhs@192.168.0.201`, or install a dedicated 4060 key:
+gateway flow and fix credentials first. If the site temporarily uses password
+authentication, pass the password through an environment variable and `sshpass`;
+do not write it into repo files, profile files, shell history, or command-line
+arguments:
+
+```bash
+# 4060/HMI side. Install sshpass first if needed.
+if ! command -v sshpass >/dev/null; then
+  sudo apt-get update
+  sudo apt-get install -y sshpass
+fi
+
+# Use the site-provided password only in this shell, then unset it after the run.
+export UNIT_UGV_SSH_PASSWORD='<site-provided-password>'
+bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
+  --remote yhs@192.168.0.201 \
+  auth-check
+unset UNIT_UGV_SSH_PASSWORD
+```
+
+A more durable path is to install a dedicated 4060 key:
 
 ```bash
 # 4060/HMI side: create a dedicated key if one does not already exist.

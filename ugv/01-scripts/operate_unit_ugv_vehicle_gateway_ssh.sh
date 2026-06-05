@@ -17,6 +17,7 @@ SSH_CONNECT_TIMEOUT_S="${UNIT_UGV_SSH_CONNECT_TIMEOUT_S:-8}"
 SSH_SERVER_ALIVE_INTERVAL_S="${UNIT_UGV_SSH_SERVER_ALIVE_INTERVAL_S:-5}"
 SSH_SERVER_ALIVE_COUNT_MAX="${UNIT_UGV_SSH_SERVER_ALIVE_COUNT_MAX:-1}"
 SSH_IDENTITY_FILE="${UNIT_UGV_SSH_IDENTITY_FILE:-}"
+SSH_PASSWORD_ENV_NAME="${UNIT_UGV_SSH_PASSWORD_ENV:-UNIT_UGV_SSH_PASSWORD}"
 SSH_OPTS=()
 REMOTE_SCRIPT_REL="ugv/01-scripts/start_unit_ugv_vehicle_gateway.sh"
 VEHICLE_ARGS=()
@@ -56,6 +57,7 @@ Options:
   --local-repo DIR            Local repo to sync from. Default: script repo root
   --local-target-map FILE     Local target map copied by sync-target-map
   --ssh-identity FILE         Private key for vehicle SSH
+  --ssh-password-env NAME     Env var containing SSH password. Default: UNIT_UGV_SSH_PASSWORD
   --ssh-option OPT            Extra ssh option, repeatable. Example: --ssh-option StrictHostKeyChecking=no
   --connect-timeout-s SEC     SSH connect timeout. Default: 8
   --interactive-ssh           Allow password prompts. Do not use from unattended Codex runs.
@@ -67,6 +69,11 @@ Everything after `--` is passed to the vehicle lifecycle script.
 Examples:
   # 4060: verify remote can run shell commands.
   operate_unit_ugv_vehicle_gateway_ssh.sh auth-check
+
+  # 4060: use password auth without writing the password into files or args.
+  export UNIT_UGV_SSH_PASSWORD='<vehicle-password>'
+  operate_unit_ugv_vehicle_gateway_ssh.sh auth-check
+  unset UNIT_UGV_SSH_PASSWORD
 
   # 4060: sync current gateway code to the vehicle without requiring Codex there.
   operate_unit_ugv_vehicle_gateway_ssh.sh sync-lite
@@ -130,6 +137,11 @@ while [[ $# -gt 0 ]]; do
       SSH_IDENTITY_FILE="$2"
       shift 2
       ;;
+    --ssh-password-env)
+      [[ $# -ge 2 ]] || die "--ssh-password-env requires a value"
+      SSH_PASSWORD_ENV_NAME="$2"
+      shift 2
+      ;;
     --ssh-option)
       [[ $# -ge 2 ]] || die "--ssh-option requires a value"
       SSH_OPTS+=(-o "$2")
@@ -165,6 +177,16 @@ while [[ $# -gt 0 ]]; do
 done
 
 REMOTE_SCRIPT="$REMOTE_REPO_DIR/$REMOTE_SCRIPT_REL"
+SSH_PASSWORD_VALUE="$(printenv "$SSH_PASSWORD_ENV_NAME" 2>/dev/null || true)"
+USE_SSHPASS=0
+if [[ -n "$SSH_PASSWORD_VALUE" ]]; then
+  USE_SSHPASS=1
+  SSH_BATCH_MODE=0
+  if (( ! DRY_RUN )); then
+    command -v sshpass >/dev/null 2>&1 || die "sshpass is required when $SSH_PASSWORD_ENV_NAME is set"
+  fi
+fi
+
 BASE_SSH_OPTS=()
 if (( SSH_BATCH_MODE )); then
   BASE_SSH_OPTS+=(-o BatchMode=yes)
@@ -181,20 +203,54 @@ if (( ${#SSH_OPTS[@]} )); then
   BASE_SSH_OPTS+=("${SSH_OPTS[@]}")
 fi
 
+make_ssh_cmd() {
+  local remote_command="$1"
+  SSH_CMD=(ssh)
+  if (( ${#BASE_SSH_OPTS[@]} )); then
+    SSH_CMD+=("${BASE_SSH_OPTS[@]}")
+  fi
+  SSH_CMD+=("$REMOTE" "$remote_command")
+  if (( USE_SSHPASS )); then
+    SSH_CMD=(env "SSHPASS=$SSH_PASSWORD_VALUE" sshpass -e "${SSH_CMD[@]}")
+  fi
+}
+
+make_scp_cmd() {
+  local source_path="$1"
+  local target_path="$2"
+  SCP_CMD=(scp)
+  if (( ${#BASE_SSH_OPTS[@]} )); then
+    SCP_CMD+=("${BASE_SSH_OPTS[@]}")
+  fi
+  SCP_CMD+=("$source_path" "$target_path")
+  if (( USE_SSHPASS )); then
+    SCP_CMD=(env "SSHPASS=$SSH_PASSWORD_VALUE" sshpass -e "${SCP_CMD[@]}")
+  fi
+}
+
+print_redacted_cmd() {
+  local redacted=()
+  local arg
+  for arg in "$@"; do
+    if [[ "$arg" == SSHPASS=* ]]; then
+      redacted+=("SSHPASS=***")
+    else
+      redacted+=("$arg")
+    fi
+  done
+  printf '+'
+  printf ' %q' "${redacted[@]}"
+  printf '\n'
+}
+
 run_ssh() {
   local remote_command="$1"
-  local ssh_cmd=(ssh)
-  if (( ${#BASE_SSH_OPTS[@]} )); then
-    ssh_cmd+=("${BASE_SSH_OPTS[@]}")
-  fi
-  ssh_cmd+=("$REMOTE" "$remote_command")
+  make_ssh_cmd "$remote_command"
   if (( DRY_RUN )); then
-    printf '+'
-    printf ' %q' "${ssh_cmd[@]}"
-    printf '\n'
+    print_redacted_cmd "${SSH_CMD[@]}"
     return 0
   fi
-  "${ssh_cmd[@]}"
+  "${SSH_CMD[@]}"
 }
 
 run_tar_sync() {
@@ -209,47 +265,39 @@ run_tar_sync() {
   if (( DRY_RUN )); then
     printf '+ tar -C %q -czf -' "$LOCAL_REPO_DIR"
     printf ' %q' "${paths[@]}"
-    local ssh_cmd=(ssh)
-    if (( ${#BASE_SSH_OPTS[@]} )); then
-      ssh_cmd+=("${BASE_SSH_OPTS[@]}")
-    fi
-    ssh_cmd+=("$REMOTE" "mkdir -p '$REMOTE_REPO_DIR' && tar -xzf - -C '$REMOTE_REPO_DIR'")
+    make_ssh_cmd "mkdir -p '$REMOTE_REPO_DIR' && tar -xzf - -C '$REMOTE_REPO_DIR'"
     printf ' |'
-    printf ' %q' "${ssh_cmd[@]}"
+    local redacted=()
+    local arg
+    for arg in "${SSH_CMD[@]}"; do
+      if [[ "$arg" == SSHPASS=* ]]; then
+        redacted+=("SSHPASS=***")
+      else
+        redacted+=("$arg")
+      fi
+    done
+    printf ' %q' "${redacted[@]}"
     printf '\n'
     return 0
   fi
-  local ssh_cmd=(ssh)
-  if (( ${#BASE_SSH_OPTS[@]} )); then
-    ssh_cmd+=("${BASE_SSH_OPTS[@]}")
-  fi
-  ssh_cmd+=("$REMOTE" "mkdir -p '$REMOTE_REPO_DIR' && tar -xzf - -C '$REMOTE_REPO_DIR'")
+  make_ssh_cmd "mkdir -p '$REMOTE_REPO_DIR' && tar -xzf - -C '$REMOTE_REPO_DIR'"
   tar -C "$LOCAL_REPO_DIR" -czf - "${paths[@]}" \
-    | "${ssh_cmd[@]}"
+    | "${SSH_CMD[@]}"
 }
 
 run_target_map_sync() {
   local remote_dir
   remote_dir="$(dirname "$REMOTE_TARGET_MAP")"
-  local ssh_cmd=(ssh)
-  local scp_cmd=(scp)
-  if (( ${#BASE_SSH_OPTS[@]} )); then
-    ssh_cmd+=("${BASE_SSH_OPTS[@]}")
-    scp_cmd+=("${BASE_SSH_OPTS[@]}")
-  fi
-  ssh_cmd+=("$REMOTE" "mkdir -p '$remote_dir'")
-  scp_cmd+=("$LOCAL_TARGET_MAP" "$REMOTE:$REMOTE_TARGET_MAP")
+  make_ssh_cmd "mkdir -p '$remote_dir'"
+  make_scp_cmd "$LOCAL_TARGET_MAP" "$REMOTE:$REMOTE_TARGET_MAP"
   if (( DRY_RUN )); then
-    printf '+'
-    printf ' %q' "${ssh_cmd[@]}"
-    printf '\n+'
-    printf ' %q' "${scp_cmd[@]}"
-    printf '\n'
+    print_redacted_cmd "${SSH_CMD[@]}"
+    print_redacted_cmd "${SCP_CMD[@]}"
     return 0
   fi
   [[ -f "$LOCAL_TARGET_MAP" ]] || die "local target map not found: $LOCAL_TARGET_MAP"
-  "${ssh_cmd[@]}"
-  "${scp_cmd[@]}"
+  "${SSH_CMD[@]}"
+  "${SCP_CMD[@]}"
 }
 
 remote_vehicle_command() {
