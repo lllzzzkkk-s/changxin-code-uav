@@ -111,6 +111,16 @@ from task_planning.migration.task_command_extraction import (
     ExtractedTaskCommand,
     extract_task_command_from_artifact,
 )
+from task_planning.migration.unit_ugv_artifact_target_map_preflight import (
+    UnitUgvArtifactTargetMapPreflightReport,
+    check_unit_ugv_artifact_target_map,
+)
+from task_planning.migration.unit_ugv_target_map import (
+    UnitUgvTargetMapCheckReport,
+    build_unit_ugv_target_map_template,
+    check_unit_ugv_target_map,
+    write_unit_ugv_target_map_template,
+)
 from task_planning.migration.verify import (
     ALLOWED_MIGRATION_VERIFICATION_CONTEXTS,
     FirstCheck,
@@ -173,6 +183,8 @@ __all__ = [
     "FirstCheck",
     "MigrationVerification",
     "ExtractedTaskCommand",
+    "UnitUgvArtifactTargetMapPreflightReport",
+    "UnitUgvTargetMapCheckReport",
     "REQUIRED_GOLDEN_CASE_IDS",
     "build_artifact_package",
     "build_distributed_fleet_goal_evidence",
@@ -190,6 +202,10 @@ __all__ = [
     "run_prevalidated_task_schema",
     "extract_bundle",
     "extract_task_command_from_artifact",
+    "check_unit_ugv_artifact_target_map",
+    "build_unit_ugv_target_map_template",
+    "check_unit_ugv_target_map",
+    "write_unit_ugv_target_map_template",
     "run_lane_matrix",
     "run_dev_mock_golden_suite",
     "run_bundle_first_checks",

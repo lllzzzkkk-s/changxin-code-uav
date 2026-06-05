@@ -201,6 +201,20 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_target_map.py \
 
 Expected output: the checker exits `0` and writes `UnitUgvTargetMapCheckReport.v1` with `ok=true`, one selected target for the requested object query, no duplicate object aliases, and no unconfirmed target mappings. Fail condition: invalid JSON/schema, wrong `platform_id`, missing object aliases, duplicate aliases across targets, `operator_confirmed_mapping=false`, or a `move_base_goal` target without explicit pose and distance bounds.
 
+Before any ROS1 gateway dry-run, bind one validated artifact command to the local target map without connecting ROS:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_artifact_target_map.py \
+  /tmp/changxin-prevalidated-runs/<run_id> \
+  --target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --platform-id ugv_0 \
+  --index 0 \
+  --max-move-base-distance-m 1.0 \
+  > /tmp/changxin-unit-ugv-artifact-target-map-preflight.json
+```
+
+Expected output: `UnitUgvArtifactTargetMapPreflight.v1` with `ok=true`, the selected `TaskCommand.v1` mission/task/platform fields, a matching `selected_target_id`, and `ros_connected=false`, `dispatch_performed=false`. Fail condition: the artifact cannot be replayed, the selected UGV command is missing, `object_query` is not mapped, `target_id` disagrees with the object-query-selected target, the target map is unconfirmed, or a `move_base_goal` exceeds the site distance bound.
+
 For a no-motion capability check, start the gateway without operator approval first:
 
 ```bash
