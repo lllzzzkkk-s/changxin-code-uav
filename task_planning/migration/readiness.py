@@ -153,6 +153,7 @@ def _repo_files_check(repo_root: Path) -> ReadinessCheck:
         "tools/check_unit_ugv_target_map.py",
         "tools/check_unit_ugv_artifact_target_map.py",
         "tools/prepare_unit_ugv_object_approach_bundle.py",
+        "tools/plan_unit_ugv_gateway_call.py",
         "tools/plan_work_hardware_gate.py",
         "tools/audit_ros1_gateway_services.py",
         "tools/prepare_ros1_gateway_workspace.py",
@@ -351,6 +352,7 @@ def _next_commands(profile: EnvironmentProfile) -> List[str]:
             "PYTHONDONTWRITEBYTECODE=1 python3 tools/verify_task_planning_artifacts.py <artifact-package.tar.gz> --work-dir /tmp/changxin-artifact-verify --verification-context unit_workplace_receiving",
             "PYTHONDONTWRITEBYTECODE=1 python3 tools/plan_work_hardware_gate.py --profile profiles/work_hardware.env --through-stage mock_gateway_dispatch",
             "PYTHONDONTWRITEBYTECODE=1 python3 tools/run_task_planning_golden.py --profile profiles/work_hardware.env --case uav_ugv_coordination",
+            "PYTHONDONTWRITEBYTECODE=1 python3 tools/plan_unit_ugv_gateway_call.py --prep-report <prep_bundle_report.json> --profile <local-work-hardware-ros1-gateway.env> --mode dry_run",
             "Only after mock gates pass: source the unit/workplace ROS1 workspace and run read-only rostopic observations listed by the gate plan.",
         ],
     }

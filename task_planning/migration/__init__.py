@@ -111,6 +111,11 @@ from task_planning.migration.task_command_extraction import (
     ExtractedTaskCommand,
     extract_task_command_from_artifact,
 )
+from task_planning.migration.unit_ugv_gateway_call_plan import (
+    UNIT_UGV_GATEWAY_CALL_PLAN_SCHEMA,
+    UnitUgvGatewayCallPlan,
+    plan_unit_ugv_gateway_call,
+)
 from task_planning.migration.unit_ugv_artifact_target_map_preflight import (
     UnitUgvArtifactTargetMapPreflightReport,
     check_unit_ugv_artifact_target_map,
@@ -149,6 +154,7 @@ __all__ = [
     "HANDOFF_PACKAGE_VERIFICATION_SCHEMA",
     "HARDWARE_DISPATCH_ARTIFACT_SCHEMA",
     "UNIT_UGV_OBJECT_APPROACH_PREP_BUNDLE_SCHEMA",
+    "UNIT_UGV_GATEWAY_CALL_PLAN_SCHEMA",
     "UNIT_HARDWARE_EXECUTION_CONTEXT",
     "ALLOWED_MIGRATION_VERIFICATION_CONTEXTS",
     "DEFAULT_LANES",
@@ -189,6 +195,7 @@ __all__ = [
     "FirstCheck",
     "MigrationVerification",
     "ExtractedTaskCommand",
+    "UnitUgvGatewayCallPlan",
     "UnitUgvArtifactTargetMapPreflightReport",
     "UnitUgvObjectApproachPrepBundleReport",
     "UnitUgvTargetMapCheckReport",
@@ -209,6 +216,7 @@ __all__ = [
     "run_prevalidated_task_schema",
     "extract_bundle",
     "extract_task_command_from_artifact",
+    "plan_unit_ugv_gateway_call",
     "check_unit_ugv_artifact_target_map",
     "prepare_unit_ugv_object_approach_bundle",
     "build_unit_ugv_target_map_template",

@@ -262,6 +262,18 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/prepare_unit_ugv_object_approach_bundle.
 
 Expected output: `UnitUgvObjectApproachPrepBundle.v1` with `ok=true`, `files.task_command_json`, `files.task_command_rosservice_json`, `files.artifact_target_map_preflight`, `ros_connected=false`, `dispatch_performed=false`, and `gateway_dry_run_called=false`. This is a handoff package for the next local gateway stage, not evidence that a gateway service was called.
 
+Plan the exact gateway service call before executing any ROS command:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 tools/plan_unit_ugv_gateway_call.py \
+  --prep-report /tmp/changxin-unit-ugv-object-approach-prep/prep_bundle_report.json \
+  --profile /tmp/work_hardware_ros1_gateway.env \
+  --mode dry_run \
+  > /tmp/changxin-unit-ugv-gateway-dry-run-plan.json
+```
+
+Expected output: `UnitUgvGatewayCallPlan.v1` with `ok=true`, `service_name=/fleet/ugv_0/gateway/dry_run`, `payload_file` pointing at `task_command.rosservice.json`, required service signature `platform_gateway_msgs/TaskCommandJson task_command_json`, and `ros_connected=false`, `service_called=false`, `dispatch_performed=false`. This checkpoint binds the validated mission artifact and target map to the local gateway contract before a human decides whether to run the service call.
+
 For a no-motion capability check, start the gateway without operator approval first:
 
 ```bash
