@@ -293,6 +293,17 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/plan_unit_ugv_gateway_call.py \
 
 Expected output: `UnitUgvGatewayCallPlan.v1` with `ok=true`, `service_name=/fleet/ugv_0/gateway/dry_run`, `payload_file` pointing at `task_command.rosservice.json`, required service signature `platform_gateway_msgs/TaskCommandJson task_command_json`, and `ros_connected=false`, `service_called=false`, `dispatch_performed=false`. This checkpoint binds the validated mission artifact and target map to the local gateway contract before a human decides whether to run the service call.
 
+After the local ROS1 gateway services have passed service-name/type/args signature verification on the 4060, run the standard dry-run runner instead of hand-writing a raw `rosservice call`. The runner reads the ROS-ready handoff, passes the prepared payload as one subprocess argument to avoid shell quoting drift, records stdout/stderr, parses `GatewayServiceResponse.v1`, and still never calls `/gateway/dispatch` or publishes raw ROS topics:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 tools/run_unit_ugv_ros_gateway_dry_run.py \
+  --handoff-report /tmp/changxin-unit-ugv-object-approach-handoff/ros_ready_handoff_report.json \
+  --output-dir /tmp/changxin-unit-ugv-gateway-dry-run \
+  > /tmp/changxin-unit-ugv-gateway-dry-run.json
+```
+
+Expected output: `UnitUgvRosGatewayDryRun.v1` with `ok=true`, `dry_run_called=true`, `dispatch_called=false`, `rostopic_pub=false`, `controlled_motion_authorized=false`, `response_schema=GatewayServiceResponse.v1`, `response_mode=dry_run`, `ack_accepted=true`, `motion_attempted=false`, and `raw_ros_publish_attempted=false`. Fail condition: the handoff is not `ros_ready`, the service name is not `/fleet/ugv_0/gateway/dry_run`, `rosservice call` returns nonzero, the gateway response rejects the command, or the response reports motion/raw publish.
+
 For a no-motion capability check, start the gateway without operator approval first:
 
 ```bash

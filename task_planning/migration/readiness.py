@@ -155,6 +155,7 @@ def _repo_files_check(repo_root: Path) -> ReadinessCheck:
         "tools/prepare_unit_ugv_object_approach_bundle.py",
         "tools/prepare_unit_ugv_object_approach_pipeline.py",
         "tools/plan_unit_ugv_gateway_call.py",
+        "tools/run_unit_ugv_ros_gateway_dry_run.py",
         "tools/plan_work_hardware_gate.py",
         "tools/audit_ros1_gateway_services.py",
         "tools/prepare_ros1_gateway_workspace.py",
@@ -355,7 +356,8 @@ def _next_commands(profile: EnvironmentProfile) -> List[str]:
             "PYTHONDONTWRITEBYTECODE=1 python3 tools/run_task_planning_golden.py --profile profiles/work_hardware.env --case uav_ugv_coordination",
             "PYTHONDONTWRITEBYTECODE=1 python3 tools/prepare_unit_ugv_object_approach_pipeline.py --profile profiles/dev_mock.env --intent '<operator-intent>' --mission-id <mission_id> --case-id <case_id> --target-map <unit_ugv_targets.json> --ros1-gateway-profile <local-work-hardware-ros1-gateway.env> --output-dir /tmp/changxin-unit-ugv-object-approach-handoff --platform-id ugv_0 --index 1",
             "PYTHONDONTWRITEBYTECODE=1 python3 tools/plan_unit_ugv_gateway_call.py --prep-report <prep_bundle_report.json> --profile <local-work-hardware-ros1-gateway.env> --mode dry_run",
-            "Only after mock gates pass: source the unit/workplace ROS1 workspace and run read-only rostopic observations listed by the gate plan.",
+            "After ROS1 gateway signatures pass on the 4060: PYTHONDONTWRITEBYTECODE=1 python3 tools/run_unit_ugv_ros_gateway_dry_run.py --handoff-report /tmp/changxin-unit-ugv-object-approach-handoff/ros_ready_handoff_report.json --output-dir /tmp/changxin-unit-ugv-gateway-dry-run",
+            "Only after dry_run passes and the operator explicitly approves: consider the separate dispatch gate; never bypass the platform gateway with rostopic pub.",
         ],
     }
     return list(commands.get(profile.mission_profile, []))

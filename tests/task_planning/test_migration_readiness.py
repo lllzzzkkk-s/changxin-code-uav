@@ -39,6 +39,7 @@ class MigrationReadinessTest(unittest.TestCase):
         self.assertTrue(any("plan_work_hardware_gate.py" in command for command in report.next_commands))
         self.assertTrue(any("prepare_unit_ugv_object_approach_pipeline.py" in command for command in report.next_commands))
         self.assertTrue(any("plan_unit_ugv_gateway_call.py" in command for command in report.next_commands))
+        self.assertTrue(any("run_unit_ugv_ros_gateway_dry_run.py" in command for command in report.next_commands))
 
     def test_work_hardware_real_gateway_fails_without_ros_runtime(self):
         repo_root = Path(__file__).resolve().parents[2]
