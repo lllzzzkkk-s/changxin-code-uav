@@ -247,6 +247,21 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_artifact_target_map.py \
 
 Expected output: `UnitUgvArtifactTargetMapPreflight.v1` with `ok=true`, the selected `TaskCommand.v1` mission/task/platform fields, a matching `selected_target_id`, and `ros_connected=false`, `dispatch_performed=false`. Fail condition: the artifact cannot be replayed, the selected UGV command is missing, `object_query` is not mapped, `target_id` disagrees with the object-query-selected target, the target map is unconfirmed, or a `move_base_goal` exceeds the site distance bound.
 
+Package the validated command, rosservice payload, target-map copy, and preflight report into one no-ROS handoff directory before any gateway service call:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 tools/prepare_unit_ugv_object_approach_bundle.py \
+  /tmp/changxin-prevalidated-runs/<run_id> \
+  --target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --output-dir /tmp/changxin-unit-ugv-object-approach-prep \
+  --platform-id ugv_0 \
+  --index 0 \
+  --max-move-base-distance-m 1.0 \
+  > /tmp/changxin-unit-ugv-object-approach-prep.json
+```
+
+Expected output: `UnitUgvObjectApproachPrepBundle.v1` with `ok=true`, `files.task_command_json`, `files.task_command_rosservice_json`, `files.artifact_target_map_preflight`, `ros_connected=false`, `dispatch_performed=false`, and `gateway_dry_run_called=false`. This is a handoff package for the next local gateway stage, not evidence that a gateway service was called.
+
 For a no-motion capability check, start the gateway without operator approval first:
 
 ```bash

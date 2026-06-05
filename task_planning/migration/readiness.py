@@ -152,6 +152,7 @@ def _repo_files_check(repo_root: Path) -> ReadinessCheck:
         "tools/extract_task_command_from_artifact.py",
         "tools/check_unit_ugv_target_map.py",
         "tools/check_unit_ugv_artifact_target_map.py",
+        "tools/prepare_unit_ugv_object_approach_bundle.py",
         "tools/plan_work_hardware_gate.py",
         "tools/audit_ros1_gateway_services.py",
         "tools/prepare_ros1_gateway_workspace.py",
