@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -129,6 +131,44 @@ class UnitUgvTargetMapToolTest(unittest.TestCase):
         self.assertEqual("UnitUgvTargetMap.v1", template["schema"])
         self.assertEqual(["桌子", "table"], target["object_queries"])
         self.assertFalse(target["operator_confirmed_mapping"])
+
+    def test_cli_writes_report_when_template_path_cannot_be_created(self):
+        repo_root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            blocked_parent = tmp_path / "not_a_directory"
+            blocked_parent.write_text("blocks child path creation", encoding="utf-8")
+            target_map_path = blocked_parent / "unit_ugv_targets.json"
+            report_path = tmp_path / "target-map-write.json"
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(repo_root / "tools" / "check_unit_ugv_target_map.py"),
+                    "--write-template", str(target_map_path),
+                    "--platform-id", "ugv_0",
+                    "--target-id", "target_01",
+                    "--object-query", "显示器",
+                    "--output", str(report_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(1, completed.returncode, completed.stdout)
+        self.assertEqual("UnitUgvTargetMapTemplateWriteReport.v1", report["schema"])
+        self.assertFalse(report["ok"])
+        self.assertFalse(report["operator_confirmed_mapping"])
+        self.assertFalse(report["ros_connected"])
+        self.assertFalse(report["gateway_dry_run_called"])
+        self.assertFalse(report["dispatch_called"])
+        self.assertEqual(["显示器"], report["object_queries"])
+        self.assertTrue(any(
+            "target map template write failed" in item
+            for item in report["validation_errors"]
+        ))
 
 
 if __name__ == "__main__":

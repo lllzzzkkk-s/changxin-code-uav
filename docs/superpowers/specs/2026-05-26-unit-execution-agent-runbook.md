@@ -208,11 +208,19 @@ If `/fleet/ugv_0/gateway/*` services are absent after the message workspace buil
 
 The current single-UGV object approach path does not yet run YOLO or another perception backend. The natural-language "识别附近的显示器" intent is compiled into an `object_query`, then bound to a local `UnitUgvTargetMap.v1`. That target map is operator-confirmed site evidence for now; YOLO should be added later as another perception backend without bypassing the same validator/PDDL/BT/gateway chain.
 
+Set the local runtime path from the user that will run the gateway wrapper. On the 4060 WSL2 side this is usually the WSL user, not necessarily `yhs`:
+
+```bash
+export CHANGXIN_GATEWAY_RUNTIME="${CHANGXIN_GATEWAY_RUNTIME:-$HOME/changxin_gateway_runtime}"
+export UNIT_UGV_TARGET_MAP="${UNIT_UGV_TARGET_MAP:-$CHANGXIN_GATEWAY_RUNTIME/unit_ugv_targets.json}"
+export CHANGXIN_GATEWAY_WS="${CHANGXIN_GATEWAY_WS:-$HOME/catkin_ws}"
+```
+
 Create or check the object-target readiness gate on the real UGV IPC or the machine that owns the UGV local ROS1 master. If the target map is missing, this command writes an unconfirmed template and exits nonzero; stop there until the local operator edits and confirms the mapping:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_object_target_readiness.py \
-  --target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --target-map "$UNIT_UGV_TARGET_MAP" \
   --object-query 显示器 \
   --platform-id ugv_0 \
   --write-missing-template \
@@ -221,14 +229,14 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_object_target_readiness.p
 
 Expected output when the target map is missing: `UnitUgvObjectTargetReadiness.v1` with `ok=false`, `target_map_template_written=true`, `target_binding_ready=false`, `perception_backend=operator_confirmed_target_map`, `yolo_connected=false`, `ros_connected=false`, and `next_runtime_stage=local_operator_confirm_target_map`. Pass condition after local editing: the same command returns `ok=true`, `target_binding_ready=true`, `selected_target_id=<target>`, and `next_runtime_stage=4060_ros1_gateway_handoff`.
 
-If the current WSL user cannot create `/home/yhs/changxin_gateway_runtime/unit_ugv_targets.json`, the tool still writes the `/tmp/changxin-unit-ugv-object-target-readiness.json` report with `ok=false`, `target_map_template_written=false`, and a permission/write failure in `validation_errors`. Do not continue to ROS/gateway from that state. Use the correct site user or a site-approved writable runtime path, then rerun this readiness gate.
+If the current WSL user cannot create the selected `UNIT_UGV_TARGET_MAP`, the tool still writes the `/tmp/changxin-unit-ugv-object-target-readiness.json` report with `ok=false`, `target_map_template_written=false`, and a permission/write failure in `validation_errors`. Do not continue to ROS/gateway from that state. Use the correct site user or a site-approved writable runtime path, then rerun this readiness gate.
 
 Future YOLO integration should write portable `ObjectDetectionSet.v1` JSON first. That detection evidence may prefill an unconfirmed target-map template, but it must not directly authorize ROS handoff, `/gateway/dry_run`, `/gateway/dispatch`, or motion:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python3 tools/seed_unit_ugv_target_map_from_yolo_detection.py \
   --detections /tmp/changxin-yolo-detections.json \
-  --target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --target-map "$UNIT_UGV_TARGET_MAP" \
   --object-query 显示器 \
   --platform-id ugv_0 \
   --output /tmp/changxin-unit-ugv-yolo-target-seed.json
@@ -239,26 +247,27 @@ Expected output: `UnitUgvYoloTargetSeed.v1` with `ok=false`, `yolo_detection_obs
 Edit the target map with the site-specific object aliases and target pose, then set `operator_confirmed_mapping=true` only after the local operator has confirmed the mapping:
 
 ```bash
-mkdir -p /home/yhs/changxin_gateway_runtime
+mkdir -p "$CHANGXIN_GATEWAY_RUNTIME"
 PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_target_map.py \
-  --write-template /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --write-template "$UNIT_UGV_TARGET_MAP" \
   --platform-id ugv_0 \
   --target-id target_01 \
   --object-query 显示器 \
-  --object-query monitor
+  --object-query monitor \
+  --output /tmp/changxin-unit-ugv-target-map-template.json
 
-# Edit /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json locally.
+# Edit "$UNIT_UGV_TARGET_MAP" locally.
 # For no-motion proof, keep action=manual_confirm.
 # For bounded motion, use action=move_base_goal and fill frame_id/x/y/yaw/max_distance_m from the real local map.
 # Set operator_confirmed_mapping=true only after local operator confirmation.
 
 PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_target_map.py \
-  --target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --target-map "$UNIT_UGV_TARGET_MAP" \
   --platform-id ugv_0 \
   --require-object-queries \
   --select-object-query 显示器 \
   --max-move-base-distance-m 1.0 \
-  > /tmp/changxin-unit-ugv-target-map-check.json
+  --output /tmp/changxin-unit-ugv-target-map-check.json
 ```
 
 Expected output: the checker exits `0` and writes `UnitUgvTargetMapCheckReport.v1` with `ok=true`, one selected target for the requested object query, no duplicate object aliases, and no unconfirmed target mappings. Fail condition: invalid JSON/schema, wrong `platform_id`, missing object aliases, duplicate aliases across targets, `operator_confirmed_mapping=false`, or a `move_base_goal` target without explicit pose and distance bounds.
@@ -271,7 +280,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/prepare_unit_ugv_object_approach_pipelin
   --intent "让小车识别附近的显示器，然后走过去" \
   --mission-id unit_single_ugv_object_approach_001 \
   --case-id unit_single_ugv_object_approach \
-  --target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --target-map "$UNIT_UGV_TARGET_MAP" \
   --ros1-gateway-profile /tmp/work_hardware_ros1_gateway.env \
   --output-dir /tmp/changxin-unit-ugv-object-approach-handoff \
   --platform-id ugv_0 \
@@ -287,7 +296,7 @@ If an artifact was already produced separately, bind one validated artifact comm
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_artifact_target_map.py \
   /tmp/changxin-prevalidated-runs/<run_id> \
-  --target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --target-map "$UNIT_UGV_TARGET_MAP" \
   --platform-id ugv_0 \
   --index 0 \
   --max-move-base-distance-m 1.0 \
@@ -301,7 +310,7 @@ Package the validated command, rosservice payload, target-map copy, and prefligh
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python3 tools/prepare_unit_ugv_object_approach_bundle.py \
   /tmp/changxin-prevalidated-runs/<run_id> \
-  --target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --target-map "$UNIT_UGV_TARGET_MAP" \
   --output-dir /tmp/changxin-unit-ugv-object-approach-prep \
   --platform-id ugv_0 \
   --index 0 \
@@ -337,9 +346,9 @@ Expected output: `UnitUgvRosGatewayDryRun.v1` with `ok=true`, `dry_run_called=tr
 For a no-motion capability check, start the gateway without operator approval first:
 
 ```bash
-cd /home/yhs/changxin_gateway_runtime
+cd "$CHANGXIN_GATEWAY_RUNTIME"
 source /opt/ros/noetic/setup.bash
-source /home/yhs/changxin_gateway_ws/devel/setup.bash
+source "$CHANGXIN_GATEWAY_WS/devel/setup.bash"
 export ROS_MASTER_URI=http://192.168.0.201:11311  # replace with the real local UGV ROS master if different
 export ROS_IP="$(hostname -I | awk '{print $1}')"
 
@@ -348,7 +357,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/run_ros1_platform_gateway_node.py \
   --platform-type ugv \
   --capability confirm_target \
   --service-symbol platform_gateway_msgs.srv:TaskCommandJson \
-  --unit-ugv-target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --unit-ugv-target-map "$UNIT_UGV_TARGET_MAP" \
   --unit-ugv-progress-output /tmp/changxin-task-progress.json
 ```
 
@@ -380,7 +389,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/run_ros1_platform_gateway_node.py \
   --platform-type ugv \
   --capability confirm_target \
   --service-symbol platform_gateway_msgs.srv:TaskCommandJson \
-  --unit-ugv-target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --unit-ugv-target-map "$UNIT_UGV_TARGET_MAP" \
   --unit-ugv-operator-approved \
   --unit-ugv-enable-move-base \
   --unit-ugv-move-base-action /move_base \
