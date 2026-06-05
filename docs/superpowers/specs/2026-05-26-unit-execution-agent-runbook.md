@@ -220,6 +220,44 @@ export UNIT_UGV_TARGET_MAP="${UNIT_UGV_TARGET_MAP:-$CHANGXIN_GATEWAY_RUNTIME/uni
 export CHANGXIN_GATEWAY_WS="${CHANGXIN_GATEWAY_WS:-$HOME/catkin_ws}"
 ```
 
+The vehicle does not need Codex. If the 4060 can SSH to the vehicle as
+`yhs@192.168.0.201`, use the SSH lifecycle wrapper from the 4060 to operate the
+vehicle-side gateway process. This keeps the process on the UGV IPC while letting
+the 4060 handle orchestration and evidence collection:
+
+```bash
+# 4060/HMI side: verify SSH connectivity.
+bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
+  --remote yhs@192.168.0.201 \
+  ping
+
+# If the vehicle already has a Git checkout, fast-forward it.
+bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
+  --remote yhs@192.168.0.201 \
+  --remote-repo /home/yhs/changxin-code \
+  pull
+
+# If Git/network is not reliable on the vehicle, copy only the gateway-relevant
+# repo subset from the 4060 checkout.
+bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
+  --remote yhs@192.168.0.201 \
+  --remote-repo /home/yhs/changxin-code \
+  sync-lite
+
+# Copy the current HMI/operator target map to the vehicle-side runtime path.
+bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
+  --remote yhs@192.168.0.201 \
+  --local-target-map /home/uavdev/changxin_gateway_runtime/unit_ugv_targets.json \
+  --remote-target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  sync-target-map
+```
+
+Expected output: SSH commands complete without starting the gateway unless the
+selected action is `start` or `start-motion`. Pass condition: the vehicle has the
+latest wrapper scripts and the target map exists at the vehicle-side path. Fail
+condition: SSH is unavailable, the vehicle repo cannot be updated or synced, or
+the target map is not copied to the path the vehicle wrapper will read.
+
 Create or check the object-target readiness gate on the real UGV IPC or the machine that owns the UGV local ROS1 master. If the target map is missing, this command writes an unconfirmed template and exits nonzero; stop there until the local operator edits and confirms the mapping:
 
 ```bash
@@ -336,6 +374,52 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/plan_unit_ugv_gateway_call.py \
 
 Expected output: `UnitUgvGatewayCallPlan.v1` with `ok=true`, `service_name=/fleet/ugv_0/gateway/dry_run`, `payload_file` pointing at `task_command.rosservice.json`, required service signature `platform_gateway_msgs/TaskCommandJson task_command_json`, and `ros_connected=false`, `service_called=false`, `dispatch_performed=false`. This checkpoint binds the validated mission artifact and target map to the local gateway contract before a human decides whether to run the service call.
 
+Before the dry-run, start or inspect the vehicle-side wrapper through SSH. For a
+no-motion capability check, start the wrapper without `move_base` enablement:
+
+```bash
+bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
+  --remote yhs@192.168.0.201 \
+  --remote-repo /home/yhs/changxin-code \
+  --remote-target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  precheck -- --select-object-query 显示器
+
+bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
+  --remote yhs@192.168.0.201 \
+  --remote-repo /home/yhs/changxin-code \
+  --remote-target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  start -- --select-object-query 显示器
+```
+
+For a bounded `move_base_goal` trial, require the vehicle-side imports, ROS
+master, target map, and `/move_base` action server before starting the wrapper
+with operator approval and move-base enablement:
+
+```bash
+bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
+  --remote yhs@192.168.0.201 \
+  --remote-repo /home/yhs/changxin-code \
+  --remote-target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  precheck -- \
+    --select-object-query 显示器 \
+    --enable-move-base \
+    --require-move-base-server
+
+bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
+  --remote yhs@192.168.0.201 \
+  --remote-repo /home/yhs/changxin-code \
+  --remote-target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  start-motion -- --select-object-query 显示器
+```
+
+Expected output: the wrapper process runs on the vehicle and registers
+`/fleet/ugv_0/gateway/dry_run` and `/fleet/ugv_0/gateway/dispatch`. Pass
+condition: the vehicle-side precheck validates `platform_gateway_msgs`, the target
+map, ROS master, and, for motion trials, `move_base_msgs` plus the `/move_base`
+action server. Fail condition: the wrapper starts on the 4060, the vehicle cannot
+import `move_base_msgs`, the target map is missing/unconfirmed, ROS master is not
+reachable from the vehicle, or `/move_base` is unavailable when motion is enabled.
+
 After the vehicle-side ROS1 gateway services have passed service-name/type/args
 signature verification from the 4060/HMI side, run the standard dry-run runner
 as the HMI/ground-station client instead of hand-writing a raw `rosservice call`.
@@ -353,29 +437,30 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/run_unit_ugv_ros_gateway_dry_run.py \
 
 Expected output: `UnitUgvRosGatewayDryRun.v1` with `ok=true`, `dry_run_called=true`, `dispatch_called=false`, `rostopic_pub=false`, `controlled_motion_authorized=false`, `response_schema=GatewayServiceResponse.v1`, `response_mode=dry_run`, `ack_accepted=true`, `motion_attempted=false`, and `raw_ros_publish_attempted=false`. Fail condition: the handoff is not `ros_ready`, the service name is not `/fleet/ugv_0/gateway/dry_run`, `rosservice call` returns nonzero, the gateway response rejects the command, or the response reports motion/raw publish.
 
-For a no-motion capability check, start the gateway without operator approval
-first on the single UGV IPC / vehicle-local ROS1 environment. Do not start this
-wrapper on the 4060 WSL2 host for controlled-motion proof; the 4060 is the
-HMI/ground-station client that observes service registration and calls the
-gateway services after they are available:
+Use the SSH lifecycle wrapper to inspect status, collect service signatures, or
+stop the vehicle-side gateway after a run:
 
 ```bash
-cd "$CHANGXIN_GATEWAY_RUNTIME"
-source /opt/ros/noetic/setup.bash
-source "$CHANGXIN_GATEWAY_WS/devel/setup.bash"
-export ROS_MASTER_URI=http://192.168.0.201:11311  # replace with the real local UGV ROS master if different
-export ROS_IP="$(hostname -I | awk '{print $1}')"
+bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
+  --remote yhs@192.168.0.201 status
 
-PYTHONDONTWRITEBYTECODE=1 python3 tools/run_ros1_platform_gateway_node.py \
-  --platform-id ugv_0 \
-  --platform-type ugv \
-  --capability confirm_target \
-  --service-symbol platform_gateway_msgs.srv:TaskCommandJson \
-  --unit-ugv-target-map "$UNIT_UGV_TARGET_MAP" \
-  --unit-ugv-progress-output /tmp/changxin-task-progress.json
+bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
+  --remote yhs@192.168.0.201 signature
+
+bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
+  --remote yhs@192.168.0.201 logs
+
+bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
+  --remote yhs@192.168.0.201 stop
 ```
 
-Expected output: the node stays running and `rosservice list` shows `/fleet/ugv_0/gateway/dry_run` and `/fleet/ugv_0/gateway/dispatch`. Pass condition: `/gateway/dry_run` accepts the extracted `TaskCommand.v1` and `/gateway/dispatch` rejects with `operator approval required for unit UGV dispatch`. Fail condition: service registration fails, service type is not `platform_gateway_msgs/TaskCommandJson`, dry-run rejects the mapped `target_01`, or dispatch accepts before operator approval.
+Expected output: `status` shows process and service-registration state,
+`signature` writes vehicle-side service list/type/args files under the state
+directory, `logs` prints recent wrapper output, and `stop` terminates only the
+managed wrapper process. Pass condition: status/signature match the expected
+`platform_gateway_msgs/TaskCommandJson task_command_json` contract. Fail
+condition: services are missing, types/args differ, logs show wrapper exceptions,
+or stop cannot terminate the managed pid.
 
 Only if the site decides `confirm_target(target_01)` is a bounded navigation action, replace `action=manual_confirm` with `action=move_base_goal` and add explicit pose fields:
 
@@ -395,32 +480,15 @@ Only if the site decides `confirm_target(target_01)` is a bounded navigation act
 
 Expected output: JSON validation still exits `0`. Pass condition: the site operator confirms the pose, frame, and safety radius from the real UGV map. Fail condition: the target is guessed from chat, evidence history, or an unverified map.
 
-For a real `move_base_goal` dispatch, the node must run on the single UGV IPC /
-vehicle-local ROS1 environment and must be started with both
-`--unit-ugv-operator-approved` and `--unit-ugv-enable-move-base` after local
-operator approval:
-
-```bash
-PYTHONDONTWRITEBYTECODE=1 python3 tools/run_ros1_platform_gateway_node.py \
-  --platform-id ugv_0 \
-  --platform-type ugv \
-  --capability confirm_target \
-  --service-symbol platform_gateway_msgs.srv:TaskCommandJson \
-  --unit-ugv-target-map "$UNIT_UGV_TARGET_MAP" \
-  --unit-ugv-operator-approved \
-  --unit-ugv-enable-move-base \
-  --unit-ugv-move-base-action /move_base \
-  --unit-ugv-progress-output /tmp/changxin-task-progress.json
-```
-
-Expected output: the vehicle-side node stays running. Pass condition: after a
-separately approved `/fleet/ugv_0/gateway/dispatch` issued from the HMI /
-ground-station side, `/tmp/changxin-task-progress.json` on the vehicle-side
-wrapper host contains `TaskProgressSet.v1` for the same
-`mission_id/task_id/platform_id`. Fail condition: the wrapper is accidentally
-hosted on the 4060 instead of the vehicle-local ROS environment, no operator
-approval, `move_base` server unavailable, target map invalid, dispatch response
-not accepted, or no matching TaskProgress file.
+For a real `move_base_goal` dispatch, the vehicle-side wrapper must already have
+been started with `start-motion`. Pass condition: after a separately approved
+`/fleet/ugv_0/gateway/dispatch` issued from the HMI/ground-station side,
+`/tmp/changxin-task-progress.json` on the vehicle-side wrapper host contains
+`TaskProgressSet.v1` for the same `mission_id/task_id/platform_id`. Fail
+condition: the wrapper is accidentally hosted on the 4060 instead of the
+vehicle-local ROS environment, no operator approval, `move_base` server
+unavailable, target map invalid, dispatch response not accepted, or no matching
+TaskProgress file.
 
 ## Read-Only ROS1 Signature Audit
 
