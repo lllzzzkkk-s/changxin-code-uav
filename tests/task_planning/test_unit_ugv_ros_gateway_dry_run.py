@@ -185,6 +185,38 @@ class UnitUgvRosGatewayDryRunTest(unittest.TestCase):
         self.assertEqual("GatewayServiceResponse.v1", report.response_schema)
         self.assertTrue(report.ack_accepted)
 
+    def test_response_stdout_parser_handles_ros_yaml_double_quoted_line_continuations(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            stdout_path = tmp_path / "dry_run_response.txt"
+            stdout_path.write_text(
+                'response_json: "{\\"ack\\": {\\"accepted\\": true, \\"local_check\\": {\\"battery_ok\\": true, \\"capability_known\\"\\\n'
+                '  : true, \\"localization_ok\\": true, \\"mapping_operator_confirmed\\": true, \\"motion_attempted\\"\\\n'
+                '  : false, \\"raw_ros_publish_attempted\\": false, \\"resolved_target_id\\": \\"target_01\\"\\\n'
+                '  , \\"safety_ok\\": true, \\"target_mapped\\": true, \\"target_resolution_source\\": \\"\\\n'
+                '  target_id\\"}, \\"mission_id\\": \\"unit_single_ugv_simulated_yolo_monitor_001\\", \\"\\\n'
+                '  platform_id\\": \\"ugv_0\\", \\"reason\\": \\"unit_ugv_dry_run_ok\\", \\"schema\\": \\"CommandAck.v1\\"\\\n'
+                '  , \\"task_id\\": \\"task_002\\"}, \\"mode\\": \\"dry_run\\", \\"motion_attempted\\": false,\\\n'
+                '  \\ \\"platform_id\\": \\"ugv_0\\", \\"raw_ros_publish_attempted\\": false, \\"schema\\":\\\n'
+                '  \\ \\"GatewayServiceResponse.v1\\"}"\n',
+                encoding="utf-8",
+            )
+
+            report = parse_unit_ugv_ros_gateway_dry_run_response_stdout(
+                response_stdout_path=stdout_path,
+                output_dir=tmp_path / "parsed",
+                expected_platform_id="ugv_0",
+            )
+
+        self.assertTrue(report.ok, report.validation_errors)
+        self.assertFalse(report.dry_run_called)
+        self.assertEqual("GatewayServiceResponse.v1", report.response_schema)
+        self.assertEqual("dry_run", report.response_mode)
+        self.assertTrue(report.ack_accepted)
+        self.assertEqual("unit_ugv_dry_run_ok", report.ack_reason)
+        self.assertFalse(report.motion_attempted)
+        self.assertFalse(report.raw_ros_publish_attempted)
+
 
 def _write_handoff(tmp: Path, *, ros_ready: bool = True) -> Path:
     payload_path = tmp / "task_command.rosservice.json"

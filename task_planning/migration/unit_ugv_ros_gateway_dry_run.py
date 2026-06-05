@@ -314,11 +314,34 @@ def _response_json_values(stdout: str) -> List[str]:
 
 def _value_variants(parts: List[str]) -> List[str]:
     compact_parts = [part for part in parts if part != ""]
-    return _dedupe([
+    variants = [
         "\n".join(compact_parts).strip(),
         "".join(compact_parts).strip(),
         " ".join(compact_parts).strip(),
-    ])
+        _yaml_double_quoted_line_continuation_variant(compact_parts),
+    ]
+    if _looks_like_yaml_line_continuation(compact_parts):
+        variants.insert(0, variants.pop())
+    return _dedupe(variants)
+
+
+def _yaml_double_quoted_line_continuation_variant(parts: List[str]) -> str:
+    value = ""
+    for part in parts:
+        current = part.strip()
+        if not current:
+            continue
+        if value.endswith("\\"):
+            value = value[:-1] + current.lstrip()
+        elif value:
+            value = f"{value} {current.lstrip()}"
+        else:
+            value = current
+    return value.replace("\\ ", " ").strip()
+
+
+def _looks_like_yaml_line_continuation(parts: List[str]) -> bool:
+    return any(part.rstrip().endswith("\\") for part in parts)
 
 
 def _decode_response_json_value(value: str) -> Optional[Dict[str, Any]]:
@@ -328,6 +351,14 @@ def _decode_response_json_value(value: str) -> Optional[Dict[str, Any]]:
     parsed = _json_object(value)
     if parsed is not None:
         return parsed
+    try:
+        decoded = json.loads(value)
+    except json.JSONDecodeError:
+        decoded = None
+    if isinstance(decoded, str):
+        parsed = _json_object(decoded)
+        if parsed is not None:
+            return parsed
     try:
         literal = ast.literal_eval(value)
     except Exception:
