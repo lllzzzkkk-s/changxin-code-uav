@@ -175,6 +175,7 @@ def _repo_files_check(repo_root: Path) -> ReadinessCheck:
         "tools/record_unit_hardware_dispatch_artifact.py",
         "tools/run_mock_model_lab_endpoint.py",
         "tools/run_prevalidated_task_schema.py",
+        "tools/seed_unit_ugv_target_map_from_yolo_detection.py",
         "tools/check_task_planning_readiness.py",
         "tools/run_task_planning_lane_matrix.py",
     ]
@@ -356,6 +357,7 @@ def _next_commands(profile: EnvironmentProfile) -> List[str]:
             "PYTHONDONTWRITEBYTECODE=1 python3 tools/plan_work_hardware_gate.py --profile profiles/work_hardware.env --through-stage mock_gateway_dispatch",
             "PYTHONDONTWRITEBYTECODE=1 python3 tools/run_task_planning_golden.py --profile profiles/work_hardware.env --case uav_ugv_coordination",
             "PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_object_target_readiness.py --target-map <unit_ugv_targets.json> --object-query <object-name> --platform-id ugv_0 --write-missing-template",
+            "Optional future YOLO seed only after ObjectDetectionSet.v1 exists: PYTHONDONTWRITEBYTECODE=1 python3 tools/seed_unit_ugv_target_map_from_yolo_detection.py --detections <ObjectDetectionSet.v1.json> --target-map <unit_ugv_targets.json> --object-query <object-name> --platform-id ugv_0 --output /tmp/changxin-unit-ugv-yolo-target-seed.json",
             "PYTHONDONTWRITEBYTECODE=1 python3 tools/prepare_unit_ugv_object_approach_pipeline.py --profile profiles/dev_mock.env --intent '<operator-intent>' --mission-id <mission_id> --case-id <case_id> --target-map <unit_ugv_targets.json> --ros1-gateway-profile <local-work-hardware-ros1-gateway.env> --output-dir /tmp/changxin-unit-ugv-object-approach-handoff --platform-id ugv_0 --index 1",
             "PYTHONDONTWRITEBYTECODE=1 python3 tools/plan_unit_ugv_gateway_call.py --prep-report <prep_bundle_report.json> --profile <local-work-hardware-ros1-gateway.env> --mode dry_run",
             "After ROS1 gateway signatures pass on the 4060: PYTHONDONTWRITEBYTECODE=1 python3 tools/run_unit_ugv_ros_gateway_dry_run.py --handoff-report /tmp/changxin-unit-ugv-object-approach-handoff/ros_ready_handoff_report.json --output-dir /tmp/changxin-unit-ugv-gateway-dry-run",

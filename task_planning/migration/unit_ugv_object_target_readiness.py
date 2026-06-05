@@ -87,20 +87,27 @@ def check_unit_ugv_object_target_readiness(
 
     if not target_map_exists:
         if write_missing_template:
-            write_unit_ugv_target_map_template(
-                expanded_target_map_path,
-                platform_id=platform_id,
-                target_id=target_id,
-                object_queries=[object_query],
-                action="manual_confirm",
-                operator_confirmed=False,
-                description=(
-                    "TODO: local operator must confirm this object-target mapping; "
-                    "future YOLO integration should replace this manual binding evidence."
-                ),
-            )
-            template_written = True
-            validation_errors.append("target map is missing; wrote an unconfirmed operator target-map template")
+            try:
+                write_unit_ugv_target_map_template(
+                    expanded_target_map_path,
+                    platform_id=platform_id,
+                    target_id=target_id,
+                    object_queries=[object_query],
+                    action="manual_confirm",
+                    operator_confirmed=False,
+                    description=(
+                        "TODO: local operator must confirm this object-target mapping; "
+                        "future YOLO integration should replace this manual binding evidence."
+                    ),
+                )
+            except Exception as exc:
+                validation_errors.append(
+                    "target map is missing; failed to write unconfirmed operator target-map template: "
+                    f"{exc}"
+                )
+            else:
+                template_written = True
+                validation_errors.append("target map is missing; wrote an unconfirmed operator target-map template")
         else:
             validation_errors.append("target map is missing")
     else:

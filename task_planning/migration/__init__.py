@@ -146,6 +146,12 @@ from task_planning.migration.unit_ugv_target_map import (
     check_unit_ugv_target_map,
     write_unit_ugv_target_map_template,
 )
+from task_planning.migration.unit_ugv_yolo_target_seed import (
+    OBJECT_DETECTION_SET_SCHEMA,
+    UNIT_UGV_YOLO_TARGET_SEED_SCHEMA,
+    UnitUgvYoloTargetSeedReport,
+    seed_unit_ugv_target_map_from_yolo_detection,
+)
 from task_planning.migration.verify import (
     ALLOWED_MIGRATION_VERIFICATION_CONTEXTS,
     FirstCheck,
@@ -173,6 +179,8 @@ __all__ = [
     "UNIT_UGV_OBJECT_TARGET_READINESS_SCHEMA",
     "UNIT_UGV_GATEWAY_CALL_PLAN_SCHEMA",
     "UNIT_UGV_ROS_GATEWAY_DRY_RUN_SCHEMA",
+    "UNIT_UGV_YOLO_TARGET_SEED_SCHEMA",
+    "OBJECT_DETECTION_SET_SCHEMA",
     "UNIT_HARDWARE_EXECUTION_CONTEXT",
     "ALLOWED_MIGRATION_VERIFICATION_CONTEXTS",
     "DEFAULT_LANES",
@@ -220,6 +228,7 @@ __all__ = [
     "UnitUgvObjectTargetReadinessReport",
     "UnitUgvRosGatewayDryRunReport",
     "UnitUgvTargetMapCheckReport",
+    "UnitUgvYoloTargetSeedReport",
     "REQUIRED_GOLDEN_CASE_IDS",
     "build_artifact_package",
     "build_distributed_fleet_goal_evidence",
@@ -243,6 +252,7 @@ __all__ = [
     "prepare_unit_ugv_object_approach_pipeline",
     "check_unit_ugv_object_target_readiness",
     "run_unit_ugv_ros_gateway_dry_run",
+    "seed_unit_ugv_target_map_from_yolo_detection",
     "build_unit_ugv_target_map_template",
     "check_unit_ugv_target_map",
     "write_unit_ugv_target_map_template",

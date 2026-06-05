@@ -221,6 +221,21 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_object_target_readiness.p
 
 Expected output when the target map is missing: `UnitUgvObjectTargetReadiness.v1` with `ok=false`, `target_map_template_written=true`, `target_binding_ready=false`, `perception_backend=operator_confirmed_target_map`, `yolo_connected=false`, `ros_connected=false`, and `next_runtime_stage=local_operator_confirm_target_map`. Pass condition after local editing: the same command returns `ok=true`, `target_binding_ready=true`, `selected_target_id=<target>`, and `next_runtime_stage=4060_ros1_gateway_handoff`.
 
+If the current WSL user cannot create `/home/yhs/changxin_gateway_runtime/unit_ugv_targets.json`, the tool still writes the `/tmp/changxin-unit-ugv-object-target-readiness.json` report with `ok=false`, `target_map_template_written=false`, and a permission/write failure in `validation_errors`. Do not continue to ROS/gateway from that state. Use the correct site user or a site-approved writable runtime path, then rerun this readiness gate.
+
+Future YOLO integration should write portable `ObjectDetectionSet.v1` JSON first. That detection evidence may prefill an unconfirmed target-map template, but it must not directly authorize ROS handoff, `/gateway/dry_run`, `/gateway/dispatch`, or motion:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 tools/seed_unit_ugv_target_map_from_yolo_detection.py \
+  --detections /tmp/changxin-yolo-detections.json \
+  --target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --object-query 显示器 \
+  --platform-id ugv_0 \
+  --output /tmp/changxin-unit-ugv-yolo-target-seed.json
+```
+
+Expected output: `UnitUgvYoloTargetSeed.v1` with `ok=false`, `yolo_detection_observed=true`, `target_map_template_written=true`, `target_binding_ready=false`, `ros_connected=false`, `gateway_dry_run_called=false`, and `dispatch_called=false`. The local operator still has to confirm the map binding before the object-target readiness gate can pass.
+
 Edit the target map with the site-specific object aliases and target pose, then set `operator_confirmed_mapping=true` only after the local operator has confirmed the mapping:
 
 ```bash

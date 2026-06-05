@@ -38,6 +38,7 @@ class MigrationReadinessTest(unittest.TestCase):
         self.assertEqual("warn", _check(report, "ros_cli_rostopic").status)
         self.assertTrue(any("plan_work_hardware_gate.py" in command for command in report.next_commands))
         self.assertTrue(any("check_unit_ugv_object_target_readiness.py" in command for command in report.next_commands))
+        self.assertTrue(any("seed_unit_ugv_target_map_from_yolo_detection.py" in command for command in report.next_commands))
         self.assertTrue(any("prepare_unit_ugv_object_approach_pipeline.py" in command for command in report.next_commands))
         self.assertTrue(any("plan_unit_ugv_gateway_call.py" in command for command in report.next_commands))
         self.assertTrue(any("run_unit_ugv_ros_gateway_dry_run.py" in command for command in report.next_commands))

@@ -120,6 +120,41 @@ class UnitUgvObjectTargetReadinessTest(unittest.TestCase):
         self.assertFalse(report["ok"])
         self.assertTrue(report["target_map_template_written"])
 
+    def test_cli_writes_report_when_template_path_cannot_be_created(self):
+        repo_root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            blocked_parent = tmp_path / "not_a_directory"
+            blocked_parent.write_text("blocks child path creation", encoding="utf-8")
+            target_map_path = blocked_parent / "unit_ugv_targets.json"
+            report_path = tmp_path / "readiness.json"
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(repo_root / "tools" / "check_unit_ugv_object_target_readiness.py"),
+                    "--target-map", str(target_map_path),
+                    "--object-query", "显示器",
+                    "--platform-id", "ugv_0",
+                    "--write-missing-template",
+                    "--output", str(report_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(1, completed.returncode, completed.stdout)
+        self.assertEqual("UnitUgvObjectTargetReadiness.v1", report["schema"])
+        self.assertFalse(report["ok"])
+        self.assertFalse(report["target_map_template_written"])
+        self.assertFalse(report["target_binding_ready"])
+        self.assertTrue(any(
+            "failed to write unconfirmed operator target-map template" in item
+            for item in report["validation_errors"]
+        ))
+
 
 if __name__ == "__main__":
     unittest.main()
