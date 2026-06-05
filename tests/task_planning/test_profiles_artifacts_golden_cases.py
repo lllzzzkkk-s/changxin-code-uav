@@ -205,6 +205,7 @@ class DistributedProfileArtifactTest(unittest.TestCase):
 
         self.assertEqual({
             "single_ugv_inspection",
+            "single_ugv_object_approach",
             "uav_reconnaissance",
             "uav_ugv_coordination",
             "failure_and_replan",

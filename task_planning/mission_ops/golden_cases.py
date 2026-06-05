@@ -31,6 +31,15 @@ def golden_mission_cases() -> List[GoldenMissionCase]:
             context_snapshot={"mission_id": "golden_single_ugv_inspection", "primary_platform": "ugv_0"},
         ),
         GoldenMissionCase(
+            case_id="single_ugv_object_approach",
+            description="Single UGV object identification and bounded approach pipeline from operator intent to TaskCommand.",
+            intent="让小车识别附近的充电桩，然后走过去",
+            context_snapshot={
+                "mission_id": "golden_single_ugv_object_approach",
+                "primary_platform": "ugv_0",
+            },
+        ),
+        GoldenMissionCase(
             case_id="uav_reconnaissance",
             description="UAV reconnaissance first, with ground confirmation still compiled through PDDL and BT.",
             intent="无人机先搜索 A 区，发现目标后保持观察",

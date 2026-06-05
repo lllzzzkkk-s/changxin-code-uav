@@ -14,6 +14,7 @@ from task_planning.mission_ops.state_store import JsonMissionOpsStateStore
 
 REQUIRED_GOLDEN_CASE_IDS: Tuple[str, ...] = (
     "single_ugv_inspection",
+    "single_ugv_object_approach",
     "uav_reconnaissance",
     "uav_ugv_coordination",
     "failure_and_replan",

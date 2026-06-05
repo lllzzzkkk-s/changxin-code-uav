@@ -28,6 +28,27 @@ class MissionOpsDryRunTest(unittest.TestCase):
             command.capability for command in bt.task_commands
         ])
 
+    def test_single_ugv_object_approach_intent_compiles_to_identify_then_approach_commands(self):
+        task_schema = MockLLMClient().compile_task_schema(
+            "让小车识别附近的充电桩，然后走过去",
+            {"mission_id": "golden_single_ugv_object_approach", "primary_platform": "ugv_0"},
+        )
+        problem = generate_problem(task_schema.mission_request)
+        plan = mock_plan(problem)
+        bt = compile_plan_to_bt(plan, mission_id=task_schema.mission_request.mission_id)
+
+        self.assertEqual("single_ugv_object_approach", task_schema.mission_request.constraints["mission_variant"])
+        self.assertEqual("充电桩", task_schema.mission_request.constraints["object_query"])
+        self.assertIn("(approached ?target - target)", scout_and_confirm_domain())
+        self.assertIn("(:goal (and (approached target_01))", problem.pddl)
+        self.assertEqual(["identify-target", "approach-target"], [step.action for step in plan.steps])
+        self.assertEqual(["ugv_0", "ugv_0"], [command.platform_id for command in bt.task_commands])
+        self.assertEqual(["confirm_target", "confirm_target"], [command.capability for command in bt.task_commands])
+        self.assertEqual("identify_target", bt.task_commands[0].parameters["stage"])
+        self.assertEqual("approach_target", bt.task_commands[1].parameters["stage"])
+        self.assertEqual("充电桩", bt.task_commands[1].parameters["object_query"])
+        self.assertTrue(bt.task_commands[1].requires_operator_confirm)
+
     def test_mock_gateway_accepts_allowed_capability_commands_without_ros_publish(self):
         task_schema = MockLLMClient().compile_task_schema("搜索 A 区并派无人车确认目标", {})
         bt = compile_plan_to_bt(mock_plan(generate_problem(task_schema.mission_request)), mission_id="mission_001")
@@ -65,6 +86,35 @@ class MissionOpsDryRunTest(unittest.TestCase):
         self.assertFalse(restored.approval_state["required"])
         event_types = [event["event_type"] for event in restored.output_artifact_refs["execution_events"]]
         self.assertIn("bt_runtime_completed", event_types)
+
+    def test_runner_dry_runs_single_ugv_object_approach_pipeline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = MissionManagerRunner(
+                state_store=JsonMissionOpsStateStore(Path(tmp)),
+                model_client=MockLLMClient(),
+                gateway=MockPlatformGateway(),
+            )
+
+            result = runner.run({
+                "intent": "让小车识别附近的桌子，然后走过去",
+                "context_snapshot": {
+                    "mission_id": "mission_object_approach_001",
+                    "primary_platform": "ugv_0",
+                },
+            }, {"dry_run": True})
+
+        self.assertEqual("dry_run_complete", result.status)
+        task_schema = result.state.output_artifact_refs["task_schema"]
+        plan = result.state.output_artifact_refs["plan"]
+        behavior_tree = result.state.output_artifact_refs["behavior_tree"]
+        self.assertEqual("single_ugv_object_approach", task_schema["mission_request"]["constraints"]["mission_variant"])
+        self.assertEqual(["identify-target", "approach-target"], [step["action"] for step in plan["steps"]])
+        self.assertEqual(["ugv_0", "ugv_0"], [
+            command["platform_id"] for command in behavior_tree["task_commands"]
+        ])
+        self.assertEqual(["identify_target", "approach_target"], [
+            command["parameters"]["stage"] for command in behavior_tree["task_commands"]
+        ])
 
     def test_failure_report_resume_triages_and_requests_central_replan(self):
         with tempfile.TemporaryDirectory() as tmp:

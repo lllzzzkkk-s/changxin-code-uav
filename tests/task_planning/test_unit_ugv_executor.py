@@ -79,6 +79,7 @@ class UnitUgvExecutorTest(unittest.TestCase):
                 "max_distance_m": 1.0,
             }}),
             operator_approved=True,
+            max_move_base_distance_m=2.0,
         )
 
         ack = executor.dispatch(_command())
@@ -86,6 +87,49 @@ class UnitUgvExecutorTest(unittest.TestCase):
         self.assertFalse(ack.accepted)
         self.assertEqual("move_base bridge is not enabled", ack.reason)
         self.assertFalse(ack.local_check["motion_attempted"])
+
+    def test_move_base_dispatch_requires_explicit_distance_limit(self):
+        executor = UnitUgvExecutor(
+            target_map=_target_map({"target_01": _move_base_target(max_distance_m=1.0)}),
+            operator_approved=True,
+        )
+
+        ack = executor.dispatch(_command())
+
+        self.assertFalse(ack.accepted)
+        self.assertEqual("move_base dispatch requires explicit max_move_base_distance_m limit", ack.reason)
+        self.assertFalse(ack.local_check["motion_attempted"])
+
+    def test_move_base_dispatch_rejects_target_exceeding_authorized_distance(self):
+        executor = UnitUgvExecutor(
+            target_map=_target_map({"target_01": _move_base_target(max_distance_m=2.5)}),
+            operator_approved=True,
+            max_move_base_distance_m=1.0,
+        )
+
+        ack = executor.dispatch(_command())
+
+        self.assertFalse(ack.accepted)
+        self.assertEqual(
+            "move_base target target_01 max_distance_m 2.5 exceeds authorized limit 1.0",
+            ack.reason,
+        )
+        self.assertFalse(ack.local_check["motion_attempted"])
+
+    def test_bounded_move_base_dispatch_can_reach_bridge_after_operator_approval(self):
+        executor = UnitUgvExecutor(
+            target_map=_target_map({"target_01": _move_base_target(max_distance_m=0.5)}),
+            operator_approved=True,
+            bridge=FakeMotionBridge(),
+            max_move_base_distance_m=1.0,
+        )
+
+        ack = executor.dispatch(_command())
+
+        self.assertTrue(ack.accepted)
+        self.assertEqual("move_base_goal_completed", ack.reason)
+        self.assertTrue(ack.local_check["motion_attempted"])
+        self.assertFalse(ack.local_check["raw_ros_publish_attempted"])
 
 
 class Ros1ServiceNodeUnitUgvExecutorTest(unittest.TestCase):
@@ -158,6 +202,26 @@ class FakeRequest:
         self.task_command_json = task_command_json
 
 
+class FakeMotionBridge:
+    def confirm_without_motion(self, command, target):
+        raise AssertionError("move_base test should not use manual confirmation")
+
+    def move_base_confirm(self, command, target, timeout_s):
+        from platform_gateway.unit_ugv_executor import UnitUgvDispatchResult
+
+        return UnitUgvDispatchResult(
+            accepted=True,
+            reason="move_base_goal_completed",
+            motion_attempted=True,
+            observations={
+                "target_id": target.target_id,
+                "action": target.action,
+                "max_distance_m": target.max_distance_m,
+                "timeout_s": timeout_s,
+            },
+        )
+
+
 def _target_map(targets):
     return UnitUgvTargetMap(
         platform_id="ugv_0",
@@ -174,6 +238,19 @@ def _manual_target():
         "action": "manual_confirm",
         "operator_confirmed_mapping": True,
         "description": "operator-confirmed no-motion target check",
+    }
+
+
+def _move_base_target(max_distance_m):
+    return {
+        "capability": "confirm_target",
+        "action": "move_base_goal",
+        "operator_confirmed_mapping": True,
+        "frame_id": "map",
+        "x": 1.0,
+        "y": 2.0,
+        "yaw": 0.0,
+        "max_distance_m": max_distance_m,
     }
 
 

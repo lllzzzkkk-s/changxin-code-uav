@@ -218,11 +218,13 @@ class UnitUgvExecutor:
         operator_approved: bool = False,
         bridge: Optional[UnitUgvLocalBridge] = None,
         progress_output: Optional[Path] = None,
+        max_move_base_distance_m: Optional[float] = None,
     ) -> None:
         self.target_map = target_map
         self.operator_approved = operator_approved
         self.bridge = bridge or RejectingUnitUgvBridge()
         self.progress_output = progress_output
+        self.max_move_base_distance_m = max_move_base_distance_m
 
     def dry_run(self, command: TaskCommand) -> CommandAck:
         target, errors = self._resolve_target(command)
@@ -293,6 +295,7 @@ class UnitUgvExecutor:
             errors.append(f"target mapping is not operator-confirmed: {target_id}")
         if target.action == "move_base_goal":
             errors.extend(_move_base_target_errors(target))
+            errors.extend(_move_base_distance_limit_errors(target, self.max_move_base_distance_m))
         elif target.action != "manual_confirm":
             errors.append(f"target action must be manual_confirm or move_base_goal: {target.action}")
         return target, errors
@@ -373,3 +376,17 @@ def _move_base_target_errors(target: UnitUgvTarget) -> List[str]:
     if target.max_distance_m is None or target.max_distance_m <= 0:
         errors.append(f"move_base target {target.target_id} requires positive max_distance_m")
     return errors
+
+
+def _move_base_distance_limit_errors(
+    target: UnitUgvTarget,
+    max_move_base_distance_m: Optional[float],
+) -> List[str]:
+    if max_move_base_distance_m is None or max_move_base_distance_m <= 0:
+        return ["move_base dispatch requires explicit max_move_base_distance_m limit"]
+    if target.max_distance_m is not None and target.max_distance_m > max_move_base_distance_m:
+        return [
+            f"move_base target {target.target_id} max_distance_m {target.max_distance_m} "
+            f"exceeds authorized limit {max_move_base_distance_m}"
+        ]
+    return []

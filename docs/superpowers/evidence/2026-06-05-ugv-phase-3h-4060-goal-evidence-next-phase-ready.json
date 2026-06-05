@@ -1,0 +1,52 @@
+{
+  "schema": "UgvPhase3HReceipt.v1",
+  "date": "2026-06-05",
+  "phase": "3H",
+  "status": "goal_evidence_next_phase_ready",
+  "repo_state": {
+    "git_log_2_oneline": [
+      "a3ba661 docs: record phase3g hardware evidence pass",
+      "8c42238 docs: plan phase3g evidence alignment"
+    ],
+    "git_status_short": ""
+  },
+  "standard_evidence_inventory": {
+    "json_list": "/tmp/changxin-phase3h/standard-evidence-json-files.txt",
+    "json_list_sha256": "f98f822efc1b2fb57f2fbbc171e22c9e91c2817a3eade517959d11b994b1b4ed",
+    "hardware_roots": "/tmp/changxin-phase3h/standard-hardware-artifact-roots.txt",
+    "hardware_roots_sha256": "f2b0c17bee92cbc2895a60ea327be925b5540bc484d2809f8d7e2bb042e62a54"
+  },
+  "combined_goal_evidence": {
+    "summary": "/tmp/changxin-phase3h/goal_evidence_standard_plus_phase3g_summary.json",
+    "summary_sha256": "a5a715dd3a109f4ce75206c54f03f28fec7838f5ad3461e7223a66e07a6a1610",
+    "summary_rc": 0,
+    "full": "/tmp/changxin-phase3h/goal_evidence_standard_plus_phase3g_full.json",
+    "full_sha256": "8fff410c5cbd4ba1f5cc6530ee7fe44e78edb3daae16001ec4262f88fb5537e1",
+    "full_rc": 0,
+    "overall_ok": true,
+    "unit_hardware_execution_artifact_verified": "pass",
+    "remaining_missing_or_failed_items": [],
+    "dev_mock_golden_suite_backfill_run": false
+  },
+  "receipt_summary": {
+    "path": "/tmp/changxin-phase3h/phase3h_receipt_summary.json",
+    "sha256": "413d62293733ab6f526ea2770f57a77d4c1790c4ad01f33e33bed78549f9ce0d"
+  },
+  "interpretation": {
+    "phase3g_remaining_gaps_were_missing_standard_inputs": true,
+    "new_ugv_hardware_gap": false,
+    "new_global_proof_gap": false,
+    "phase_gate_status": "next_phase_ready"
+  },
+  "boundary_confirmation": {
+    "new_rosservice_call": false,
+    "gateway_dry_run_called": false,
+    "gateway_dispatch_called": false,
+    "controlled_motion_authorized": false,
+    "move_base_used": false,
+    "rostopic_pub": false,
+    "repo_architecture_changed": false,
+    "non_convex_alpha_docs_touched": false,
+    "committed_machine_specific_ros_env": false
+  }
+}

@@ -31,6 +31,7 @@ class Ros1GatewayNodeConfig:
     unit_ugv_enable_move_base: bool = False
     unit_ugv_move_base_action: str = "/move_base"
     unit_ugv_move_base_server_timeout_s: float = 5.0
+    unit_ugv_max_move_base_distance_m: float | None = None
     unit_ugv_progress_output: Path | None = None
 
 
@@ -73,6 +74,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--unit-ugv-move-base-action", default="/move_base")
     parser.add_argument("--unit-ugv-move-base-server-timeout-s", type=float, default=5.0)
     parser.add_argument(
+        "--unit-ugv-max-move-base-distance-m",
+        type=float,
+        help="Required maximum target-map max_distance_m allowed for move_base_goal dispatch.",
+    )
+    parser.add_argument(
         "--unit-ugv-progress-output",
         type=Path,
         help="Optional TaskProgressSet.v1 JSON output path for the most recent unit UGV dispatch.",
@@ -100,6 +106,7 @@ def config_from_args(args: argparse.Namespace) -> Ros1GatewayNodeConfig:
         unit_ugv_enable_move_base=args.unit_ugv_enable_move_base,
         unit_ugv_move_base_action=args.unit_ugv_move_base_action,
         unit_ugv_move_base_server_timeout_s=args.unit_ugv_move_base_server_timeout_s,
+        unit_ugv_max_move_base_distance_m=args.unit_ugv_max_move_base_distance_m,
         unit_ugv_progress_output=args.unit_ugv_progress_output,
     )
 
@@ -185,6 +192,7 @@ def _build_executor(rospy: Any, config: Ros1GatewayNodeConfig) -> Any:
         operator_approved=config.unit_ugv_operator_approved,
         bridge=bridge,
         progress_output=config.unit_ugv_progress_output,
+        max_move_base_distance_m=config.unit_ugv_max_move_base_distance_m,
     )
 
 

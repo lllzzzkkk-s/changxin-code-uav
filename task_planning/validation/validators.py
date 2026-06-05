@@ -9,6 +9,8 @@ from task_planning.pddl import PddlPlan, PddlProblem
 ALLOWED_PLAN_ACTIONS = {
     "scan-area": {"platform_type": "uav", "capability": "inspect_area"},
     "confirm-target": {"platform_type": "ugv", "capability": "confirm_target"},
+    "identify-target": {"platform_type": "ugv", "capability": "confirm_target"},
+    "approach-target": {"platform_type": "ugv", "capability": "confirm_target"},
     "relay-or-overwatch": {"platform_type": "uav", "capability": "relay_or_overwatch"},
 }
 

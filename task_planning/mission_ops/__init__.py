@@ -5,6 +5,7 @@ from task_planning.mission_ops.acceptance_report import (
     render_phase2_no_motion_acceptance_markdown,
     write_phase2_no_motion_acceptance_outputs,
 )
+from task_planning.mission_ops.agent_adapter import AgentTaskSchemaAdapter
 from task_planning.mission_ops.golden_cases import GoldenMissionCase, golden_case_by_id, golden_mission_cases
 from task_planning.mission_ops.http_model_client import OpenAICompatibleModelClient
 from task_planning.mission_ops.mission_manager import MissionManager
@@ -25,6 +26,7 @@ from task_planning.mission_ops.state_store import JsonMissionOpsStateStore
 
 __all__ = [
     "ARTIFACT_FILENAMES",
+    "AgentTaskSchemaAdapter",
     "GoldenMissionCase",
     "JsonMissionOpsStateStore",
     "MissionArtifactBundle",

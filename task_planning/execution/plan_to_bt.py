@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from task_planning.contracts import TaskCommand
 from task_planning.pddl import PddlPlan, PlanStep
@@ -10,6 +10,8 @@ from task_planning.pddl import PddlPlan, PlanStep
 ACTION_TO_CAPABILITY = {
     "scan-area": "inspect_area",
     "confirm-target": "confirm_target",
+    "identify-target": "confirm_target",
+    "approach-target": "confirm_target",
     "relay-or-overwatch": "relay_or_overwatch",
 }
 
@@ -34,7 +36,7 @@ def compile_plan_to_bt(plan: PddlPlan, *, mission_id: str) -> BehaviorTreeArtifa
     commands = []
     children = []
     for step in plan.steps:
-        command = _command_for_step(step, mission_id=mission_id)
+        command = _command_for_step(step, mission_id=mission_id, metadata=dict(plan.metadata or {}))
         commands.append(command)
         children.append({
             "type": "Sequence",
@@ -58,8 +60,9 @@ def compile_plan_to_bt(plan: PddlPlan, *, mission_id: str) -> BehaviorTreeArtifa
     )
 
 
-def _command_for_step(step: PlanStep, *, mission_id: str) -> TaskCommand:
+def _command_for_step(step: PlanStep, *, mission_id: str, metadata: Optional[Dict[str, Any]] = None) -> TaskCommand:
     task_id = f"task_{step.index:03d}"
+    object_query = str((metadata or {}).get("object_query") or "nearby_object")
     if step.action == "scan-area":
         return TaskCommand(
             mission_id=mission_id,
@@ -75,6 +78,33 @@ def _command_for_step(step: PlanStep, *, mission_id: str) -> TaskCommand:
             platform_id=step.arguments[0],
             capability=ACTION_TO_CAPABILITY[step.action],
             parameters={"target_id": step.arguments[1]},
+        )
+    if step.action == "identify-target":
+        return TaskCommand(
+            mission_id=mission_id,
+            task_id=task_id,
+            platform_id=step.arguments[0],
+            capability=ACTION_TO_CAPABILITY[step.action],
+            parameters={
+                "target_id": step.arguments[1],
+                "stage": "identify_target",
+                "object_query": object_query,
+            },
+            requires_operator_confirm=False,
+        )
+    if step.action == "approach-target":
+        return TaskCommand(
+            mission_id=mission_id,
+            task_id=task_id,
+            platform_id=step.arguments[0],
+            capability=ACTION_TO_CAPABILITY[step.action],
+            parameters={
+                "target_id": step.arguments[1],
+                "stage": "approach_target",
+                "object_query": object_query,
+                "approach_policy": "bounded_move_base_or_manual_confirm",
+            },
+            requires_operator_confirm=True,
         )
     if step.action == "relay-or-overwatch":
         return TaskCommand(

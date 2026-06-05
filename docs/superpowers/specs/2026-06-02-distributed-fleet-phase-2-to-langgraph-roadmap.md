@@ -693,14 +693,22 @@ Phase 3G result as of 2026-06-05:
   `artifact_package_verified_after_transfer`, and
   `home_5090_model_lab_evaluated`.
 
-Current next gate is Phase 3H:
+Phase 3H result as of 2026-06-05:
 
-1. 4060 combines the standard evidence directory with explicit Phase 3G reports.
-2. 4060 reruns full goal-evidence aggregation.
-3. 4060 runs the no-ROS dev mock golden-suite backfill only if the standard
-   evidence directory is actually missing it.
-4. Remaining model-lab, migration, or artifact-package gaps are reported as
-   global proof-chain gaps, not UGV hardware failures.
+- Full standard evidence aggregation returned `rc=0 / ok=true`.
+- `unit_hardware_execution_artifact_verified=pass`.
+- Remaining missing/failed items are empty.
+- `dev_mock` golden-suite backfill was not needed.
+- The phase gate is `next_phase_ready`.
+
+Current next gate is Phase 4A:
+
+1. Mac implements and tests bounded-motion authorization/preflight gates without
+   connecting ROS.
+2. 4060 only runs real controlled-motion checks after explicit operator
+   authorization and a concrete target map/time window are provided.
+3. Any real movement must still enter through `TaskCommand.v1` ->
+   `/fleet/ugv_0/gateway/dispatch`; the center must not publish raw ROS topics.
 
 Still out of scope:
 

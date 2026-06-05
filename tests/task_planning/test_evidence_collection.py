@@ -42,7 +42,7 @@ class EvidenceCollectionTest(unittest.TestCase):
             self.assertTrue(lane_matrix["ok"], lane_matrix)
             golden_suite = json.loads(result.reports["dev_mock_golden_suite"].read_text(encoding="utf-8"))
             self.assertTrue(golden_suite["ok"], golden_suite)
-            self.assertEqual(5, len(golden_suite["case_results"]))
+            self.assertEqual(6, len(golden_suite["case_results"]))
             goal_evidence = json.loads(result.reports["goal_evidence"].read_text(encoding="utf-8"))
             self.assertFalse(goal_evidence["ok"])
             self.assertEqual("waiting_for_external_proofs", goal_evidence["phase_gate"]["status"])

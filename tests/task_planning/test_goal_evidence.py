@@ -119,6 +119,7 @@ class GoalEvidenceTest(unittest.TestCase):
                 "ok": True,
                 "required_case_ids": [
                     "single_ugv_inspection",
+                    "single_ugv_object_approach",
                     "uav_reconnaissance",
                     "uav_ugv_coordination",
                     "failure_and_replan",
@@ -126,10 +127,11 @@ class GoalEvidenceTest(unittest.TestCase):
                 ],
                 "case_results": [
                     {"case_id": "single_ugv_inspection", "ok": True, "run_id": "run-1", "artifact_bundle_path": "/tmp/run-1"},
-                    {"case_id": "uav_reconnaissance", "ok": True, "run_id": "run-2", "artifact_bundle_path": "/tmp/run-2"},
-                    {"case_id": "uav_ugv_coordination", "ok": True, "run_id": "run-3", "artifact_bundle_path": "/tmp/run-3"},
-                    {"case_id": "failure_and_replan", "ok": True, "run_id": "run-4", "artifact_bundle_path": "/tmp/run-4"},
-                    {"case_id": "disconnect_continue_authorized_subtree", "ok": True, "run_id": "run-5", "artifact_bundle_path": "/tmp/run-5"},
+                    {"case_id": "single_ugv_object_approach", "ok": True, "run_id": "run-2", "artifact_bundle_path": "/tmp/run-2"},
+                    {"case_id": "uav_reconnaissance", "ok": True, "run_id": "run-3", "artifact_bundle_path": "/tmp/run-3"},
+                    {"case_id": "uav_ugv_coordination", "ok": True, "run_id": "run-4", "artifact_bundle_path": "/tmp/run-4"},
+                    {"case_id": "failure_and_replan", "ok": True, "run_id": "run-5", "artifact_bundle_path": "/tmp/run-5"},
+                    {"case_id": "disconnect_continue_authorized_subtree", "ok": True, "run_id": "run-6", "artifact_bundle_path": "/tmp/run-6"},
                 ],
             }), encoding="utf-8")
             lane_matrix_report = root / "lane_matrix.json"
@@ -2496,6 +2498,7 @@ def _write_golden_suite_report(path: Path) -> None:
         "ok": True,
         "required_case_ids": [
             "single_ugv_inspection",
+            "single_ugv_object_approach",
             "uav_reconnaissance",
             "uav_ugv_coordination",
             "failure_and_replan",
@@ -2503,10 +2506,11 @@ def _write_golden_suite_report(path: Path) -> None:
         ],
         "case_results": [
             {"case_id": "single_ugv_inspection", "ok": True, "run_id": "run-1", "artifact_bundle_path": "/tmp/run-1"},
-            {"case_id": "uav_reconnaissance", "ok": True, "run_id": "run-2", "artifact_bundle_path": "/tmp/run-2"},
-            {"case_id": "uav_ugv_coordination", "ok": True, "run_id": "run-3", "artifact_bundle_path": "/tmp/run-3"},
-            {"case_id": "failure_and_replan", "ok": True, "run_id": "run-4", "artifact_bundle_path": "/tmp/run-4"},
-            {"case_id": "disconnect_continue_authorized_subtree", "ok": True, "run_id": "run-5", "artifact_bundle_path": "/tmp/run-5"},
+            {"case_id": "single_ugv_object_approach", "ok": True, "run_id": "run-2", "artifact_bundle_path": "/tmp/run-2"},
+            {"case_id": "uav_reconnaissance", "ok": True, "run_id": "run-3", "artifact_bundle_path": "/tmp/run-3"},
+            {"case_id": "uav_ugv_coordination", "ok": True, "run_id": "run-4", "artifact_bundle_path": "/tmp/run-4"},
+            {"case_id": "failure_and_replan", "ok": True, "run_id": "run-5", "artifact_bundle_path": "/tmp/run-5"},
+            {"case_id": "disconnect_continue_authorized_subtree", "ok": True, "run_id": "run-6", "artifact_bundle_path": "/tmp/run-6"},
         ],
     }), encoding="utf-8")
 

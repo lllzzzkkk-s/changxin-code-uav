@@ -152,20 +152,25 @@ class TaskSchema:
         area_id: str,
         target_id: str,
         context_snapshot: Optional[Mapping[str, Any]] = None,
+        mission_type: str = "scout_and_confirm",
+        required_capabilities: Optional[List[str]] = None,
+        constraints: Optional[Mapping[str, Any]] = None,
     ) -> "TaskSchema":
+        mission_constraints = {
+            "require_operator_before_motion": False,
+            "max_mission_duration_s": 600,
+        }
+        mission_constraints.update(dict(constraints or {}))
         return cls(
             intent=intent,
             context_snapshot=dict(context_snapshot or {}),
             mission_request=MissionRequest(
                 mission_id=mission_id,
-                mission_type="scout_and_confirm",
+                mission_type=mission_type,
                 areas=[area_id],
                 targets=[target_id],
-                required_capabilities=["inspect_area", "confirm_target", "relay_or_overwatch"],
-                constraints={
-                    "require_operator_before_motion": False,
-                    "max_mission_duration_s": 600,
-                },
+                required_capabilities=list(required_capabilities or ["inspect_area", "confirm_target", "relay_or_overwatch"]),
+                constraints=mission_constraints,
             ),
         )
 
