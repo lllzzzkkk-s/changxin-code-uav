@@ -24,12 +24,16 @@ class UnitUgvTarget:
     yaw: float = 0.0
     max_distance_m: Optional[float] = None
     description: str = ""
+    object_queries: Optional[List[str]] = None
 
     @classmethod
     def from_mapping(cls, target_id: str, data: Mapping[str, Any]) -> "UnitUgvTarget":
         operator_confirmed_mapping = data.get("operator_confirmed_mapping", False)
         if not isinstance(operator_confirmed_mapping, bool):
             raise ValueError(f"target {target_id} operator_confirmed_mapping must be a JSON boolean")
+        object_queries = data.get("object_queries") or data.get("object_aliases") or []
+        if isinstance(object_queries, str):
+            object_queries = [object_queries]
         return cls(
             target_id=target_id,
             capability=str(data.get("capability", "confirm_target")),
@@ -41,6 +45,7 @@ class UnitUgvTarget:
             yaw=float(data.get("yaw", 0.0)),
             max_distance_m=_optional_float(data.get("max_distance_m")),
             description=str(data.get("description", "")),
+            object_queries=[str(item).strip() for item in object_queries if str(item).strip()],
         )
 
 
@@ -236,7 +241,11 @@ class UnitUgvExecutor:
             platform_id=command.platform_id,
             accepted=True,
             reason="unit_ugv_dry_run_ok",
-            local_check=self._local_check(target=target, motion_attempted=False),
+            local_check=self._local_check(
+                target=target,
+                motion_attempted=False,
+                extra=_target_resolution_check(command),
+            ),
         )
 
     def dispatch(self, command: TaskCommand) -> CommandAck:
@@ -271,6 +280,7 @@ class UnitUgvExecutor:
                 extra={
                     "dispatch_action": target.action,
                     "task_progress_output": str(self.progress_output) if self.progress_output else "",
+                    **_target_resolution_check(command),
                 },
             ),
         )
@@ -283,22 +293,42 @@ class UnitUgvExecutor:
             errors.append(f"unit UGV executor supports confirm_target only, got {command.capability}")
         target_id = str(command.parameters.get("target_id") or "").strip()
         if not target_id:
-            errors.append("confirm_target command requires parameters.target_id")
-            return None, errors
-        target = self.target_map.targets.get(target_id)
-        if target is None:
-            errors.append(f"target_id is not mapped on this unit UGV: {target_id}")
-            return None, errors
+            target, resolution_errors = self._resolve_target_by_object_query(command)
+            errors.extend(resolution_errors)
+            if target is None:
+                return None, errors
+        else:
+            target = self.target_map.targets.get(target_id)
+            if target is None:
+                errors.append(f"target_id is not mapped on this unit UGV: {target_id}")
+                return None, errors
         if target.capability != command.capability:
             errors.append(f"target mapping capability mismatch: {target.capability}")
         if not target.operator_confirmed_mapping:
-            errors.append(f"target mapping is not operator-confirmed: {target_id}")
+            errors.append(f"target mapping is not operator-confirmed: {target.target_id}")
         if target.action == "move_base_goal":
             errors.extend(_move_base_target_errors(target))
             errors.extend(_move_base_distance_limit_errors(target, self.max_move_base_distance_m))
         elif target.action != "manual_confirm":
             errors.append(f"target action must be manual_confirm or move_base_goal: {target.action}")
         return target, errors
+
+    def _resolve_target_by_object_query(self, command: TaskCommand) -> tuple[Optional[UnitUgvTarget], List[str]]:
+        object_query = str(command.parameters.get("object_query") or "").strip()
+        if not object_query:
+            return None, ["confirm_target command requires parameters.target_id or parameters.object_query"]
+        normalized_query = _normalize_object_query(object_query)
+        matches = [
+            target
+            for target in self.target_map.targets.values()
+            if normalized_query in {_normalize_object_query(item) for item in (target.object_queries or [])}
+        ]
+        if not matches:
+            return None, [f"object_query is not mapped on this unit UGV: {object_query}"]
+        if len(matches) > 1:
+            target_ids = ", ".join(sorted(target.target_id for target in matches))
+            return None, [f"object_query maps to multiple unit UGV targets: {object_query}: {target_ids}"]
+        return matches[0], []
 
     def _reject(self, command: TaskCommand, reason: str, *, target: Optional[UnitUgvTarget]) -> CommandAck:
         return CommandAck(
@@ -324,6 +354,8 @@ class UnitUgvExecutor:
             "battery_ok": True,
             "safety_ok": safety_ok,
             "target_mapped": target is not None,
+            "resolved_target_id": target.target_id if target else "",
+            "target_resolution_source": "",
             "mapping_operator_confirmed": bool(target and target.operator_confirmed_mapping),
             "motion_attempted": motion_attempted,
             "raw_ros_publish_attempted": False,
@@ -365,6 +397,18 @@ def _optional_float(value: Any) -> Optional[float]:
     if value is None or value == "":
         return None
     return float(value)
+
+
+def _normalize_object_query(value: str) -> str:
+    return " ".join(value.strip().casefold().split())
+
+
+def _target_resolution_check(command: TaskCommand) -> Dict[str, str]:
+    if str(command.parameters.get("target_id") or "").strip():
+        return {"target_resolution_source": "target_id"}
+    if str(command.parameters.get("object_query") or "").strip():
+        return {"target_resolution_source": "object_query"}
+    return {"target_resolution_source": ""}
 
 
 def _move_base_target_errors(target: UnitUgvTarget) -> List[str]:

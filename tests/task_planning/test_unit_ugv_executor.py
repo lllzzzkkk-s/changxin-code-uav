@@ -32,6 +32,31 @@ class UnitUgvExecutorTest(unittest.TestCase):
         self.assertTrue(ack.local_check["mapping_operator_confirmed"])
         self.assertFalse(ack.local_check["motion_attempted"])
 
+    def test_dry_run_resolves_object_query_to_operator_confirmed_target(self):
+        executor = UnitUgvExecutor(target_map=_target_map({
+            "target_01": {
+                **_manual_target(),
+                "object_queries": ["充电桩", "charging_station"],
+            },
+        }))
+
+        ack = executor.dry_run(_command_without_target_id(object_query="充电桩"))
+
+        self.assertTrue(ack.accepted)
+        self.assertEqual("unit_ugv_dry_run_ok", ack.reason)
+        self.assertEqual("target_01", ack.local_check["resolved_target_id"])
+        self.assertEqual("object_query", ack.local_check["target_resolution_source"])
+        self.assertFalse(ack.local_check["motion_attempted"])
+
+    def test_dry_run_rejects_unmapped_object_query(self):
+        executor = UnitUgvExecutor(target_map=_target_map({"target_01": _manual_target()}))
+
+        ack = executor.dry_run(_command_without_target_id(object_query="消防栓"))
+
+        self.assertFalse(ack.accepted)
+        self.assertEqual("object_query is not mapped on this unit UGV: 消防栓", ack.reason)
+        self.assertFalse(ack.local_check["motion_attempted"])
+
     def test_dispatch_requires_operator_approval(self):
         executor = UnitUgvExecutor(target_map=_target_map({"target_01": _manual_target()}))
 
@@ -173,6 +198,48 @@ class Ros1ServiceNodeUnitUgvExecutorTest(unittest.TestCase):
             self.assertFalse(parsed["motion_attempted"])
             self.assertTrue(progress_path.exists())
 
+    def test_node_resolves_object_query_from_target_map(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target_map_path = Path(tmp) / "targets.json"
+            target_map_path.write_text(json.dumps({
+                "schema": "UnitUgvTargetMap.v1",
+                "platform_id": "ugv_0",
+                "targets": {
+                    "target_01": {
+                        **_manual_target(),
+                        "object_queries": ["消防栓", "fire_hydrant"],
+                    },
+                },
+            }, ensure_ascii=False), encoding="utf-8")
+            progress_path = Path(tmp) / "progress.json"
+            args = build_arg_parser().parse_args([
+                "--platform-id", "ugv_0",
+                "--platform-type", "ugv",
+                "--capability", "confirm_target",
+                "--service-symbol", "fake_gateway_msgs.srv:TaskCommandJson",
+                "--unit-ugv-target-map", str(target_map_path),
+                "--unit-ugv-operator-approved",
+                "--unit-ugv-progress-output", str(progress_path),
+            ])
+            config = config_from_args(args)
+            rospy = FakeRospy()
+
+            run_gateway_node(rospy, config)
+
+            dispatch_handler = rospy.services[1][2]
+            task_command_json = json.dumps(
+                _command_without_target_id(object_query="消防栓").as_dict(),
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            response = dispatch_handler(FakeRequest(task_command_json))
+            parsed = json.loads(response.response_json)
+            progress = json.loads(progress_path.read_text(encoding="utf-8"))
+            self.assertTrue(parsed["ack"]["accepted"])
+            self.assertEqual("target_01", parsed["ack"]["local_check"]["resolved_target_id"])
+            self.assertEqual("object_query", parsed["ack"]["local_check"]["target_resolution_source"])
+            self.assertEqual("target_01", progress["items"][0]["observations"]["target_id"])
+
 
 class FakeResponse:
     def __init__(self, response_json=""):
@@ -256,6 +323,15 @@ def _move_base_target(max_distance_m):
 
 def _command():
     return TaskCommand.from_dict(json.loads(_command_json()))
+
+
+def _command_without_target_id(*, object_query):
+    data = json.loads(_command_json())
+    data["parameters"] = {
+        "stage": "approach_target",
+        "object_query": object_query,
+    }
+    return TaskCommand.from_dict(data)
 
 
 def _command_json():
