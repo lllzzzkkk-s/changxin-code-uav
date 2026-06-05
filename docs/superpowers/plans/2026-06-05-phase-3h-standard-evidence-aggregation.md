@@ -77,6 +77,91 @@ Exit gate:
 - head includes this Phase 3H plan
 - worktree is clean
 
+## Stage 0.5: Create Temporary JSON Status Script
+
+Owner: 4060 Codex.
+
+Use a temporary Python script for JSON extraction instead of long inline
+heredocs, regex pipes, or fragile shell quoting. This is especially important
+on Windows/WSL2 when command text may be copied through clients that introduce
+CRLF, BOM, quote escaping, or pipe parsing issues.
+
+Create the file using the editor or a short script writer that the local agent
+trusts. Keep it under `/tmp/changxin-phase3h` and do not commit it.
+
+Path:
+
+```text
+/tmp/changxin-phase3h/phase3h_extract_status.py
+```
+
+Content:
+
+```python
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+
+def load(path: str):
+    return json.loads(Path(path).read_text(encoding="utf-8-sig"))
+
+
+def item_statuses(data):
+    items = data.get("items") or []
+    if isinstance(items, list):
+        return {
+            str(item.get("name") or ""): str(item.get("status") or "")
+            for item in items
+            if isinstance(item, dict)
+        }
+    return {}
+
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        print("usage: phase3h_extract_status.py <goal-evidence-json>", file=sys.stderr)
+        return 2
+    data = load(sys.argv[1])
+    statuses = item_statuses(data)
+    missing = [
+        name for name, status in sorted(statuses.items())
+        if status in {"missing", "fail"}
+    ]
+    output = {
+        "schema": "Phase3HGoalEvidenceStatus.v1",
+        "source": sys.argv[1],
+        "ok": data.get("ok"),
+        "phase_gate_status": (data.get("phase_gate") or {}).get("status"),
+        "unit_hardware_execution_artifact_verified": statuses.get("unit_hardware_execution_artifact_verified"),
+        "dev_mock_golden_suite_recorded": statuses.get("dev_mock_golden_suite_recorded"),
+        "missing_or_failed": missing,
+        "status_by_item": statuses,
+    }
+    print(json.dumps(output, indent=2, sort_keys=True, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+```
+
+After creating it:
+
+```bash
+chmod +x /tmp/changxin-phase3h/phase3h_extract_status.py
+python3 /tmp/changxin-phase3h/phase3h_extract_status.py --help 2>/dev/null || true
+```
+
+Exit gate:
+
+- script exists under `/tmp/changxin-phase3h`
+- script is not committed
+- script can parse JSON files with UTF-8 or UTF-8 BOM
+
 ## Stage 1: Inventory Existing Evidence Inputs
 
 Owner: 4060 Codex.
@@ -125,6 +210,10 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/check_distributed_fleet_goal_evidence.py
 python3 -m json.tool /tmp/changxin-phase3h/goal_evidence_standard_plus_phase3g_summary.json \
   > /tmp/changxin-phase3h/goal_evidence_standard_plus_phase3g_summary.pretty.json
 sha256sum /tmp/changxin-phase3h/goal_evidence_standard_plus_phase3g_summary.json
+python3 /tmp/changxin-phase3h/phase3h_extract_status.py \
+  /tmp/changxin-phase3h/goal_evidence_standard_plus_phase3g_summary.json \
+  | tee /tmp/changxin-phase3h/goal_evidence_standard_plus_phase3g_status.json
+sha256sum /tmp/changxin-phase3h/goal_evidence_standard_plus_phase3g_status.json
 
 PYTHONDONTWRITEBYTECODE=1 python3 tools/check_distributed_fleet_goal_evidence.py \
   --evidence-dir /tmp/changxin-distributed-fleet-evidence \
@@ -142,6 +231,7 @@ Exit gate:
 
 - `unit_hardware_execution_artifact_verified=pass` remains true
 - remaining missing/failed items are listed from the combined run
+- status extraction JSON is written by the temporary script
 - if `ok=true`, record `next_phase_ready`
 - if `ok=false`, do not treat unrelated missing items as UGV hardware failures
 
@@ -167,6 +257,14 @@ Then rerun the combined checker with:
 --dev-mock-golden-suite-report /tmp/changxin-phase3h/dev_mock_golden_suite.json
 ```
 
+Also rerun the temporary status extractor on the rerun summary:
+
+```bash
+python3 /tmp/changxin-phase3h/phase3h_extract_status.py \
+  /tmp/changxin-phase3h/<rerun-summary-json> \
+  | tee /tmp/changxin-phase3h/<rerun-status-json>
+```
+
 Exit gate:
 
 - this stage is no-ROS and no-hardware
@@ -181,6 +279,7 @@ Report:
 - `git status --short`
 - standard evidence directory inventory path/hash
 - combined summary/full path/hash
+- status extraction JSON path/hash
 - whether `unit_hardware_execution_artifact_verified=pass`
 - whether overall `ok=true`
 - if overall `ok=false`, exact remaining missing/failed items
