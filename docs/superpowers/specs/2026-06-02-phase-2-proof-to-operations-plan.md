@@ -1340,6 +1340,21 @@ Phase 3F recorder result on 2026-06-05:
 - The next gate is Phase 3G same-case/same-machine goal-evidence alignment:
   `docs/superpowers/plans/2026-06-05-phase-3g-same-case-goal-evidence-alignment.md`.
 
+Phase 3G result on 2026-06-05:
+
+- Same-case lane matrix for `single_ugv_inspection` passed.
+- Same-machine ROS1 signature for `ugv_0` gateway services passed.
+- Goal evidence reported
+  `unit_hardware_execution_artifact_verified=pass`.
+- Overall goal evidence still returned `rc=1 / ok=false` because the isolated
+  Phase 3G checker run did not include unrelated global proof-chain inputs:
+  `dev_mock_golden_suite_recorded`,
+  `migration_bundle_verified_after_transfer`,
+  `artifact_package_verified_after_transfer`, and
+  `home_5090_model_lab_evaluated`.
+- The next gate is Phase 3H standard evidence aggregation:
+  `docs/superpowers/plans/2026-06-05-phase-3h-standard-evidence-aggregation.md`.
+
 Boundary statement:
 
 - This Mac-side note records the pasted 4060 receipt; it did not re-run the

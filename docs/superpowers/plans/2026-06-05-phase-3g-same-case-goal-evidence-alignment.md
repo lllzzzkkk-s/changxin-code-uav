@@ -325,3 +325,43 @@ Report:
   - `repo_architecture_changed=false`
   - `non_convex_alpha_docs_touched=false`
   - `committed_machine_specific_ros_env=false`
+
+## Phase 3G Result And Phase 3H Handoff
+
+Status as of 2026-06-05: Phase 3G achieved its key target.
+
+```text
+unit_hardware_execution_artifact_verified=pass
+```
+
+4060 reported:
+
+- same-case lane matrix:
+  `/tmp/changxin-phase3g/lane_matrix_single_ugv_inspection.json`
+- lane matrix `ok=true`
+- lane matrix `case_id=single_ugv_inspection`
+- same-machine ROS1 signature:
+  `/tmp/changxin-phase3g/site_acceptance_ros1_signature_same_machine.json`
+- signature `ok=true`
+- `acceptance_level=work_hardware_ros1_signatures_observed`
+- `machine_id=bbe13c5ea196bdb8dcf4798975edaaa2e949fae1ef414638b263f94e5880537d`
+- matched services:
+  `/fleet/ugv_0/gateway/dry_run`,
+  `/fleet/ugv_0/gateway/dispatch`
+
+Overall goal evidence still returned `rc=1 / ok=false` because the isolated
+Phase 3G checker run did not include these global proof-chain inputs:
+
+```text
+dev_mock_golden_suite_recorded=missing
+migration_bundle_verified_after_transfer=missing
+artifact_package_verified_after_transfer=missing
+home_5090_model_lab_evaluated=missing
+```
+
+Those gaps are not UGV hardware failures. The next gate is Phase 3H standard
+evidence aggregation:
+
+```text
+docs/superpowers/plans/2026-06-05-phase-3h-standard-evidence-aggregation.md
+```

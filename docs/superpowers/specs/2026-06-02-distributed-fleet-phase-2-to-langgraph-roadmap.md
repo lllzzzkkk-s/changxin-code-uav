@@ -682,6 +682,26 @@ Current next gate is Phase 3G:
 3. 4060 reruns goal evidence with the Phase 3F hardware artifact plus those two
    aligned reports.
 
+Phase 3G result as of 2026-06-05:
+
+- `unit_hardware_execution_artifact_verified=pass`.
+- Same-case lane matrix passed for `single_ugv_inspection`.
+- Same-machine ROS1 signature passed for `ugv_0` gateway services.
+- Overall goal evidence still has unrelated global missing inputs:
+  `dev_mock_golden_suite_recorded`,
+  `migration_bundle_verified_after_transfer`,
+  `artifact_package_verified_after_transfer`, and
+  `home_5090_model_lab_evaluated`.
+
+Current next gate is Phase 3H:
+
+1. 4060 combines the standard evidence directory with explicit Phase 3G reports.
+2. 4060 reruns full goal-evidence aggregation.
+3. 4060 runs the no-ROS dev mock golden-suite backfill only if the standard
+   evidence directory is actually missing it.
+4. Remaining model-lab, migration, or artifact-package gaps are reported as
+   global proof-chain gaps, not UGV hardware failures.
+
 Still out of scope:
 
 - additional gateway service calls
