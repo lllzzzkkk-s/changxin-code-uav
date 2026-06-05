@@ -86,11 +86,27 @@ run_capture_shell() {
   } > "$outfile" 2>&1
 }
 
+source_setup_file() {
+  local setup_file="$1"
+  set +e
+  set +u
+  # shellcheck disable=SC1090
+  source "$setup_file"
+  local rc=$?
+  set -u
+  set -e
+  return "$rc"
+}
+
+date_iso() {
+  date -u +"%Y-%m-%dT%H:%M:%SZ"
+}
+
 mkdir -p "$EVIDENCE_DIR"
 
 {
   echo "script: $SCRIPT_NAME"
-  echo "generated_at: $(date -Is)"
+  echo "generated_at: $(date_iso)"
   echo "hostname: $(hostname)"
   echo "user: $(whoami)"
   echo "workspace_dir: $WORKSPACE_DIR"
@@ -100,8 +116,8 @@ mkdir -p "$EVIDENCE_DIR"
 } | tee "$EVIDENCE_DIR/00_context.txt"
 
 if (( SOURCE_ENV )); then
-  [[ -f "$ROS_SETUP" ]] && source "$ROS_SETUP" || true
-  [[ -f "$WORKSPACE_DIR/devel/setup.bash" ]] && source "$WORKSPACE_DIR/devel/setup.bash" || true
+  [[ -f "$ROS_SETUP" ]] && source_setup_file "$ROS_SETUP" || true
+  [[ -f "$WORKSPACE_DIR/devel/setup.bash" ]] && source_setup_file "$WORKSPACE_DIR/devel/setup.bash" || true
 fi
 
 run_capture_shell "$EVIDENCE_DIR/01_system.txt" \

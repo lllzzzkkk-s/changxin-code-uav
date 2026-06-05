@@ -46,6 +46,7 @@ Actions:
   restart       Restart vehicle-side wrapper
   status        Print vehicle-side status
   signature     Capture vehicle-side service list/type/args
+  runtime-probe Run vehicle-side read-only runtime probe
   logs          Print vehicle-side wrapper logs
 
 Options:
@@ -93,7 +94,7 @@ die() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    ping|auth-check|pull|sync-lite|sync-target-map|precheck|command|start|start-motion|stop|restart|status|signature|logs)
+    ping|auth-check|pull|sync-lite|sync-target-map|precheck|command|start|start-motion|stop|restart|status|signature|runtime-probe|logs)
       ACTION="$1"
       shift
       ;;
@@ -336,7 +337,7 @@ case "$ACTION" in
   sync-target-map)
     run_target_map_sync
     ;;
-  precheck|command|start|start-motion|stop|restart|status|signature|logs)
+  precheck|command|start|start-motion|stop|restart|status|signature|runtime-probe|logs)
     run_ssh "$(remote_vehicle_command "$ACTION")"
     ;;
   *)

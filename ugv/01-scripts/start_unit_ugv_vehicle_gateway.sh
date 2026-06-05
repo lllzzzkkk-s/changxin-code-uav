@@ -17,8 +17,11 @@ MOVE_BASE_ACTION="${UNIT_UGV_MOVE_BASE_ACTION:-/move_base}"
 MAX_MOVE_BASE_DISTANCE_M="${UNIT_UGV_MAX_MOVE_BASE_DISTANCE_M:-0.6}"
 NODE_NAME="${NODE_NAME:-changxin_unit_ugv_gateway}"
 STATE_DIR="${UNIT_UGV_GATEWAY_STATE_DIR:-$HOME/changxin_gateway_runtime/gateway_state}"
+EVIDENCE_DIR="${UNIT_UGV_EVIDENCE_DIR:-$HOME/changxin_gateway_runtime/evidence/runtime-probe-$(date +%Y%m%d_%H%M%S)}"
 SERVICE_TIMEOUT_S="${UNIT_UGV_SERVICE_TIMEOUT_S:-20}"
 MOVE_BASE_SERVER_TIMEOUT_S="${UNIT_UGV_MOVE_BASE_SERVER_TIMEOUT_S:-5.0}"
+ECHO_TIMEOUT_S="${UNIT_UGV_ECHO_TIMEOUT_S:-5}"
+TF_TIMEOUT_S="${UNIT_UGV_TF_TIMEOUT_S:-5}"
 TAIL_LINES="${TAIL_LINES:-120}"
 SELECT_OBJECT_QUERY="${SELECT_OBJECT_QUERY:-}"
 
@@ -47,6 +50,7 @@ Actions:
   restart        Stop, then start
   status         Print pid/log/state and service-registration status
   signature      Capture rosservice list/type/args evidence for gateway services
+  runtime-probe  Run a read-only vehicle runtime probe for navigation debugging
   logs           Print the latest wrapper log lines
 
 Options:
@@ -61,7 +65,10 @@ Options:
   --max-move-base-distance-m M    Maximum allowed target-map radius. Default: 0.6
   --move-base-server-timeout-s S  move_base action wait timeout passed to wrapper. Default: 5.0
   --state-dir DIR                 Managed pid/log/state dir. Default: ~/changxin_gateway_runtime/gateway_state
+  --evidence-dir DIR              Read-only runtime probe output dir
   --service-timeout-s S           Service registration wait timeout. Default: 20
+  --echo-timeout-s S              rostopic echo timeout for runtime-probe. Default: 5
+  --tf-timeout-s S                tf_echo timeout for runtime-probe. Default: 5
   --operator-approved             Record local operator approval for dispatch
   --enable-move-base              Allow move_base_goal target-map actions
   --require-move-base-server      Precheck should wait for a move_base action server
@@ -84,7 +91,7 @@ die() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    precheck|command|start|start-motion|stop|restart|status|signature|logs)
+    precheck|command|start|start-motion|stop|restart|status|signature|runtime-probe|logs)
       ACTION="$1"
       shift
       ;;
@@ -143,9 +150,24 @@ while [[ $# -gt 0 ]]; do
       STATE_DIR="$2"
       shift 2
       ;;
+    --evidence-dir)
+      [[ $# -ge 2 ]] || die "--evidence-dir requires a value"
+      EVIDENCE_DIR="$2"
+      shift 2
+      ;;
     --service-timeout-s)
       [[ $# -ge 2 ]] || die "--service-timeout-s requires a value"
       SERVICE_TIMEOUT_S="$2"
+      shift 2
+      ;;
+    --echo-timeout-s)
+      [[ $# -ge 2 ]] || die "--echo-timeout-s requires a value"
+      ECHO_TIMEOUT_S="$2"
+      shift 2
+      ;;
+    --tf-timeout-s)
+      [[ $# -ge 2 ]] || die "--tf-timeout-s requires a value"
+      TF_TIMEOUT_S="$2"
       shift 2
       ;;
     --operator-approved)
@@ -193,14 +215,24 @@ TARGET_CHECK_FILE="$STATE_DIR/$PLATFORM_ID.target-map-check.json"
 DRY_RUN_SERVICE="/fleet/$PLATFORM_ID/gateway/dry_run"
 DISPATCH_SERVICE="/fleet/$PLATFORM_ID/gateway/dispatch"
 
+source_setup_file() {
+  local setup_file="$1"
+  set +e
+  set +u
+  # shellcheck disable=SC1090
+  source "$setup_file"
+  local rc=$?
+  set -u
+  set -e
+  return "$rc"
+}
+
 source_env() {
   if (( SOURCE_ENV )); then
     [[ -f "$ROS_SETUP" ]] || die "ROS setup not found: $ROS_SETUP"
-    # shellcheck disable=SC1090
-    source "$ROS_SETUP"
+    source_setup_file "$ROS_SETUP" || die "failed to source ROS setup: $ROS_SETUP"
     if [[ -f "$WORKSPACE_DIR/devel/setup.bash" ]]; then
-      # shellcheck disable=SC1090
-      source "$WORKSPACE_DIR/devel/setup.bash"
+      source_setup_file "$WORKSPACE_DIR/devel/setup.bash" || die "failed to source workspace setup: $WORKSPACE_DIR/devel/setup.bash"
     fi
   fi
 }
@@ -222,6 +254,7 @@ operator_approved: $OPERATOR_APPROVED
 enable_move_base: $ENABLE_MOVE_BASE
 require_move_base_server: $REQUIRE_MOVE_BASE_SERVER
 state_dir: $STATE_DIR
+evidence_dir: $EVIDENCE_DIR
 ros_master_uri: ${ROS_MASTER_URI:-}
 ros_ip: ${ROS_IP:-}
 ros_hostname: ${ROS_HOSTNAME:-}
@@ -491,11 +524,9 @@ status_gateway() {
   mkdir -p "$STATE_DIR"
   if (( SOURCE_ENV )); then
     if [[ -f "$ROS_SETUP" ]]; then
-      # shellcheck disable=SC1090
-      source "$ROS_SETUP"
+      source_setup_file "$ROS_SETUP" || echo "ros_setup_source_failed: $ROS_SETUP"
       if [[ -f "$WORKSPACE_DIR/devel/setup.bash" ]]; then
-        # shellcheck disable=SC1090
-        source "$WORKSPACE_DIR/devel/setup.bash"
+        source_setup_file "$WORKSPACE_DIR/devel/setup.bash" || echo "workspace_setup_source_failed: $WORKSPACE_DIR/devel/setup.bash"
       fi
     else
       echo "ros_setup_missing: $ROS_SETUP"
@@ -541,6 +572,25 @@ signature_gateway() {
   echo "rosservice_args_file: $ROS_ARGS_FILE"
 }
 
+runtime_probe() {
+  source_env
+  local probe="$REPO_DIR/ugv/01-scripts/probe_ugv_runtime_readonly.sh"
+  [[ -f "$probe" ]] || die "runtime probe script missing: $probe"
+  if (( DRY_RUN )); then
+    printf '+ %q' "$probe"
+    printf ' --evidence-dir %q --workspace-dir %q --ros-setup %q --echo-timeout-s %q --tf-timeout-s %q' \
+      "$EVIDENCE_DIR" "$WORKSPACE_DIR" "$ROS_SETUP" "$ECHO_TIMEOUT_S" "$TF_TIMEOUT_S"
+    printf '\n'
+    return 0
+  fi
+  "$probe" \
+    --evidence-dir "$EVIDENCE_DIR" \
+    --workspace-dir "$WORKSPACE_DIR" \
+    --ros-setup "$ROS_SETUP" \
+    --echo-timeout-s "$ECHO_TIMEOUT_S" \
+    --tf-timeout-s "$TF_TIMEOUT_S"
+}
+
 logs_gateway() {
   if [[ -f "$LOG_FILE" ]]; then
     tail -n "$TAIL_LINES" "$LOG_FILE"
@@ -572,6 +622,9 @@ case "$ACTION" in
     ;;
   signature)
     signature_gateway
+    ;;
+  runtime-probe)
+    runtime_probe
     ;;
   logs)
     logs_gateway

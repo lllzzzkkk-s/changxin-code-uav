@@ -494,6 +494,12 @@ bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
   --remote yhs@192.168.0.201 signature
 
 bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
+  --remote yhs@192.168.0.201 \
+  --remote-repo /home/yhs/changxin-code \
+  runtime-probe -- \
+    --evidence-dir /home/yhs/changxin_gateway_runtime/evidence/runtime-probe-after-move-base-timeout
+
+bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
   --remote yhs@192.168.0.201 logs
 
 bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
@@ -502,7 +508,8 @@ bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
 
 Expected output: `status` shows process and service-registration state,
 `signature` writes vehicle-side service list/type/args files under the state
-directory, `logs` prints recent wrapper output, and `stop` terminates only the
+directory, `runtime-probe` writes read-only navigation evidence from the vehicle
+ROS graph, `logs` prints recent wrapper output, and `stop` terminates only the
 managed wrapper process. Pass condition: status/signature match the expected
 `platform_gateway_msgs/TaskCommandJson task_command_json` contract. Fail
 condition: services are missing, types/args differ, logs show wrapper exceptions,
@@ -535,6 +542,15 @@ condition: the wrapper is accidentally hosted on the 4060 instead of the
 vehicle-local ROS environment, no operator approval, `move_base` server
 unavailable, target map invalid, dispatch response not accepted, or no matching
 TaskProgress file.
+
+If dispatch returns a structured `GatewayServiceResponse.v1` with
+`ack.accepted=false`, `motion_attempted=true`, and
+`ack.reason="move_base goal timed out"`, do not immediately retry dispatch. The
+gateway and service path worked; the next step is read-only navigation diagnosis:
+capture `/move_base/status`, `/move_base/current_goal`, `/odom`,
+`/chassis_info_fb`, `/cmd_vel`, relevant TF, and topic/service lists through
+`runtime-probe`, then inspect whether localization, TF, costmaps, local planner,
+or the simulated target pose caused the timeout.
 
 ## Read-Only ROS1 Signature Audit
 
