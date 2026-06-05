@@ -42,6 +42,39 @@ sha256=e2e848e8d867e45b0090253eb6703df96c246750ed725386b542cbe2d3aae7b4
 sha256=95d38d4e8876e4592bd0ab6d6f58b1c48d359bdad6b42cd625e96287b0ba436f
 ```
 
+## Phase 3F Source-Artifact Blocker
+
+The first Phase 3F recorder attempt correctly stopped because the planned
+source artifact was the Phase 2B `dev_mock` artifact:
+
+```text
+/tmp/changxin-phase2b-dev-mock-single/8d783b73-f8f2-488c-9d53-6b3881806784
+```
+
+That artifact contains the exact Phase 3E task command, but it does not satisfy
+the hardware recorder's pre-dispatch source gate:
+
+- source `mission_profile` must be `work_hardware`
+- source `hardware_approval_required` must be `true`
+- source `validation_report.current_state` must be `OPERATOR_APPROVAL`
+
+4060 also found local artifacts that satisfy those hard gates but belong to the
+wrong case (`golden_uav_ugv_coordination`), so the recorder correctly rejected
+their ack/progress alignment.
+
+The corrected Phase 3F chain is:
+
+```text
+Phase 2B exact task_schema.json
+-> run_prevalidated_task_schema.py with profiles/work_hardware.env
+-> source artifact: work_hardware + mock + OPERATOR_APPROVAL
+-> record_unit_hardware_dispatch_artifact.py with Phase 3E ack/progress
+```
+
+This keeps the source artifact in the exact `golden_single_ugv_inspection /
+task_002 / ugv_0` command lineage while still preserving the pre-dispatch
+operator-approval gate.
+
 ## Hard Boundary
 
 Phase 3F does not call ROS.
@@ -115,6 +148,125 @@ Exit gate:
 - progress item matches `task_002`, `ugv_0`, `target_01`
 - progress item has `observations.motion_attempted=false`
 
+## Stage 1.5: Generate Exact Work-Hardware Pre-Approval Source Artifact
+
+Owner: 4060 Codex.
+
+Do not reuse the Phase 2B `dev_mock` run as the recorder source artifact. It is
+only the source for the exact `task_schema.json`.
+
+Do not use a `work_hardware` artifact from another case. The source artifact
+must contain the same selected `TaskCommand` later proven by Phase 3E:
+
+- `mission_id=golden_single_ugv_inspection`
+- `task_id=task_002`
+- `platform_id=ugv_0`
+
+This stage does not call ROS. `profiles/work_hardware.env` uses
+`PLATFORM_BACKEND=mock` and stops before dispatch at `OPERATOR_APPROVAL`.
+
+```bash
+PHASE3E_SCHEMA=/tmp/changxin-phase2b-dev-mock-single/8d783b73-f8f2-488c-9d53-6b3881806784/task_schema.json
+test -f "$PHASE3E_SCHEMA"
+
+PYTHONDONTWRITEBYTECODE=1 python3 tools/run_prevalidated_task_schema.py \
+  --profile profiles/work_hardware.env \
+  --task-schema "$PHASE3E_SCHEMA" \
+  --case single_ugv_inspection \
+  --artifact-root /tmp/changxin-phase3f/work_hardware_preapproval_source \
+  | tee /tmp/changxin-phase3f/prevalidated_work_hardware_source.json
+
+python3 -m json.tool /tmp/changxin-phase3f/prevalidated_work_hardware_source.json \
+  > /tmp/changxin-phase3f/prevalidated_work_hardware_source.pretty.json
+
+SOURCE_ARTIFACT="$(
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+report = json.loads(Path("/tmp/changxin-phase3f/prevalidated_work_hardware_source.json").read_text(encoding="utf-8"))
+errors = []
+if report.get("ok") is not True:
+    errors.append(f"prevalidated source report ok={report.get('ok')}")
+if report.get("status") != "approval_required":
+    errors.append(f"status={report.get('status')}")
+if report.get("current_state") != "OPERATOR_APPROVAL":
+    errors.append(f"current_state={report.get('current_state')}")
+if report.get("case_id") != "single_ugv_inspection":
+    errors.append(f"case_id={report.get('case_id')}")
+artifact = Path(str(report.get("artifact_bundle_path") or ""))
+if not artifact.is_dir():
+    errors.append(f"artifact_bundle_path missing: {artifact}")
+if errors:
+    raise SystemExit("\n".join(errors))
+print(artifact)
+PY
+)"
+printf '%s\n' "$SOURCE_ARTIFACT" > /tmp/changxin-phase3f/source_artifact.path
+
+python3 - <<'PY' "$SOURCE_ARTIFACT" \
+  | tee /tmp/changxin-phase3f/source_artifact_precheck.json
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+profile = json.loads((root / "environment_profile.json").read_text(encoding="utf-8"))
+validation = json.loads((root / "validation_report.json").read_text(encoding="utf-8"))
+bt = json.loads((root / "bt_artifact.json").read_text(encoding="utf-8"))
+commands = bt.get("task_commands") or []
+matches = [
+    command for command in commands
+    if command.get("mission_id") == "golden_single_ugv_inspection"
+    and command.get("task_id") == "task_002"
+    and command.get("platform_id") == "ugv_0"
+]
+precheck = {
+    "schema": "Phase3FSourceArtifactPrecheck.v1",
+    "ok": (
+        profile.get("mission_profile") == "work_hardware"
+        and profile.get("platform_backend") == "mock"
+        and profile.get("hardware_approval_required") is True
+        and validation.get("status") == "passed"
+        and validation.get("current_state") == "OPERATOR_APPROVAL"
+        and validation.get("errors") == []
+        and len(matches) == 1
+    ),
+    "source_artifact": str(root),
+    "mission_profile": profile.get("mission_profile"),
+    "platform_backend": profile.get("platform_backend"),
+    "hardware_approval_required": profile.get("hardware_approval_required"),
+    "validation_status": validation.get("status"),
+    "current_state": validation.get("current_state"),
+    "validation_errors": validation.get("errors"),
+    "matching_task_command_count": len(matches),
+    "selected_task_command": matches[0] if len(matches) == 1 else None,
+}
+print(json.dumps(precheck, indent=2, sort_keys=True))
+if not precheck["ok"]:
+    raise SystemExit(1)
+PY
+
+sha256sum /tmp/changxin-phase3f/prevalidated_work_hardware_source.json
+sha256sum /tmp/changxin-phase3f/source_artifact_precheck.json
+```
+
+Exit gate:
+
+- `prevalidated_work_hardware_source.json` has `ok=true`
+- `status=approval_required`
+- `current_state=OPERATOR_APPROVAL`
+- `case_id=single_ugv_inspection`
+- `source_artifact_precheck.json` has `ok=true`
+- source `environment_profile.mission_profile=work_hardware`
+- source `environment_profile.platform_backend=mock`
+- source `environment_profile.hardware_approval_required=true`
+- source `validation_report.status=passed`
+- source `validation_report.current_state=OPERATOR_APPROVAL`
+- source selected TaskCommand matches `golden_single_ugv_inspection`,
+  `task_002`, `ugv_0`
+- no ROS command is run during this stage
+
 ## Stage 2: Prepare Local ROS1 Gateway Profile For Artifact Recording
 
 Owner: 4060 Codex.
@@ -155,8 +307,11 @@ This command only reads already captured evidence and writes a standard artifact
 It does not call ROS.
 
 ```bash
+SOURCE_ARTIFACT="$(cat /tmp/changxin-phase3f/source_artifact.path)"
+test -d "$SOURCE_ARTIFACT"
+
 PYTHONDONTWRITEBYTECODE=1 python3 tools/record_unit_hardware_dispatch_artifact.py \
-  --source-artifact /tmp/changxin-phase2b-dev-mock-single/8d783b73-f8f2-488c-9d53-6b3881806784 \
+  --source-artifact "$SOURCE_ARTIFACT" \
   --profile /tmp/changxin-phase3f/work_hardware_ros1_gateway.env \
   --output-dir /tmp/changxin-phase3f/hardware_artifacts \
   --platform-id ugv_0 \
@@ -181,6 +336,7 @@ Exit gate:
 - report schema is `UnitHardwareDispatchArtifactRecord.v1`
 - `ok=true`
 - `validation_errors=[]`
+- `source_artifact` equals the Stage 1.5 `work_hardware` pre-approval artifact
 - artifact root is
   `/tmp/changxin-phase3f/hardware_artifacts/phase3f-ugv0-manual-confirm-dispatch`
 - generated artifact contains `environment_profile.json`,
@@ -224,6 +380,7 @@ Owner: 4060 Codex.
 Report:
 
 - all Phase 3E input file hashes
+- Stage 1.5 source artifact path and source-precheck hash
 - local profile path and confirmation that it was not committed
 - `record_unit_hardware_dispatch_artifact.py` rc and report path/hash
 - generated hardware artifact root
@@ -256,6 +413,8 @@ TaskProgressSet.v1 written, motion_attempted=false, enable_move_base=false.
 Authorization scope:
 - do not call ROS services
 - verify the existing Phase 3E response/progress file hashes
+- generate an exact `work_hardware` + `OPERATOR_APPROVAL` source artifact from
+  the Phase 2B exact `task_schema.json`
 - create a local /tmp work_hardware ros1_gateway profile for artifact recording only
 - run tools/record_unit_hardware_dispatch_artifact.py on the captured Phase 3E response/progress
 - run tools/check_distributed_fleet_goal_evidence.py with the generated hardware artifact
@@ -287,11 +446,14 @@ docs/superpowers/plans/2026-06-04-phase-3f-no-motion-hardware-evidence-closure.m
 Stop if:
 - Phase 3E captured files are missing
 - parsed response/progress fails validation
+- the exact `work_hardware` pre-approval source artifact cannot be generated
+- source artifact precheck does not match `golden_single_ugv_inspection/task_002/ugv_0`
 - record_unit_hardware_dispatch_artifact.py returns not ok
 - generated artifact does not contain accepted CommandAck and matching TaskProgress
 
 Report:
 - Phase 3E input hashes
+- source artifact report path/sha256, source artifact path, and source precheck path/sha256
 - hardware artifact recorder report path/sha256 and ok/errors
 - generated hardware artifact root
 - generated key files and hashes

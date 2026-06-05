@@ -652,11 +652,17 @@ Current next gate:
 
 1. 4060 makes no new ROS service calls.
 2. 4060 verifies existing Phase 3E response/progress captures.
-3. 4060 runs `tools/record_unit_hardware_dispatch_artifact.py` with the captured
-   accepted ack and `TaskProgressSet.v1`.
-4. 4060 runs `tools/check_distributed_fleet_goal_evidence.py` with the generated
+3. 4060 generates an exact `work_hardware + OPERATOR_APPROVAL` source artifact
+   from the Phase 2B `golden_single_ugv_inspection` `task_schema.json` using
+   `tools/run_prevalidated_task_schema.py --profile profiles/work_hardware.env`.
+4. 4060 verifies the generated source artifact contains the same selected
+   `golden_single_ugv_inspection / task_002 / ugv_0` command as Phase 3E.
+5. 4060 runs `tools/record_unit_hardware_dispatch_artifact.py` with that source
+   artifact, the captured accepted ack, and `TaskProgressSet.v1`.
+6. 4060 runs `tools/check_distributed_fleet_goal_evidence.py` with the generated
    hardware artifact.
-5. 4060 reports generated artifact root, hashes,
+7. 4060 reports source artifact path/hash, generated hardware artifact root,
+   hashes,
    `unit_hardware_execution_artifact_verified` status, and remaining gaps.
 
 Still out of scope:

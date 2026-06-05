@@ -1,0 +1,78 @@
+{
+  "schema": "UgvPhase3FReceipt.v1",
+  "date": "2026-06-05",
+  "phase": "3F",
+  "status": "blocked",
+  "blocking_reason": "source_artifact_gate_and_command_lineage_mismatch",
+  "repo_state": {
+    "git_log_2_oneline": [
+      "63f693b docs: record phase3e dispatch progress",
+      "56e354a docs: record phase3d dispatch rejection"
+    ],
+    "git_status_short": ""
+  },
+  "network": {
+    "github_fetch_pull_ok_on_retry": true,
+    "not_a_network_failure": true
+  },
+  "attempts": [
+    {
+      "name": "original_phase2b_dev_mock_source",
+      "source": "/tmp/changxin-phase2b-dev-mock-single/8d783b73-f8f2-488c-9d53-6b3881806784",
+      "record_rc": 1,
+      "record_report_sha256": "ba2cd39c25eebc7a19689b0827b1e901b0248822084944482dd0a44f18350847",
+      "validation_errors": [
+        "source_artifact must use mission_profile=work_hardware",
+        "source_artifact must preserve hardware_approval_required=true",
+        "source_artifact validation_report.current_state must be OPERATOR_APPROVAL"
+      ],
+      "interpretation": "exact Phase 3E command lineage, but invalid recorder source gate because it is dev_mock"
+    },
+    {
+      "name": "nearest_work_hardware_candidate",
+      "source": "/tmp/changxin-distributed-fleet-evidence/artifacts/lane_matrix/work_hardware/6daf10c1-6df8-4f22-ade9-bb75ff4beb85",
+      "record_rc": 1,
+      "report": "/tmp/changxin-phase3f/record_unit_hardware_dispatch_artifact.with_work_hardware_source.json",
+      "report_sha256": "473377f343202e073ca30f52bb3b39cd1178b4decf232066b1f84facf4d66915",
+      "validation_errors": [
+        "CommandAck mission_id/task_id/platform_id must match selected TaskCommand",
+        "at least one TaskProgress item must match selected TaskCommand"
+      ],
+      "interpretation": "valid hard gate shape, but wrong mission case for Phase 3E ack/progress alignment"
+    }
+  ],
+  "inventory": {
+    "hard_and_exact_count": 0,
+    "exact_phase3e_task_command_count": 6,
+    "hard_gate_candidate_count": 9,
+    "hard_gate_candidate_case": "golden_uav_ugv_coordination",
+    "required_case": "golden_single_ugv_inspection",
+    "required_task_id": "task_002",
+    "required_platform_id": "ugv_0"
+  },
+  "corrective_next_step": {
+    "generate_source_from": "/tmp/changxin-phase2b-dev-mock-single/8d783b73-f8f2-488c-9d53-6b3881806784/task_schema.json",
+    "tool": "tools/run_prevalidated_task_schema.py",
+    "profile": "profiles/work_hardware.env",
+    "case": "single_ugv_inspection",
+    "required_source_fields": {
+      "mission_profile": "work_hardware",
+      "platform_backend": "mock",
+      "hardware_approval_required": true,
+      "validation_report_status": "passed",
+      "validation_report_current_state": "OPERATOR_APPROVAL",
+      "mission_id": "golden_single_ugv_inspection",
+      "task_id": "task_002",
+      "platform_id": "ugv_0"
+    }
+  },
+  "boundary_confirmation": {
+    "ros_call": false,
+    "gateway_dry_run_called": false,
+    "gateway_dispatch_called": false,
+    "rostopic_pub": false,
+    "controlled_motion": false,
+    "repo_architecture_changed": false,
+    "non_convex_alpha_docs_touched": false
+  }
+}

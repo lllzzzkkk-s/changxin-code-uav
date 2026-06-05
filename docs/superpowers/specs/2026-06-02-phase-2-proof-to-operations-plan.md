@@ -1309,6 +1309,22 @@ Interpretation:
 - The next gate is Phase 3F no-motion hardware evidence closure:
   `docs/superpowers/plans/2026-06-04-phase-3f-no-motion-hardware-evidence-closure.md`.
 
+Phase 3F update on 2026-06-05:
+
+- The initial recorder attempt correctly failed because the original
+  `/tmp/changxin-phase2b-dev-mock-single/...` source artifact was `dev_mock`,
+  not `work_hardware + OPERATOR_APPROVAL`.
+- 4060 also found `work_hardware + OPERATOR_APPROVAL` artifacts, but they
+  belonged to `golden_uav_ugv_coordination` and therefore could not be matched
+  to the Phase 3E `golden_single_ugv_inspection / task_002 / ugv_0` ack and
+  progress.
+- The corrected Phase 3F path is to generate a new exact source artifact from
+  the Phase 2B `task_schema.json` with
+  `tools/run_prevalidated_task_schema.py --profile profiles/work_hardware.env
+  --case single_ugv_inspection`, verify it stops at `OPERATOR_APPROVAL`, and
+  only then run `tools/record_unit_hardware_dispatch_artifact.py` with the
+  captured Phase 3E response/progress.
+
 Boundary statement:
 
 - This Mac-side note records the pasted 4060 receipt; it did not re-run the
