@@ -229,7 +229,7 @@ the 4060 handle orchestration and evidence collection:
 # 4060/HMI side: verify SSH connectivity.
 bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
   --remote yhs@192.168.0.201 \
-  ping
+  auth-check
 
 # If the vehicle already has a Git checkout, fast-forward it.
 bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
@@ -257,6 +257,33 @@ selected action is `start` or `start-motion`. Pass condition: the vehicle has th
 latest wrapper scripts and the target map exists at the vehicle-side path. Fail
 condition: SSH is unavailable, the vehicle repo cannot be updated or synced, or
 the target map is not copied to the path the vehicle wrapper will read.
+
+The SSH lifecycle wrapper defaults to non-interactive mode with `BatchMode=yes`
+and short connection timeouts so Codex does not hang at a password prompt. If
+`auth-check` returns `Permission denied (publickey,password)`, stop the vehicle
+gateway flow and fix credentials first. A human can either log in manually from a
+terminal with `ssh yhs@192.168.0.201`, or install a dedicated 4060 key:
+
+```bash
+# 4060/HMI side: create a dedicated key if one does not already exist.
+ssh-keygen -t ed25519 -f ~/.ssh/changxin_unit_ugv_ed25519 -C changxin-4060-to-unit-ugv
+cat ~/.ssh/changxin_unit_ugv_ed25519.pub
+```
+
+Add the printed public key to `/home/yhs/.ssh/authorized_keys` on the vehicle
+through a site-approved local terminal or another already-authorized admin path,
+then verify from 4060:
+
+```bash
+bash ugv/01-scripts/operate_unit_ugv_vehicle_gateway_ssh.sh \
+  --remote yhs@192.168.0.201 \
+  --ssh-identity ~/.ssh/changxin_unit_ugv_ed25519 \
+  auth-check
+```
+
+Expected output: `ssh_auth_ok`, vehicle hostname, `yhs`, and the remote working
+directory. Do not run `pull`, `sync-lite`, `sync-target-map`, `precheck`,
+`start`, or `start-motion` until `auth-check` passes.
 
 Create or check the object-target readiness gate on the real UGV IPC or the machine that owns the UGV local ROS1 master. If the target map is missing, this command writes an unconfirmed template and exits nonzero; stop there until the local operator edits and confirms the mapping:
 

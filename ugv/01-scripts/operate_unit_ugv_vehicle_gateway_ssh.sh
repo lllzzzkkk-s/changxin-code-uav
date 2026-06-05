@@ -12,6 +12,11 @@ REMOTE_STATE_DIR="${UNIT_UGV_REMOTE_STATE_DIR:-/home/yhs/changxin_gateway_runtim
 BRANCH="${UNIT_UGV_REPO_BRANCH:-codex/phase2b-no-hardware-reporting}"
 ACTION="status"
 DRY_RUN=0
+SSH_BATCH_MODE="${UNIT_UGV_SSH_BATCH_MODE:-1}"
+SSH_CONNECT_TIMEOUT_S="${UNIT_UGV_SSH_CONNECT_TIMEOUT_S:-8}"
+SSH_SERVER_ALIVE_INTERVAL_S="${UNIT_UGV_SSH_SERVER_ALIVE_INTERVAL_S:-5}"
+SSH_SERVER_ALIVE_COUNT_MAX="${UNIT_UGV_SSH_SERVER_ALIVE_COUNT_MAX:-1}"
+SSH_IDENTITY_FILE="${UNIT_UGV_SSH_IDENTITY_FILE:-}"
 SSH_OPTS=()
 REMOTE_SCRIPT_REL="ugv/01-scripts/start_unit_ugv_vehicle_gateway.sh"
 VEHICLE_ARGS=()
@@ -27,6 +32,7 @@ process still runs on the UGV IPC / vehicle-local ROS machine.
 
 Actions:
   ping          Check SSH connectivity
+  auth-check    Non-interactive SSH authentication check
   pull          Run git fetch/checkout/pull on the vehicle repo
   sync-lite     Copy the repo subset needed for the vehicle gateway over SSH
   sync-target-map
@@ -49,7 +55,10 @@ Options:
   --branch NAME               Branch for pull action. Default: codex/phase2b-no-hardware-reporting
   --local-repo DIR            Local repo to sync from. Default: script repo root
   --local-target-map FILE     Local target map copied by sync-target-map
+  --ssh-identity FILE         Private key for vehicle SSH
   --ssh-option OPT            Extra ssh option, repeatable. Example: --ssh-option StrictHostKeyChecking=no
+  --connect-timeout-s SEC     SSH connect timeout. Default: 8
+  --interactive-ssh           Allow password prompts. Do not use from unattended Codex runs.
   --dry-run                   Print SSH/scp/tar commands without executing
   -h, --help                  Show this help
 
@@ -57,7 +66,7 @@ Everything after `--` is passed to the vehicle lifecycle script.
 
 Examples:
   # 4060: verify remote can run shell commands.
-  operate_unit_ugv_vehicle_gateway_ssh.sh ping
+  operate_unit_ugv_vehicle_gateway_ssh.sh auth-check
 
   # 4060: sync current gateway code to the vehicle without requiring Codex there.
   operate_unit_ugv_vehicle_gateway_ssh.sh sync-lite
@@ -77,7 +86,7 @@ die() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    ping|pull|sync-lite|sync-target-map|precheck|command|start|start-motion|stop|restart|status|signature|logs)
+    ping|auth-check|pull|sync-lite|sync-target-map|precheck|command|start|start-motion|stop|restart|status|signature|logs)
       ACTION="$1"
       shift
       ;;
@@ -116,10 +125,24 @@ while [[ $# -gt 0 ]]; do
       LOCAL_TARGET_MAP="$2"
       shift 2
       ;;
+    --ssh-identity)
+      [[ $# -ge 2 ]] || die "--ssh-identity requires a value"
+      SSH_IDENTITY_FILE="$2"
+      shift 2
+      ;;
     --ssh-option)
       [[ $# -ge 2 ]] || die "--ssh-option requires a value"
       SSH_OPTS+=(-o "$2")
       shift 2
+      ;;
+    --connect-timeout-s)
+      [[ $# -ge 2 ]] || die "--connect-timeout-s requires a value"
+      SSH_CONNECT_TIMEOUT_S="$2"
+      shift 2
+      ;;
+    --interactive-ssh)
+      SSH_BATCH_MODE=0
+      shift
       ;;
     --dry-run)
       DRY_RUN=1
@@ -142,12 +165,27 @@ while [[ $# -gt 0 ]]; do
 done
 
 REMOTE_SCRIPT="$REMOTE_REPO_DIR/$REMOTE_SCRIPT_REL"
+BASE_SSH_OPTS=()
+if (( SSH_BATCH_MODE )); then
+  BASE_SSH_OPTS+=(-o BatchMode=yes)
+fi
+BASE_SSH_OPTS+=(
+  -o "ConnectTimeout=$SSH_CONNECT_TIMEOUT_S"
+  -o "ServerAliveInterval=$SSH_SERVER_ALIVE_INTERVAL_S"
+  -o "ServerAliveCountMax=$SSH_SERVER_ALIVE_COUNT_MAX"
+)
+if [[ -n "$SSH_IDENTITY_FILE" ]]; then
+  BASE_SSH_OPTS+=(-i "$SSH_IDENTITY_FILE")
+fi
+if (( ${#SSH_OPTS[@]} )); then
+  BASE_SSH_OPTS+=("${SSH_OPTS[@]}")
+fi
 
 run_ssh() {
   local remote_command="$1"
   local ssh_cmd=(ssh)
-  if (( ${#SSH_OPTS[@]} )); then
-    ssh_cmd+=("${SSH_OPTS[@]}")
+  if (( ${#BASE_SSH_OPTS[@]} )); then
+    ssh_cmd+=("${BASE_SSH_OPTS[@]}")
   fi
   ssh_cmd+=("$REMOTE" "$remote_command")
   if (( DRY_RUN )); then
@@ -172,8 +210,8 @@ run_tar_sync() {
     printf '+ tar -C %q -czf -' "$LOCAL_REPO_DIR"
     printf ' %q' "${paths[@]}"
     local ssh_cmd=(ssh)
-    if (( ${#SSH_OPTS[@]} )); then
-      ssh_cmd+=("${SSH_OPTS[@]}")
+    if (( ${#BASE_SSH_OPTS[@]} )); then
+      ssh_cmd+=("${BASE_SSH_OPTS[@]}")
     fi
     ssh_cmd+=("$REMOTE" "mkdir -p '$REMOTE_REPO_DIR' && tar -xzf - -C '$REMOTE_REPO_DIR'")
     printf ' |'
@@ -182,8 +220,8 @@ run_tar_sync() {
     return 0
   fi
   local ssh_cmd=(ssh)
-  if (( ${#SSH_OPTS[@]} )); then
-    ssh_cmd+=("${SSH_OPTS[@]}")
+  if (( ${#BASE_SSH_OPTS[@]} )); then
+    ssh_cmd+=("${BASE_SSH_OPTS[@]}")
   fi
   ssh_cmd+=("$REMOTE" "mkdir -p '$REMOTE_REPO_DIR' && tar -xzf - -C '$REMOTE_REPO_DIR'")
   tar -C "$LOCAL_REPO_DIR" -czf - "${paths[@]}" \
@@ -195,9 +233,9 @@ run_target_map_sync() {
   remote_dir="$(dirname "$REMOTE_TARGET_MAP")"
   local ssh_cmd=(ssh)
   local scp_cmd=(scp)
-  if (( ${#SSH_OPTS[@]} )); then
-    ssh_cmd+=("${SSH_OPTS[@]}")
-    scp_cmd+=("${SSH_OPTS[@]}")
+  if (( ${#BASE_SSH_OPTS[@]} )); then
+    ssh_cmd+=("${BASE_SSH_OPTS[@]}")
+    scp_cmd+=("${BASE_SSH_OPTS[@]}")
   fi
   ssh_cmd+=("$REMOTE" "mkdir -p '$remote_dir'")
   scp_cmd+=("$LOCAL_TARGET_MAP" "$REMOTE:$REMOTE_TARGET_MAP")
@@ -237,6 +275,9 @@ remote_vehicle_command() {
 case "$ACTION" in
   ping)
     run_ssh 'hostname; whoami; pwd'
+    ;;
+  auth-check)
+    run_ssh 'echo ssh_auth_ok; hostname; whoami; pwd'
     ;;
   pull)
     run_ssh "cd '$REMOTE_REPO_DIR' && git fetch origin && git checkout '$BRANCH' && git pull --ff-only origin '$BRANCH'"
