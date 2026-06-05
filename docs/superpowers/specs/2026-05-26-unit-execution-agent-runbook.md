@@ -174,27 +174,32 @@ Fill real `ROS_MASTER_URI`, `ROS_IP`, and service template values only in that l
 
 If `/fleet/ugv_0/gateway/*` services are absent after the message workspace builds, do not start the default gateway node as final hardware proof. The default executor only proves service shape and rejects dispatch. A real UGV proof needs a local executor plus an operator-confirmed target map.
 
-Create the target map on the real UGV IPC or the machine that owns the UGV local ROS1 master. This file is local site configuration, not center planner code:
+Create the target map on the real UGV IPC or the machine that owns the UGV local ROS1 master. This file is local site configuration, not center planner code. Start from a template, edit it with the site-specific object aliases and target pose, then set `operator_confirmed_mapping=true` only after the local operator has confirmed the mapping:
 
 ```bash
-cat > /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json <<'JSON'
-{
-  "schema": "UnitUgvTargetMap.v1",
-  "platform_id": "ugv_0",
-  "targets": {
-    "target_01": {
-      "capability": "confirm_target",
-      "action": "manual_confirm",
-      "operator_confirmed_mapping": true,
-      "description": "local operator-confirmed no-motion target check"
-    }
-  }
-}
-JSON
-python3 -m json.tool /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json >/tmp/changxin-unit-ugv-targets.normalized.json
+mkdir -p /home/yhs/changxin_gateway_runtime
+PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_target_map.py \
+  --write-template /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --platform-id ugv_0 \
+  --target-id target_01 \
+  --object-query 充电桩 \
+  --object-query charging_station
+
+# Edit /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json locally.
+# For no-motion proof, keep action=manual_confirm.
+# For bounded motion, use action=move_base_goal and fill frame_id/x/y/yaw/max_distance_m from the real local map.
+# Set operator_confirmed_mapping=true only after local operator confirmation.
+
+PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_target_map.py \
+  --target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --platform-id ugv_0 \
+  --require-object-queries \
+  --select-object-query 充电桩 \
+  --max-move-base-distance-m 1.0 \
+  > /tmp/changxin-unit-ugv-target-map-check.json
 ```
 
-Expected output: `python3 -m json.tool` exits `0` and writes normalized JSON. Pass condition: the JSON has `schema=UnitUgvTargetMap.v1`, `platform_id=ugv_0`, and `targets.target_01.operator_confirmed_mapping=true`. Fail condition: missing target, invalid JSON, or a string such as `"true"` instead of JSON boolean `true`.
+Expected output: the checker exits `0` and writes `UnitUgvTargetMapCheckReport.v1` with `ok=true`, one selected target for the requested object query, no duplicate object aliases, and no unconfirmed target mappings. Fail condition: invalid JSON/schema, wrong `platform_id`, missing object aliases, duplicate aliases across targets, `operator_confirmed_mapping=false`, or a `move_base_goal` target without explicit pose and distance bounds.
 
 For a no-motion capability check, start the gateway without operator approval first:
 
