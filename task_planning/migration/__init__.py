@@ -130,6 +130,11 @@ from task_planning.migration.unit_ugv_object_approach_pipeline import (
     UnitUgvObjectApproachPipelineReport,
     prepare_unit_ugv_object_approach_pipeline,
 )
+from task_planning.migration.unit_ugv_object_target_readiness import (
+    UNIT_UGV_OBJECT_TARGET_READINESS_SCHEMA,
+    UnitUgvObjectTargetReadinessReport,
+    check_unit_ugv_object_target_readiness,
+)
 from task_planning.migration.unit_ugv_ros_gateway_dry_run import (
     UNIT_UGV_ROS_GATEWAY_DRY_RUN_SCHEMA,
     UnitUgvRosGatewayDryRunReport,
@@ -165,6 +170,7 @@ __all__ = [
     "HARDWARE_DISPATCH_ARTIFACT_SCHEMA",
     "UNIT_UGV_OBJECT_APPROACH_PREP_BUNDLE_SCHEMA",
     "UNIT_UGV_OBJECT_APPROACH_PIPELINE_SCHEMA",
+    "UNIT_UGV_OBJECT_TARGET_READINESS_SCHEMA",
     "UNIT_UGV_GATEWAY_CALL_PLAN_SCHEMA",
     "UNIT_UGV_ROS_GATEWAY_DRY_RUN_SCHEMA",
     "UNIT_HARDWARE_EXECUTION_CONTEXT",
@@ -211,6 +217,7 @@ __all__ = [
     "UnitUgvArtifactTargetMapPreflightReport",
     "UnitUgvObjectApproachPrepBundleReport",
     "UnitUgvObjectApproachPipelineReport",
+    "UnitUgvObjectTargetReadinessReport",
     "UnitUgvRosGatewayDryRunReport",
     "UnitUgvTargetMapCheckReport",
     "REQUIRED_GOLDEN_CASE_IDS",
@@ -234,6 +241,7 @@ __all__ = [
     "check_unit_ugv_artifact_target_map",
     "prepare_unit_ugv_object_approach_bundle",
     "prepare_unit_ugv_object_approach_pipeline",
+    "check_unit_ugv_object_target_readiness",
     "run_unit_ugv_ros_gateway_dry_run",
     "build_unit_ugv_target_map_template",
     "check_unit_ugv_target_map",

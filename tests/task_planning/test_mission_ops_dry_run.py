@@ -39,6 +39,8 @@ class MissionOpsDryRunTest(unittest.TestCase):
 
         self.assertEqual("single_ugv_object_approach", task_schema.mission_request.constraints["mission_variant"])
         self.assertEqual("充电桩", task_schema.mission_request.constraints["object_query"])
+        self.assertEqual("operator_confirmed_target_map", task_schema.mission_request.constraints["target_source"])
+        self.assertEqual("yolo", task_schema.mission_request.constraints["future_perception_backend"])
         self.assertIn("(approached ?target - target)", scout_and_confirm_domain())
         self.assertIn("(:goal (and (approached target_01))", problem.pddl)
         self.assertEqual(["identify-target", "approach-target"], [step.action for step in plan.steps])

@@ -206,7 +206,22 @@ Fill real `ROS_MASTER_URI`, `ROS_IP`, and service template values only in that l
 
 If `/fleet/ugv_0/gateway/*` services are absent after the message workspace builds, do not start the default gateway node as final hardware proof. The default executor only proves service shape and rejects dispatch. A real UGV proof needs a local executor plus an operator-confirmed target map.
 
-Create the target map on the real UGV IPC or the machine that owns the UGV local ROS1 master. This file is local site configuration, not center planner code. Start from a template, edit it with the site-specific object aliases and target pose, then set `operator_confirmed_mapping=true` only after the local operator has confirmed the mapping:
+The current single-UGV object approach path does not yet run YOLO or another perception backend. The natural-language "识别附近的显示器" intent is compiled into an `object_query`, then bound to a local `UnitUgvTargetMap.v1`. That target map is operator-confirmed site evidence for now; YOLO should be added later as another perception backend without bypassing the same validator/PDDL/BT/gateway chain.
+
+Create or check the object-target readiness gate on the real UGV IPC or the machine that owns the UGV local ROS1 master. If the target map is missing, this command writes an unconfirmed template and exits nonzero; stop there until the local operator edits and confirms the mapping:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_object_target_readiness.py \
+  --target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --object-query 显示器 \
+  --platform-id ugv_0 \
+  --write-missing-template \
+  --output /tmp/changxin-unit-ugv-object-target-readiness.json
+```
+
+Expected output when the target map is missing: `UnitUgvObjectTargetReadiness.v1` with `ok=false`, `target_map_template_written=true`, `target_binding_ready=false`, `perception_backend=operator_confirmed_target_map`, `yolo_connected=false`, `ros_connected=false`, and `next_runtime_stage=local_operator_confirm_target_map`. Pass condition after local editing: the same command returns `ok=true`, `target_binding_ready=true`, `selected_target_id=<target>`, and `next_runtime_stage=4060_ros1_gateway_handoff`.
+
+Edit the target map with the site-specific object aliases and target pose, then set `operator_confirmed_mapping=true` only after the local operator has confirmed the mapping:
 
 ```bash
 mkdir -p /home/yhs/changxin_gateway_runtime
@@ -214,8 +229,8 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_target_map.py \
   --write-template /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
   --platform-id ugv_0 \
   --target-id target_01 \
-  --object-query 充电桩 \
-  --object-query charging_station
+  --object-query 显示器 \
+  --object-query monitor
 
 # Edit /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json locally.
 # For no-motion proof, keep action=manual_confirm.
@@ -226,7 +241,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_target_map.py \
   --target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
   --platform-id ugv_0 \
   --require-object-queries \
-  --select-object-query 充电桩 \
+  --select-object-query 显示器 \
   --max-move-base-distance-m 1.0 \
   > /tmp/changxin-unit-ugv-target-map-check.json
 ```
