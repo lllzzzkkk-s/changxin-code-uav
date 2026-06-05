@@ -187,6 +187,7 @@ def _manifest(
         "commands": {
             "dev_mock": "PYTHONDONTWRITEBYTECODE=1 python3 tools/run_task_planning_golden.py --profile profiles/dev_mock.env --case uav_ugv_coordination",
             "operator_intent": "PYTHONDONTWRITEBYTECODE=1 python3 tools/run_task_planning_intent.py --profile profiles/dev_mock.env --intent '<operator-intent>' --mission-id <mission_id> --primary-platform ugv_0 --artifact-root /tmp/changxin-intent-runs",
+            "agent_drafted_intent": "PYTHONDONTWRITEBYTECODE=1 python3 tools/run_task_planning_intent.py --profile profiles/dev_mock.env --intent '<operator-intent>' --mission-id <mission_id> --primary-platform ugv_0 --agent-name <agent_name> --agent-draft-file <task_schema_draft.json> --artifact-root /tmp/changxin-agent-intent-runs",
             "dev_mock_golden_suite": "PYTHONDONTWRITEBYTECODE=1 python3 tools/run_dev_mock_golden_suite.py --artifact-root /tmp/changxin-dev-mock-golden-suite",
             "replay": "PYTHONDONTWRITEBYTECODE=1 python3 tools/replay_task_planning_artifact.py <artifact_root>",
             "server_sim": "PYTHONDONTWRITEBYTECODE=1 python3 tools/run_task_planning_golden.py --profile profiles/server_sim.env --case uav_ugv_coordination",

@@ -118,6 +118,23 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/run_task_planning_intent.py \
 
 Expected output: `MissionIntentRun.v1` with `ok=true`, `ros_connected=false`, `hardware_dispatch_performed=false`, and an `artifact_bundle_path`. Fail condition: the selected profile is `PLATFORM_BACKEND=ros1_gateway`, the intent is empty, or artifact generation fails. This command is only an artifact-generation step; it does not connect ROS and does not dispatch.
 
+If an external Mission Ops shell such as OpenClaw, Hermes, or another agent framework is used, keep it outside the execution core. Let it write a `TaskSchema.v1` draft JSON, then pass that file through the same validator/PDDL/BT/gateway artifact path:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 tools/run_task_planning_intent.py \
+  --profile profiles/dev_mock.env \
+  --intent "让小车识别附近的灭火器，然后靠近" \
+  --mission-id unit_single_ugv_agent_object_approach_001 \
+  --primary-platform ugv_0 \
+  --case-id unit_single_ugv_agent_object_approach \
+  --agent-name openclaw \
+  --agent-draft-file /tmp/changxin-agent-task-schema-draft.json \
+  --artifact-root /tmp/changxin-agent-intent-runs \
+  > /tmp/changxin-agent-intent-run.json
+```
+
+Expected output includes `semantic_compiler.kind=agent_adapter`. The adapter rejects raw ROS references such as `/cmd_vel`, `/mavros/*`, `/setpoints_cmd`, and `/move_base_simple/goal`; it only accepts a validated `TaskSchema.v1` draft and still does not connect ROS or dispatch.
+
 ## Artifact Intake
 
 Verify a transferred model-lab or replay artifact package before replaying anything:

@@ -96,6 +96,108 @@ class MissionIntentCliTest(unittest.TestCase):
         self.assertFalse(report["ros_connected"])
         self.assertFalse(report["hardware_dispatch_performed"])
 
+    def test_cli_runs_agent_drafted_task_schema_through_same_pipeline(self):
+        repo_root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as tmp:
+            draft_path = Path(tmp) / "openclaw-draft.json"
+            draft_path.write_text(json.dumps({
+                "schema": "TaskSchema.v1",
+                "intent": "让小车识别附近的灭火器，然后靠近",
+                "context_snapshot": {
+                    "mission_id": "mission_agent_extinguisher_approach",
+                    "primary_platform": "ugv_0",
+                },
+                "mission_request": {
+                    "schema": "MissionRequest.v1",
+                    "mission_id": "mission_agent_extinguisher_approach",
+                    "mission_type": "scout_and_confirm",
+                    "areas": ["area_A"],
+                    "targets": ["target_01"],
+                    "required_capabilities": ["confirm_target"],
+                    "constraints": {
+                        "mission_variant": "single_ugv_object_approach",
+                        "object_query": "灭火器",
+                        "require_operator_before_motion": True,
+                    },
+                },
+            }, ensure_ascii=False), encoding="utf-8")
+            artifact_root = Path(tmp) / "runs"
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(repo_root / "tools" / "run_task_planning_intent.py"),
+                    "--profile", str(repo_root / "profiles" / "dev_mock.env"),
+                    "--intent", "让小车识别附近的灭火器，然后靠近",
+                    "--mission-id", "mission_agent_extinguisher_approach",
+                    "--primary-platform", "ugv_0",
+                    "--case-id", "agent_single_ugv_extinguisher_approach",
+                    "--agent-name", "openclaw",
+                    "--agent-draft-file", str(draft_path),
+                    "--artifact-root", str(artifact_root),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+            )
+            report = json.loads(completed.stdout)
+            bundle_root = Path(report["artifact_bundle_path"])
+            task_schema = json.loads((bundle_root / "task_schema.json").read_text(encoding="utf-8"))
+            plan = json.loads((bundle_root / "planner_output.json").read_text(encoding="utf-8"))
+
+        self.assertEqual("agent_adapter", report["semantic_compiler"]["kind"])
+        self.assertEqual("openclaw", report["semantic_compiler"]["agent_name"])
+        self.assertEqual("灭火器", task_schema["mission_request"]["constraints"]["object_query"])
+        self.assertEqual(["identify-target", "approach-target"], [step["action"] for step in plan["steps"]])
+        self.assertFalse(report["ros_connected"])
+        self.assertFalse(report["hardware_dispatch_performed"])
+
+    def test_cli_rejects_agent_draft_with_raw_ros_reference(self):
+        repo_root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as tmp:
+            draft_path = Path(tmp) / "hermes-unsafe-draft.json"
+            draft_path.write_text(json.dumps({
+                "schema": "TaskSchema.v1",
+                "intent": "让小车直接发速度",
+                "context_snapshot": {},
+                "mission_request": {
+                    "schema": "MissionRequest.v1",
+                    "mission_id": "mission_bad_agent",
+                    "mission_type": "scout_and_confirm",
+                    "areas": ["area_A"],
+                    "targets": ["target_01"],
+                    "required_capabilities": ["confirm_target"],
+                    "constraints": {"unsafe": "/cmd_vel"},
+                },
+            }, ensure_ascii=False), encoding="utf-8")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(repo_root / "tools" / "run_task_planning_intent.py"),
+                    "--profile", str(repo_root / "profiles" / "dev_mock.env"),
+                    "--intent", "让小车直接发速度",
+                    "--mission-id", "mission_bad_agent",
+                    "--primary-platform", "ugv_0",
+                    "--agent-name", "hermes",
+                    "--agent-draft-file", str(draft_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+            )
+
+        self.assertEqual(1, completed.returncode)
+        report = json.loads(completed.stdout)
+        self.assertFalse(report["ok"])
+        self.assertEqual("agent_adapter", report["semantic_compiler"]["kind"])
+        self.assertEqual("hermes", report["semantic_compiler"]["agent_name"])
+        self.assertIn("raw ROS reference is forbidden", "; ".join(report["validation_errors"]))
+        self.assertFalse(report["ros_connected"])
+        self.assertFalse(report["hardware_dispatch_performed"])
+
 
 if __name__ == "__main__":
     unittest.main()
