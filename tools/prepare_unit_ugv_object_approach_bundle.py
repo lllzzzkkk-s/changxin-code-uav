@@ -19,7 +19,7 @@ from task_planning.migration.unit_ugv_object_approach_bundle import (
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Prepare a no-ROS UGV object-approach handoff bundle from a validated "
+            "Prepare a source-side UGV object-approach prep bundle from a validated "
             "mission artifact and a local UnitUgvTargetMap.v1."
         ),
     )

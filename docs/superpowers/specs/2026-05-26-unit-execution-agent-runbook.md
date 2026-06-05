@@ -233,7 +233,26 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_target_map.py \
 
 Expected output: the checker exits `0` and writes `UnitUgvTargetMapCheckReport.v1` with `ok=true`, one selected target for the requested object query, no duplicate object aliases, and no unconfirmed target mappings. Fail condition: invalid JSON/schema, wrong `platform_id`, missing object aliases, duplicate aliases across targets, `operator_confirmed_mapping=false`, or a `move_base_goal` target without explicit pose and distance bounds.
 
-Before any ROS1 gateway dry-run, bind one validated artifact command to the local target map without connecting ROS:
+Before any ROS1 gateway dry-run, the Mac/source side can prepare the full ROS-ready handoff from operator intent. This command is not a 4060 runtime step; it produces the artifact bundle and exact gateway dry-run plan that the 4060 ROS agent should execute next:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 tools/prepare_unit_ugv_object_approach_pipeline.py \
+  --profile profiles/dev_mock.env \
+  --intent "让小车识别附近的显示器，然后走过去" \
+  --mission-id unit_single_ugv_object_approach_001 \
+  --case-id unit_single_ugv_object_approach \
+  --target-map /home/yhs/changxin_gateway_runtime/unit_ugv_targets.json \
+  --ros1-gateway-profile /tmp/work_hardware_ros1_gateway.env \
+  --output-dir /tmp/changxin-unit-ugv-object-approach-handoff \
+  --platform-id ugv_0 \
+  --index 1 \
+  --max-move-base-distance-m 1.0 \
+  > /tmp/changxin-unit-ugv-object-approach-handoff.json
+```
+
+Expected output: `UnitUgvObjectApproachRosReadyHandoff.v1` with `ok=true`, `ros_ready=true`, `next_runtime_stage=4060_ros1_gateway_dry_run`, `service_name=/fleet/ugv_0/gateway/dry_run`, and Mac/source-side flags `mac_side_ros_connected=false`, `mac_side_service_called=false`, `mac_side_dispatch_performed=false`. The next 4060 step is ROS1 gateway signature verification and `/gateway/dry_run`, not another source-side-only check.
+
+If an artifact was already produced separately, bind one validated artifact command to the local target map without connecting ROS:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_artifact_target_map.py \
@@ -247,7 +266,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/check_unit_ugv_artifact_target_map.py \
 
 Expected output: `UnitUgvArtifactTargetMapPreflight.v1` with `ok=true`, the selected `TaskCommand.v1` mission/task/platform fields, a matching `selected_target_id`, and `ros_connected=false`, `dispatch_performed=false`. Fail condition: the artifact cannot be replayed, the selected UGV command is missing, `object_query` is not mapped, `target_id` disagrees with the object-query-selected target, the target map is unconfirmed, or a `move_base_goal` exceeds the site distance bound.
 
-Package the validated command, rosservice payload, target-map copy, and preflight report into one no-ROS handoff directory before any gateway service call:
+Package the validated command, rosservice payload, target-map copy, and preflight report into one source-side preparation directory before any gateway service call:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python3 tools/prepare_unit_ugv_object_approach_bundle.py \

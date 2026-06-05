@@ -125,6 +125,11 @@ from task_planning.migration.unit_ugv_object_approach_bundle import (
     UnitUgvObjectApproachPrepBundleReport,
     prepare_unit_ugv_object_approach_bundle,
 )
+from task_planning.migration.unit_ugv_object_approach_pipeline import (
+    UNIT_UGV_OBJECT_APPROACH_PIPELINE_SCHEMA,
+    UnitUgvObjectApproachPipelineReport,
+    prepare_unit_ugv_object_approach_pipeline,
+)
 from task_planning.migration.unit_ugv_target_map import (
     UnitUgvTargetMapCheckReport,
     build_unit_ugv_target_map_template,
@@ -154,6 +159,7 @@ __all__ = [
     "HANDOFF_PACKAGE_VERIFICATION_SCHEMA",
     "HARDWARE_DISPATCH_ARTIFACT_SCHEMA",
     "UNIT_UGV_OBJECT_APPROACH_PREP_BUNDLE_SCHEMA",
+    "UNIT_UGV_OBJECT_APPROACH_PIPELINE_SCHEMA",
     "UNIT_UGV_GATEWAY_CALL_PLAN_SCHEMA",
     "UNIT_HARDWARE_EXECUTION_CONTEXT",
     "ALLOWED_MIGRATION_VERIFICATION_CONTEXTS",
@@ -198,6 +204,7 @@ __all__ = [
     "UnitUgvGatewayCallPlan",
     "UnitUgvArtifactTargetMapPreflightReport",
     "UnitUgvObjectApproachPrepBundleReport",
+    "UnitUgvObjectApproachPipelineReport",
     "UnitUgvTargetMapCheckReport",
     "REQUIRED_GOLDEN_CASE_IDS",
     "build_artifact_package",
@@ -219,6 +226,7 @@ __all__ = [
     "plan_unit_ugv_gateway_call",
     "check_unit_ugv_artifact_target_map",
     "prepare_unit_ugv_object_approach_bundle",
+    "prepare_unit_ugv_object_approach_pipeline",
     "build_unit_ugv_target_map_template",
     "check_unit_ugv_target_map",
     "write_unit_ugv_target_map_template",

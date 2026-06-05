@@ -164,7 +164,7 @@ def _write_readme(path: Path, *, platform_id: str, capability: str, task_id: str
         "\n".join([
             "# Unit UGV Object Approach Prep Bundle",
             "",
-            "This bundle is a no-ROS preparation artifact.",
+            "This bundle is a source-side preparation artifact for a later ROS1 gateway stage.",
             "It contains a validated TaskCommand, rosservice JSON payload, target-map copy, and local preflight report.",
             "",
             f"- platform_id: `{platform_id}`",

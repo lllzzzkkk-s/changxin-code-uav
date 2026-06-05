@@ -37,6 +37,7 @@ class MigrationReadinessTest(unittest.TestCase):
         self.assertEqual("pass", _check(report, "unit_execution_boundary").status)
         self.assertEqual("warn", _check(report, "ros_cli_rostopic").status)
         self.assertTrue(any("plan_work_hardware_gate.py" in command for command in report.next_commands))
+        self.assertTrue(any("prepare_unit_ugv_object_approach_pipeline.py" in command for command in report.next_commands))
         self.assertTrue(any("plan_unit_ugv_gateway_call.py" in command for command in report.next_commands))
 
     def test_work_hardware_real_gateway_fails_without_ros_runtime(self):
