@@ -665,6 +665,23 @@ Current next gate:
    hashes,
    `unit_hardware_execution_artifact_verified` status, and remaining gaps.
 
+Phase 3F result as of 2026-06-05:
+
+- The corrected recorder chain passed and produced a standard no-motion
+  hardware artifact for `single_ugv_inspection`.
+- The generated hardware artifact precheck reported `ok=true`.
+- Goal evidence still reports
+  `unit_hardware_execution_artifact_verified=missing` until same-case lane
+  matrix evidence and same-machine ROS1 signature evidence are supplied.
+
+Current next gate is Phase 3G:
+
+1. 4060 runs a no-ROS lane matrix for `single_ugv_inspection`.
+2. 4060 generates a current same-machine read-only ROS1 signature report for
+   `ugv_0` gateway services.
+3. 4060 reruns goal evidence with the Phase 3F hardware artifact plus those two
+   aligned reports.
+
 Still out of scope:
 
 - additional gateway service calls

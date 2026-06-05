@@ -399,6 +399,41 @@ Report:
   - no non-convex alpha document edits
   - no committed machine-specific ROS env
 
+## Phase 3F Result And Phase 3G Handoff
+
+Status as of 2026-06-05: the corrected Phase 3F recorder chain passed.
+
+4060 generated an exact `work_hardware + OPERATOR_APPROVAL` source artifact for
+`golden_single_ugv_inspection / task_002 / ugv_0`, then recorded the Phase 3E
+accepted manual-confirm dispatch and matching progress into the standard
+hardware artifact:
+
+```text
+root=/tmp/changxin-phase3f/hardware_artifacts/phase3f-ugv0-manual-confirm-dispatch
+record_rc=0
+validation_errors=[]
+generated_hardware_artifact_precheck_ok=true
+```
+
+Goal-evidence aggregation still reported:
+
+```text
+unit_hardware_execution_artifact_verified=missing
+```
+
+This is a cross-proof alignment issue, not a Phase 3F recorder failure:
+
+- the hardware artifact is for `single_ugv_inspection`
+- existing OK lane matrix evidence is for `uav_ugv_coordination`
+- existing OK ROS1 signature evidence has a different `machine_id` from the
+  Phase 3F hardware artifact
+
+The next gate is Phase 3G same-case/same-machine goal-evidence alignment:
+
+```text
+docs/superpowers/plans/2026-06-05-phase-3g-same-case-goal-evidence-alignment.md
+```
+
 ## 4060 Prompt
 
 Use this prompt to close Phase 3F. It does not authorize ROS calls.

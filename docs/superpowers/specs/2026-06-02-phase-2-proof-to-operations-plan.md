@@ -1325,6 +1325,21 @@ Phase 3F update on 2026-06-05:
   only then run `tools/record_unit_hardware_dispatch_artifact.py` with the
   captured Phase 3E response/progress.
 
+Phase 3F recorder result on 2026-06-05:
+
+- The corrected source-artifact chain passed.
+- `record_unit_hardware_dispatch_artifact.py` returned `rc=0` with
+  `validation_errors=[]`.
+- The generated hardware artifact precheck reported `ok=true`.
+- Goal evidence still reported
+  `unit_hardware_execution_artifact_verified=missing` because cross-proof
+  alignment is not yet satisfied: the hardware artifact is
+  `single_ugv_inspection`, existing OK lane matrix evidence is
+  `uav_ugv_coordination`, and existing OK ROS1 signature evidence has a
+  different `machine_id`.
+- The next gate is Phase 3G same-case/same-machine goal-evidence alignment:
+  `docs/superpowers/plans/2026-06-05-phase-3g-same-case-goal-evidence-alignment.md`.
+
 Boundary statement:
 
 - This Mac-side note records the pasted 4060 receipt; it did not re-run the
