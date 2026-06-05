@@ -208,7 +208,11 @@ If `/fleet/ugv_0/gateway/*` services are absent after the message workspace buil
 
 The current single-UGV object approach path does not yet run YOLO or another perception backend. The natural-language "识别附近的显示器" intent is compiled into an `object_query`, then bound to a local `UnitUgvTargetMap.v1`. That target map is operator-confirmed site evidence for now; YOLO should be added later as another perception backend without bypassing the same validator/PDDL/BT/gateway chain.
 
-Set the local runtime path from the user that will run the gateway wrapper. On the 4060 WSL2 side this is usually the WSL user, not necessarily `yhs`:
+Set the target-map path for the side that prepares or reviews the UGV target
+binding. The 4060 may prepare and validate this file as the HMI/ground-station
+side, but the controlled-motion gateway wrapper must run on the single UGV IPC
+or another vehicle-local ROS1 environment that can import `move_base_msgs` and
+reach the local `/move_base` action server:
 
 ```bash
 export CHANGXIN_GATEWAY_RUNTIME="${CHANGXIN_GATEWAY_RUNTIME:-$HOME/changxin_gateway_runtime}"
@@ -289,7 +293,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/prepare_unit_ugv_object_approach_pipelin
   > /tmp/changxin-unit-ugv-object-approach-handoff.json
 ```
 
-Expected output: `UnitUgvObjectApproachRosReadyHandoff.v1` with `ok=true`, `ros_ready=true`, `next_runtime_stage=4060_ros1_gateway_dry_run`, `service_name=/fleet/ugv_0/gateway/dry_run`, and Mac/source-side flags `mac_side_ros_connected=false`, `mac_side_service_called=false`, `mac_side_dispatch_performed=false`. The next 4060 step is ROS1 gateway signature verification and `/gateway/dry_run`, not another source-side-only check.
+Expected output: `UnitUgvObjectApproachRosReadyHandoff.v1` with `ok=true`, `ros_ready=true`, `next_runtime_stage=4060_ros1_gateway_dry_run`, `service_name=/fleet/ugv_0/gateway/dry_run`, and Mac/source-side flags `mac_side_ros_connected=false`, `mac_side_service_called=false`, `mac_side_dispatch_performed=false`. The next 4060 step is HMI/ground-station-side ROS1 gateway signature verification and `/gateway/dry_run` against a gateway service hosted by the vehicle side, not another source-side-only check.
 
 If an artifact was already produced separately, bind one validated artifact command to the local target map without connecting ROS:
 
@@ -332,7 +336,13 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/plan_unit_ugv_gateway_call.py \
 
 Expected output: `UnitUgvGatewayCallPlan.v1` with `ok=true`, `service_name=/fleet/ugv_0/gateway/dry_run`, `payload_file` pointing at `task_command.rosservice.json`, required service signature `platform_gateway_msgs/TaskCommandJson task_command_json`, and `ros_connected=false`, `service_called=false`, `dispatch_performed=false`. This checkpoint binds the validated mission artifact and target map to the local gateway contract before a human decides whether to run the service call.
 
-After the local ROS1 gateway services have passed service-name/type/args signature verification on the 4060, run the standard dry-run runner instead of hand-writing a raw `rosservice call`. The runner reads the ROS-ready handoff, passes the prepared payload as one subprocess argument to avoid shell quoting drift, records stdout/stderr, parses `GatewayServiceResponse.v1`, and still never calls `/gateway/dispatch` or publishes raw ROS topics:
+After the vehicle-side ROS1 gateway services have passed service-name/type/args
+signature verification from the 4060/HMI side, run the standard dry-run runner
+as the HMI/ground-station client instead of hand-writing a raw `rosservice call`.
+The runner reads the ROS-ready handoff, passes the prepared payload as one
+subprocess argument to avoid shell quoting drift, records stdout/stderr, parses
+`GatewayServiceResponse.v1`, and still never calls `/gateway/dispatch` or
+publishes raw ROS topics:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python3 tools/run_unit_ugv_ros_gateway_dry_run.py \
@@ -343,7 +353,11 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/run_unit_ugv_ros_gateway_dry_run.py \
 
 Expected output: `UnitUgvRosGatewayDryRun.v1` with `ok=true`, `dry_run_called=true`, `dispatch_called=false`, `rostopic_pub=false`, `controlled_motion_authorized=false`, `response_schema=GatewayServiceResponse.v1`, `response_mode=dry_run`, `ack_accepted=true`, `motion_attempted=false`, and `raw_ros_publish_attempted=false`. Fail condition: the handoff is not `ros_ready`, the service name is not `/fleet/ugv_0/gateway/dry_run`, `rosservice call` returns nonzero, the gateway response rejects the command, or the response reports motion/raw publish.
 
-For a no-motion capability check, start the gateway without operator approval first:
+For a no-motion capability check, start the gateway without operator approval
+first on the single UGV IPC / vehicle-local ROS1 environment. Do not start this
+wrapper on the 4060 WSL2 host for controlled-motion proof; the 4060 is the
+HMI/ground-station client that observes service registration and calls the
+gateway services after they are available:
 
 ```bash
 cd "$CHANGXIN_GATEWAY_RUNTIME"
@@ -381,7 +395,10 @@ Only if the site decides `confirm_target(target_01)` is a bounded navigation act
 
 Expected output: JSON validation still exits `0`. Pass condition: the site operator confirms the pose, frame, and safety radius from the real UGV map. Fail condition: the target is guessed from chat, evidence history, or an unverified map.
 
-For a real `move_base_goal` dispatch, the node must be started with both `--unit-ugv-operator-approved` and `--unit-ugv-enable-move-base` after local operator approval:
+For a real `move_base_goal` dispatch, the node must run on the single UGV IPC /
+vehicle-local ROS1 environment and must be started with both
+`--unit-ugv-operator-approved` and `--unit-ugv-enable-move-base` after local
+operator approval:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 python3 tools/run_ros1_platform_gateway_node.py \
@@ -396,7 +413,14 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/run_ros1_platform_gateway_node.py \
   --unit-ugv-progress-output /tmp/changxin-task-progress.json
 ```
 
-Expected output: the node stays running. Pass condition: after a separately approved `/fleet/ugv_0/gateway/dispatch`, `/tmp/changxin-task-progress.json` contains `TaskProgressSet.v1` for the same `mission_id/task_id/platform_id`. Fail condition: no operator approval, `move_base` server unavailable, target map invalid, dispatch response not accepted, or no matching TaskProgress file.
+Expected output: the vehicle-side node stays running. Pass condition: after a
+separately approved `/fleet/ugv_0/gateway/dispatch` issued from the HMI /
+ground-station side, `/tmp/changxin-task-progress.json` on the vehicle-side
+wrapper host contains `TaskProgressSet.v1` for the same
+`mission_id/task_id/platform_id`. Fail condition: the wrapper is accidentally
+hosted on the 4060 instead of the vehicle-local ROS environment, no operator
+approval, `move_base` server unavailable, target map invalid, dispatch response
+not accepted, or no matching TaskProgress file.
 
 ## Read-Only ROS1 Signature Audit
 

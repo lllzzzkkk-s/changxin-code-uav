@@ -75,6 +75,14 @@ Use profiles under `profiles/` to keep machine-specific settings out of code:
 - `server_sim`: optional replay/simulation/CI lane.
 - `work_hardware`: unit/workplace execution lane. The physical platforms are at the unit/workplace, and hardware execution must not depend on the home 5090 server.
 
+For UGV `move_base_goal` execution, the platform gateway wrapper that imports
+`move_base_msgs` and sends the local `move_base` action goal must run on the
+single UGV IPC / vehicle-local ROS1 environment. The 4060 Codex side acts as the
+HMI / ground-station client: it may prepare artifacts, inspect service
+signatures, and call `/fleet/{platform_id}/gateway/dry_run` or an explicitly
+authorized `/dispatch`, but it must not host the vehicle-local `move_base`
+executor for controlled-motion proof.
+
 When an agent is running on the unit/workplace execution endpoint, use `docs/superpowers/specs/2026-05-26-unit-execution-agent-runbook.md` as the short operational entry point.
 
 Every profiled mission run should write portable artifacts under `MISSION_ARTIFACT_ROOT/<run_id>/` so model-lab, sim, and hardware behavior can be compared without sharing a single machine.
@@ -115,7 +123,7 @@ Operational entry points:
 - Prepare a ROS-ready single-UGV object-approach handoff from operator intent on the Mac/source side: `PYTHONDONTWRITEBYTECODE=1 python3 tools/prepare_unit_ugv_object_approach_pipeline.py --profile profiles/dev_mock.env --intent "<operator-intent>" --mission-id <mission_id> --case-id <case_id> --target-map /tmp/unit_ugv_targets.json --ros1-gateway-profile <local-work-hardware-ros1-gateway.env> --output-dir /tmp/changxin-unit-ugv-object-approach-handoff --platform-id ugv_0 --index 1`
 - Prepare a source-side UGV object-approach prep bundle before any gateway call: `PYTHONDONTWRITEBYTECODE=1 python3 tools/prepare_unit_ugv_object_approach_bundle.py <artifact_bundle_path> --target-map /tmp/unit_ugv_targets.json --output-dir /tmp/changxin-unit-ugv-object-approach-prep --platform-id ugv_0 --index 0`
 - Plan the next UGV gateway service call from the prep bundle without connecting ROS or dispatching: `PYTHONDONTWRITEBYTECODE=1 python3 tools/plan_unit_ugv_gateway_call.py --prep-report /tmp/changxin-unit-ugv-object-approach-prep/prep_bundle_report.json --profile <local-work-hardware-ros1-gateway.env> --mode dry_run`
-- Run the 4060-side UGV ROS1 gateway dry-run from a ROS-ready handoff after service signatures pass: `PYTHONDONTWRITEBYTECODE=1 python3 tools/run_unit_ugv_ros_gateway_dry_run.py --handoff-report /tmp/changxin-unit-ugv-object-approach-handoff/ros_ready_handoff_report.json --output-dir /tmp/changxin-unit-ugv-gateway-dry-run`
+- Run the HMI/ground-station-side UGV ROS1 gateway dry-run from a ROS-ready handoff after vehicle-side service signatures pass: `PYTHONDONTWRITEBYTECODE=1 python3 tools/run_unit_ugv_ros_gateway_dry_run.py --handoff-report /tmp/changxin-unit-ugv-object-approach-handoff/ros_ready_handoff_report.json --output-dir /tmp/changxin-unit-ugv-gateway-dry-run`
 - Parse an existing UGV ROS1 gateway dry-run stdout without calling ROS again if `rosservice` wrapped `response_json` in YAML: `PYTHONDONTWRITEBYTECODE=1 python3 tools/parse_unit_ugv_ros_gateway_dry_run_response.py --response-stdout /tmp/changxin-unit-ugv-gateway-dry-run/dry_run_response.txt --output-dir /tmp/changxin-unit-ugv-gateway-dry-run-parsed --expected-platform-id ugv_0`
 - Build a portable migration bundle: `PYTHONDONTWRITEBYTECODE=1 python3 tools/package_task_planning_migration.py --output-dir /tmp/changxin-migration`
 - Verify a migration bundle after transfer: `PYTHONDONTWRITEBYTECODE=1 python3 tools/verify_task_planning_migration_bundle.py /tmp/changxin-migration/task-planning-migration-bundle.tar.gz --work-dir /tmp/changxin-migration-verify --verification-context receiving_machine`
