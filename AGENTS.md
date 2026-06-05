@@ -84,6 +84,7 @@ Home/server artifacts should move to the unit/workplace execution lane as verifi
 Operational entry points:
 
 - Run golden cases: `PYTHONDONTWRITEBYTECODE=1 python3 tools/run_task_planning_golden.py --profile profiles/dev_mock.env`
+- Run one operator intent through MissionManager/PDDL/BT without ROS: `PYTHONDONTWRITEBYTECODE=1 python3 tools/run_task_planning_intent.py --profile profiles/dev_mock.env --intent "<operator-intent>" --mission-id <mission_id> --primary-platform ugv_0 --artifact-root /tmp/changxin-intent-runs`
 - Run the required dev_mock golden suite with artifact verification: `PYTHONDONTWRITEBYTECODE=1 python3 tools/run_dev_mock_golden_suite.py --artifact-root /tmp/changxin-dev-mock-golden-suite`
 - Check machine/profile readiness without sending ROS commands: `PYTHONDONTWRITEBYTECODE=1 python3 tools/check_task_planning_readiness.py --profile profiles/work_hardware.env`
 - Collect lane acceptance evidence without sending ROS control commands: `PYTHONDONTWRITEBYTECODE=1 python3 tools/check_task_planning_site_acceptance.py --profile profiles/work_hardware.env`

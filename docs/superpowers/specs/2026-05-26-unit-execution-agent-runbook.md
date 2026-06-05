@@ -103,6 +103,21 @@ PYTHONDONTWRITEBYTECODE=1 python3 tools/run_task_planning_golden.py \
   --case uav_ugv_coordination
 ```
 
+For a site-specific single-UGV object approach rehearsal, run the operator intent through the same MissionManager/PDDL/BT chain with a non-ROS profile first:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 tools/run_task_planning_intent.py \
+  --profile profiles/dev_mock.env \
+  --intent "让小车识别附近的充电桩，然后走过去" \
+  --mission-id unit_single_ugv_object_approach_001 \
+  --primary-platform ugv_0 \
+  --case-id unit_single_ugv_object_approach \
+  --artifact-root /tmp/changxin-single-ugv-intent-runs \
+  > /tmp/changxin-single-ugv-intent-run.json
+```
+
+Expected output: `MissionIntentRun.v1` with `ok=true`, `ros_connected=false`, `hardware_dispatch_performed=false`, and an `artifact_bundle_path`. Fail condition: the selected profile is `PLATFORM_BACKEND=ros1_gateway`, the intent is empty, or artifact generation fails. This command is only an artifact-generation step; it does not connect ROS and does not dispatch.
+
 ## Artifact Intake
 
 Verify a transferred model-lab or replay artifact package before replaying anything:
